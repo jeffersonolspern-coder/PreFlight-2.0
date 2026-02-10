@@ -70,6 +70,8 @@ let evaluationTotalSeconds = 15 * 60;
 let evaluationRemainingSeconds = 15 * 60;
 let adminUsersCache = [];
 let currentCredits = null;
+let creditsPolling = null;
+let creditsPollingStart = null;
 
 function isAdminUser() {
   return !!currentUser && currentUser.email === ADMIN_EMAIL;
@@ -493,6 +495,7 @@ function renderCredits() {
   setupContact();
   setupFooterLinks();
   setupCreditsActions();
+  restoreCreditsStatus();
 
   getUserCredits(currentUser.uid)
     .then((credits) => {
@@ -511,6 +514,7 @@ function renderCredits() {
       setupContact();
       setupFooterLinks();
       setupCreditsActions();
+      restoreCreditsStatus();
     })
     .catch(() => {
       currentCredits = { balance: 0 };
@@ -693,6 +697,58 @@ function setupCreditsActions() {
   btn.addEventListener("click", () => {
     startCreditsCheckout();
   });
+}
+
+function showCreditsStatus() {
+  const status = document.getElementById("creditsStatus");
+  if (status) status.hidden = false;
+}
+
+function hideCreditsStatus() {
+  const status = document.getElementById("creditsStatus");
+  if (status) status.hidden = true;
+}
+
+function restoreCreditsStatus() {
+  if (creditsPolling) {
+    showCreditsStatus();
+  }
+}
+
+function startCreditsPolling(initialBalance) {
+  if (!currentUser) return;
+  if (creditsPolling) return;
+
+  showCreditsStatus();
+  creditsPollingStart = Date.now();
+
+  creditsPolling = setInterval(async () => {
+    try {
+      const credits = await getUserCredits(currentUser.uid);
+      const balance = credits?.balance ?? 0;
+      if (balance > initialBalance) {
+        currentCredits = credits || { balance: balance };
+        renderCredits();
+        stopCreditsPolling();
+        return;
+      }
+    } catch (error) {
+      console.warn("Credits polling failed:", error);
+    }
+
+    if (Date.now() - creditsPollingStart > 5 * 60 * 1000) {
+      stopCreditsPolling();
+    }
+  }, 5000);
+}
+
+function stopCreditsPolling() {
+  if (creditsPolling) {
+    clearInterval(creditsPolling);
+    creditsPolling = null;
+    creditsPollingStart = null;
+  }
+  hideCreditsStatus();
 }
 
 function renderEvaluationHistory(evaluation) {
@@ -1180,6 +1236,7 @@ async function startCreditsCheckout() {
     return;
   }
   try {
+    const baseBalance = currentCredits?.balance ?? 0;
     const res = await fetch(`${FUNCTIONS_BASE_URL}/createPreference`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1189,14 +1246,15 @@ async function startCreditsCheckout() {
       })
     });
     const data = await res.json();
-      const url = USE_MP_SANDBOX
-        ? (data.sandbox_init_point || data.init_point)
-        : (data.init_point || data.sandbox_init_point);
+    const url = USE_MP_SANDBOX
+      ? (data.sandbox_init_point || data.init_point)
+      : (data.init_point || data.sandbox_init_point);
     if (!url) {
       alert("Não foi possível iniciar o pagamento.");
       return;
     }
     window.open(url, "_blank");
+    startCreditsPolling(baseBalance);
   } catch (error) {
     console.error("Checkout error:", error);
     alert("Erro ao iniciar pagamento.");

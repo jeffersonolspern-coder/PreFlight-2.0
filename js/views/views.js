@@ -826,6 +826,11 @@ function creditsView({ user, credits = null }) {
         <p>Use créditos para iniciar treinos e avaliações.</p>
       </div>
 
+      <div class="credits-status" id="creditsStatus" hidden>
+        <strong>Aguardando confirmação do pagamento...</strong>
+        <span>Quando o pagamento for confirmado, seus créditos aparecem automaticamente.</span>
+      </div>
+
       <div class="credits-card">
         <div>
           <span>Saldo atual</span>
