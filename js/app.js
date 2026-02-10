@@ -493,6 +493,20 @@ function renderCredits() {
   setupContact();
   setupFooterLinks();
   setupCreditsActions();
+
+  getUserCredits(currentUser.uid)
+    .then((credits) => {
+      currentCredits = credits || { balance: 0 };
+      app.innerHTML = creditsView({ user: currentUser, credits: getCreditsLabel() });
+      setupGlobalMenu();
+      setupLogout();
+      setupContact();
+      setupFooterLinks();
+      setupCreditsActions();
+    })
+    .catch(() => {
+      currentCredits = { balance: 0 };
+    });
 }
 function setupProfileActions(evaluations) {
   const links = document.querySelectorAll(".profile-link[data-eval-id]");
