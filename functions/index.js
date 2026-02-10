@@ -143,6 +143,76 @@ app.post("/mpWebhook", async (req, res) => {
   }
 });
 
+// ===============================
+// MANUAL REPROCESS (ADMIN)
+// ===============================
+app.post("/reprocessPayment", async (req, res) => {
+  try {
+    const token = process.env.REPROCESS_TOKEN || "";
+    const auth = req.headers.authorization || "";
+    if (!token || auth !== `Bearer ${token}`) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+
+    const { paymentId, userId } = req.body || {};
+    if (!paymentId) {
+      return res.status(400).json({ error: "paymentId required" });
+    }
+    if (!MP_ACCESS_TOKEN) {
+      return res.status(500).json({ error: "no_token" });
+    }
+
+    const payment = await mercadopago.payment.findById(paymentId);
+    const p = payment.body;
+    if (!p || p.status !== "approved") {
+      return res.status(400).json({ error: "not_approved" });
+    }
+
+    const resolvedUserId = userId || p.metadata?.userId;
+    if (!resolvedUserId) {
+      return res.status(400).json({ error: "no_user" });
+    }
+
+    const now = admin.firestore.Timestamp.now();
+    const expiresAt = admin.firestore.Timestamp.fromDate(
+      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    );
+
+    const creditsRef = db.collection("credits").doc(resolvedUserId);
+    const txRef = db.collection("credit_transactions").doc();
+
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(creditsRef);
+      const current = snap.exists ? snap.data() : { balance: 0 };
+      const nextBalance = (current.balance || 0) + CREDIT_PACK_SIZE;
+
+      tx.set(
+        creditsRef,
+        {
+          balance: nextBalance,
+          updatedAt: now,
+          expiresAt
+        },
+        { merge: true }
+      );
+
+      tx.set(txRef, {
+        userId: resolvedUserId,
+        amount: CREDIT_PACK_SIZE,
+        type: "reprocess",
+        paymentId: p.id,
+        createdAt: now,
+        expiresAt
+      });
+    });
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("reprocess error:", error);
+    return res.status(500).json({ error: "error" });
+  }
+});
+
 exports.api = functions.https.onRequest(app);
 
 app.get("/health", (req, res) => {
