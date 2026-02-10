@@ -1,0 +1,34 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PreFlight</title>
+
+  <!-- CSS global -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+  <!-- Tudo será renderizado aqui via JavaScript -->
+  <div id="app"></div>
+
+  <!-- EmailJS SDK (continua normal, global) -->
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script>
+    (function () {
+      emailjs.init("MD47zov_ax4oF_MGn");
+    })();
+  </script>
+
+  <script>
+    window.PREFLIGHT_FUNCTIONS_URL = "";
+  </script>
+
+  <!-- Script principal da SPA (MÓDULO) -->
+  <script type="module" src="js/app.js?v=20260209"></script>
+
+</body>
+</html>
+
