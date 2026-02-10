@@ -497,6 +497,14 @@ function renderCredits() {
   getUserCredits(currentUser.uid)
     .then((credits) => {
       currentCredits = credits || { balance: 0 };
+      console.log("PreFlight credits fetched:", {
+        uid: currentUser.uid,
+        credits: currentCredits
+      });
+      window.__preflight = {
+        uid: currentUser.uid,
+        credits: currentCredits
+      };
       app.innerHTML = creditsView({ user: currentUser, credits: getCreditsLabel() });
       setupGlobalMenu();
       setupLogout();
@@ -506,6 +514,7 @@ function renderCredits() {
     })
     .catch(() => {
       currentCredits = { balance: 0 };
+      console.warn("PreFlight credits fetch failed for uid:", currentUser.uid);
     });
 }
 function setupProfileActions(evaluations) {

@@ -103,6 +103,15 @@ app.post("/mpWebhook", async (req, res) => {
       return res.status(200).send("no_user");
     }
 
+    const existing = await db
+      .collection("credit_transactions")
+      .where("paymentId", "==", p.id)
+      .limit(1)
+      .get();
+    if (!existing.empty) {
+      return res.status(200).send("already_processed");
+    }
+
     const now = admin.firestore.Timestamp.now();
     const expiresAt = admin.firestore.Timestamp.fromDate(
       new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
@@ -171,6 +180,15 @@ app.post("/reprocessPayment", async (req, res) => {
     const resolvedUserId = userId || p.metadata?.userId;
     if (!resolvedUserId) {
       return res.status(400).json({ error: "no_user" });
+    }
+
+    const existing = await db
+      .collection("credit_transactions")
+      .where("paymentId", "==", p.id)
+      .limit(1)
+      .get();
+    if (!existing.empty) {
+      return res.json({ ok: true, alreadyProcessed: true });
     }
 
     const now = admin.firestore.Timestamp.now();
