@@ -833,7 +833,7 @@ function creditsView({ user, credits = null }) {
         </div>
         <div class="credits-meta">
           <span>Validade: 30 dias</span>
-          <span>Pacote: 10 créditos por R$ 1,00</span>
+          <span>Pacote: 10 créditos por R$ 5,00</span>
         </div>
         <button type="button" id="buyCreditsBtn">Comprar créditos</button>
       </div>

@@ -16,7 +16,7 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 const db = admin.firestore();
 
 const CREDIT_PACK_SIZE = 10;
-const CREDIT_PACK_PRICE = 1;
+const CREDIT_PACK_PRICE = 5;
 const CREDIT_PACK_TITLE = "Pacote 10 créditos (PreFlight)";
 const BUILD_ID = process.env.RENDER_GIT_COMMIT || process.env.SOURCE_VERSION || "local";
 
