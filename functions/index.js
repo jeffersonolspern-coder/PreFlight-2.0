@@ -52,6 +52,7 @@ app.post("/createPreference", async (req, res) => {
           unit_price: CREDIT_PACK_PRICE
         }
       ],
+      external_reference: userId,
       metadata: {
         userId,
         email: email || ""
@@ -84,6 +85,7 @@ app.post("/createPreference", async (req, res) => {
 app.post("/mpWebhook", async (req, res) => {
   try {
     const { type, data } = req.body || {};
+    console.log("mpWebhook received:", { type, data });
     if (type !== "payment" || !data?.id) {
       return res.status(200).send("ignored");
     }
@@ -95,11 +97,13 @@ app.post("/mpWebhook", async (req, res) => {
     const payment = await mercadopago.payment.findById(data.id);
     const p = payment.body;
     if (!p || p.status !== "approved") {
+      console.log("mpWebhook not approved:", p?.status, p?.id);
       return res.status(200).send("not_approved");
     }
 
-    const userId = p.metadata?.userId;
+    const userId = p.metadata?.userId || p.external_reference;
     if (!userId) {
+      console.log("mpWebhook no_user for payment:", p?.id);
       return res.status(200).send("no_user");
     }
 
@@ -109,6 +113,7 @@ app.post("/mpWebhook", async (req, res) => {
       .limit(1)
       .get();
     if (!existing.empty) {
+      console.log("mpWebhook already processed:", p.id);
       return res.status(200).send("already_processed");
     }
 
@@ -177,7 +182,7 @@ app.post("/reprocessPayment", async (req, res) => {
       return res.status(400).json({ error: "not_approved" });
     }
 
-    const resolvedUserId = userId || p.metadata?.userId;
+    const resolvedUserId = userId || p.metadata?.userId || p.external_reference;
     if (!resolvedUserId) {
       return res.status(400).json({ error: "no_user" });
     }
