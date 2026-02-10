@@ -15,6 +15,11 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 
 const db = admin.firestore();
 
+const CREDIT_PACK_SIZE = 10;
+const CREDIT_PACK_PRICE = 1;
+const CREDIT_PACK_TITLE = "Pacote 10 créditos (PreFlight)";
+const BUILD_ID = process.env.RENDER_GIT_COMMIT || process.env.SOURCE_VERSION || "local";
+
 const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
@@ -41,10 +46,10 @@ app.post("/createPreference", async (req, res) => {
     const preference = {
       items: [
         {
-          title: "Pacote 30 créditos (PreFlight)",
+          title: CREDIT_PACK_TITLE,
           quantity: 1,
           currency_id: "BRL",
-          unit_price: 19.9
+          unit_price: CREDIT_PACK_PRICE
         }
       ],
       metadata: {
@@ -59,7 +64,13 @@ app.post("/createPreference", async (req, res) => {
       id: response.body.id,
       init_point: response.body.init_point,
       sandbox_init_point: response.body.sandbox_init_point,
-      public_key: MP_PUBLIC_KEY || ""
+      public_key: MP_PUBLIC_KEY || "",
+      pack: {
+        size: CREDIT_PACK_SIZE,
+        price: CREDIT_PACK_PRICE,
+        title: CREDIT_PACK_TITLE,
+        build: BUILD_ID
+      }
     });
   } catch (error) {
     console.error("createPreference error:", error);
@@ -103,7 +114,7 @@ app.post("/mpWebhook", async (req, res) => {
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(creditsRef);
       const current = snap.exists ? snap.data() : { balance: 0 };
-      const nextBalance = (current.balance || 0) + 30;
+      const nextBalance = (current.balance || 0) + CREDIT_PACK_SIZE;
 
       tx.set(
         creditsRef,
@@ -117,7 +128,7 @@ app.post("/mpWebhook", async (req, res) => {
 
       tx.set(txRef, {
         userId,
-        amount: 30,
+        amount: CREDIT_PACK_SIZE,
         type: "purchase",
         paymentId: p.id,
         createdAt: now,
@@ -133,6 +144,18 @@ app.post("/mpWebhook", async (req, res) => {
 });
 
 exports.api = functions.https.onRequest(app);
+
+app.get("/health", (req, res) => {
+  res.json({
+    ok: true,
+    pack: {
+      size: CREDIT_PACK_SIZE,
+      price: CREDIT_PACK_PRICE,
+      title: CREDIT_PACK_TITLE
+    },
+    build: BUILD_ID
+  });
+});
 
 if (process.env.RENDER || process.env.RUN_LOCAL) {
   const port = process.env.PORT || 3000;
