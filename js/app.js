@@ -51,6 +51,7 @@ const app = document.getElementById("app");
 const FUNCTIONS_BASE_URL =
   window.PREFLIGHT_FUNCTIONS_URL ||
   "https://us-central1-preflightsimulados.cloudfunctions.net/api";
+const USE_MP_SANDBOX = window.PREFLIGHT_MP_SANDBOX === true;
 
 // ===============================
 // EMAILJS (CONFIG)
@@ -1165,7 +1166,9 @@ async function startCreditsCheckout() {
       })
     });
     const data = await res.json();
-    const url = data.sandbox_init_point || data.init_point;
+      const url = USE_MP_SANDBOX
+        ? (data.sandbox_init_point || data.init_point)
+        : (data.init_point || data.sandbox_init_point);
     if (!url) {
       alert("Não foi possível iniciar o pagamento.");
       return;
