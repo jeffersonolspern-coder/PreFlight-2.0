@@ -60,7 +60,7 @@ const FUNCTIONS_BASE_URL =
   window.PREFLIGHT_FUNCTIONS_URL ||
   "https://us-central1-preflightsimulados.cloudfunctions.net/api";
 const USE_MP_SANDBOX = window.PREFLIGHT_MP_SANDBOX === true;
-const USE_BACKEND_CREDITS_API = window.PREFLIGHT_USE_BACKEND_CREDITS_API === true;
+const USE_BACKEND_CREDITS_API = window.PREFLIGHT_USE_BACKEND_CREDITS_API !== false;
 const IS_LOCAL_DEV_HOST =
   window.location.hostname === "127.0.0.1" ||
   window.location.hostname === "localhost";
@@ -1209,7 +1209,7 @@ function rerenderProfileFromCache() {
 }
 
 function getLoadedSpentCreditsCount() {
-  return creditHistoryItems.filter((item) => String(item?.type || "").toLowerCase() === "consume").length;
+  return creditHistoryItems.length;
 }
 
 async function renderProfile() {
@@ -1541,29 +1541,89 @@ function renderPackages() {
 }
 
 function setupPackagesActions() {
-  const packageButtons = document.querySelectorAll(".package-buy-btn[data-package-id]");
-  packageButtons.forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const packageId = String(btn.getAttribute("data-package-id") || "").trim().toLowerCase();
-      const packageName = String(btn.getAttribute("data-package-name") || "").trim() || "pacote";
-      if (!CREDIT_PACKS[packageId]) {
-        showToast("Pacote inválido.", "error");
-        return;
-      }
+  const modal = document.getElementById("packagesCheckoutModal");
+  const cancelBtn = document.getElementById("packagesCheckoutCancel");
+  const confirmBtn = document.getElementById("packagesCheckoutConfirm");
+  const textEl = document.getElementById("packagesCheckoutText");
+  let selectedPackage = null;
 
-      const defaultText = btn.innerText;
-      btn.disabled = true;
-      btn.innerText = "Abrindo pagamento...";
-      try {
-        const opened = await startCreditsCheckout(packageId);
-        if (opened) {
-          showToast(`Pagamento do pacote ${packageName} aberto. Após pagar, confirme os créditos.`, "info");
-        }
-      } finally {
-        btn.disabled = false;
-        btn.innerText = defaultText;
+  const openModal = () => {
+    if (!modal) return;
+    modal.classList.remove("hidden");
+  };
+
+  const closeModal = () => {
+    if (!modal) return;
+    modal.classList.add("hidden");
+  };
+
+  const prepareCheckout = (sourceEl) => {
+    const packageId = String(sourceEl?.getAttribute("data-package-id") || "").trim().toLowerCase();
+    const packageName = String(sourceEl?.getAttribute("data-package-name") || "").trim() || "pacote";
+    if (!CREDIT_PACKS[packageId]) {
+      showToast("Pacote inválido.", "error");
+      return false;
+    }
+
+    selectedPackage = { id: packageId, name: packageName };
+    if (textEl) {
+      textEl.textContent = `Você está escolhendo o pacote ${packageName}. O pagamento será aberto em nova aba no Mercado Pago.`;
+    }
+    openModal();
+    return true;
+  };
+
+  const startPackageCheckout = async () => {
+    if (!selectedPackage) return;
+    const sourceButton = document.querySelector(`.package-buy-btn[data-package-id="${selectedPackage.id}"]`);
+    const defaultText = sourceButton?.innerText || "";
+    if (sourceButton) {
+      sourceButton.disabled = true;
+      sourceButton.innerText = "Abrindo pagamento...";
+    }
+    if (confirmBtn) confirmBtn.disabled = true;
+    if (cancelBtn) cancelBtn.disabled = true;
+    try {
+      const opened = await startCreditsCheckout(selectedPackage.id);
+      if (opened) {
+        showToast(`Pacote ${selectedPackage.name}: pagamento aberto em nova aba no Mercado Pago. Depois volte ao perfil e atualize os créditos.`, "info");
+        closeModal();
       }
+    } finally {
+      if (sourceButton) {
+        sourceButton.disabled = false;
+        sourceButton.innerText = defaultText;
+      }
+      if (confirmBtn) confirmBtn.disabled = false;
+      if (cancelBtn) cancelBtn.disabled = false;
+    }
+  };
+
+  document.querySelectorAll(".package-card[data-package-id]").forEach((card) => {
+    card.addEventListener("click", () => {
+      prepareCheckout(card);
     });
+  });
+
+  document.querySelectorAll(".package-buy-btn[data-package-id]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      prepareCheckout(btn);
+    });
+  });
+
+  cancelBtn?.addEventListener("click", () => {
+    closeModal();
+  });
+
+  confirmBtn?.addEventListener("click", async () => {
+    await startPackageCheckout();
+  });
+
+  modal?.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      closeModal();
+    }
   });
 }
 function setupProfileActions(evaluations) {

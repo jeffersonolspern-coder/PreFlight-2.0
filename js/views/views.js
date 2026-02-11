@@ -814,11 +814,10 @@ function profileView({
     : 0;
 
   const safeHistoryItems = Array.isArray(creditHistoryItems) ? creditHistoryItems : [];
-  const allSpentHistoryItems = safeHistoryItems
-    .filter((item) => String(item?.rawType || "").toLowerCase() === "consume");
-  const visibleSpentHistoryItems = allSpentHistoryItems.slice(0, visibleSpentCredits);
-  const hasMoreSpentToShow = allSpentHistoryItems.length > visibleSpentCredits || creditHistoryHasMore;
-  const historyRows = visibleSpentHistoryItems
+  const allHistoryItems = safeHistoryItems;
+  const visibleHistoryItems = allHistoryItems.slice(0, visibleSpentCredits);
+  const hasMoreSpentToShow = allHistoryItems.length > visibleSpentCredits || creditHistoryHasMore;
+  const historyRows = visibleHistoryItems
     .map((item) => `
       <tr>
         <td>${item.dateLabel || "&mdash;"}</td>
@@ -829,9 +828,9 @@ function profileView({
     `)
     .join("");
 
-  const historyContent = creditHistoryLoading && !visibleSpentHistoryItems.length
+  const historyContent = creditHistoryLoading && !visibleHistoryItems.length
     ? `<div class="profile-loading">Carregando histórico...</div>`
-    : visibleSpentHistoryItems.length
+    : visibleHistoryItems.length
       ? `
           <div class="credits-history-table-wrap">
             <table class="credits-history-table">
@@ -851,7 +850,7 @@ function profileView({
         `
       : creditHistoryError
         ? `<div class="credits-history-error">${creditHistoryError}</div>`
-        : `<div class="profile-empty">Nenhum crédito gasto encontrado ainda.</div>`;
+        : `<div class="profile-empty">Nenhuma movimentação de crédito encontrada ainda.</div>`;
 
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
@@ -931,7 +930,7 @@ function profileView({
             <section class="credits-history">
               <div class="credits-history-header">
                 <h2>Histórico de créditos</h2>
-                <p>Últimos 7 créditos gastos (consumos) da sua conta.</p>
+                <p>Últimas 7 movimentações de créditos da sua conta.</p>
               </div>
               ${historyContent}
               ${hasMoreSpentToShow && !creditHistoryLoading
@@ -1225,7 +1224,7 @@ function packagesView({ isAdmin = false, userLabel = "Conta", credits = null } =
       </div>
 
       <div class="packages-grid">
-        <article class="package-card">
+        <article class="package-card" data-package-id="bronze" data-package-name="Bronze">
           <div class="package-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 3h6l-1 5h-4L9 3Z"/>
@@ -1247,7 +1246,7 @@ function packagesView({ isAdmin = false, userLabel = "Conta", credits = null } =
           <button type="button" class="package-buy-btn" data-package-id="bronze" data-package-name="Bronze">Escolher Bronze</button>
         </article>
 
-        <article class="package-card package-card--popular">
+        <article class="package-card package-card--popular" data-package-id="silver" data-package-name="Silver">
           <span class="package-badge">Mais popular</span>
           <div class="package-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1271,7 +1270,7 @@ function packagesView({ isAdmin = false, userLabel = "Conta", credits = null } =
           <button type="button" class="package-buy-btn" data-package-id="silver" data-package-name="Silver">Escolher Silver</button>
         </article>
 
-        <article class="package-card">
+        <article class="package-card" data-package-id="gold" data-package-name="Gold">
           <div class="package-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 3c3.2 1.6 5.5 4.9 5.5 8.8L21 14l-3.5 2.2L16 20l-4-2-4 2-1.5-3.8L3 14l3.5-2.2C6.5 7.9 8.8 4.6 12 3Z"/>
@@ -1329,6 +1328,18 @@ function packagesView({ isAdmin = false, userLabel = "Conta", credits = null } =
 
       <div class="packages-note">
         1 crédito = 1 treino ou 1 avaliação. Todos os pacotes possuem validade de 30 dias.
+      </div>
+
+      <div class="evaluation-modal hidden" id="packagesCheckoutModal" role="dialog" aria-modal="true" aria-labelledby="packagesCheckoutTitle">
+        <div class="evaluation-box credits-checkout-box">
+          <h3 id="packagesCheckoutTitle">Confirmar compra</h3>
+          <p id="packagesCheckoutText">Você será redirecionado para o Mercado Pago em uma nova aba.</p>
+          <p>Após concluir o pagamento, volte ao PreFlight e clique em <strong>“Já paguei, atualizar créditos”</strong> no perfil.</p>
+          <div class="evaluation-actions">
+            <button type="button" id="packagesCheckoutCancel" style="background:#6b7280;color:#ffffff;">Cancelar</button>
+            <button type="button" id="packagesCheckoutConfirm">OK, abrir pagamento</button>
+          </div>
+        </div>
       </div>
     </section>
     ${footerView()}
