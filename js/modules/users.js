@@ -17,6 +17,8 @@ import {
 
 import { db } from "./firebase.js";
 
+const GLOBAL_NOTICE_REF = doc(db, "settings", "global_notice");
+
 async function saveUserProfile(userId, data) {
   const ref = doc(db, "users", userId);
   await setDoc(
@@ -303,6 +305,29 @@ async function getUserSessionCounts(userId) {
   return { trainingCount, evaluationCount };
 }
 
+async function getGlobalNotice() {
+  let snap;
+  try {
+    snap = await getDocFromServer(GLOBAL_NOTICE_REF);
+  } catch (error) {
+    snap = await getDoc(GLOBAL_NOTICE_REF);
+  }
+  return snap.exists() ? snap.data() : null;
+}
+
+async function setGlobalNotice(message, updatedBy = "") {
+  const text = String(message || "").trim();
+  await setDoc(
+    GLOBAL_NOTICE_REF,
+    {
+      message: text,
+      updatedBy: String(updatedBy || "").trim(),
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+}
+
 export {
   saveUserProfile,
   getUserProfile,
@@ -314,5 +339,7 @@ export {
   recordConsumeCreditTransaction,
   consumeUserCredit,
   getUserCreditTransactionsPage,
-  getUserSessionCounts
+  getUserSessionCounts,
+  getGlobalNotice,
+  setGlobalNotice
 };

@@ -1,6 +1,15 @@
 ﻿// ===============================
 // HEADER PADRONIZADO (GLOBAL)
 // ===============================
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function headerView({ logged = false, isAdmin = false, userLabel = "Conta", credits = null } = {}) {
   return `
     <header class="site-header">
@@ -658,7 +667,8 @@ function profileView({
   creditHistoryHasMore = false,
   creditHistoryError = "",
   showAllEvaluations = false,
-  visibleSpentCredits = 7
+  visibleSpentCredits = 7,
+  globalNotice = ""
 }) {
   const formatDuration = (secs) => {
     if (secs === null || secs === undefined) return "";
@@ -774,6 +784,14 @@ function profileView({
         <h1>Seu perfil</h1>
         <p>${user?.displayName ? user.displayName + " &middot; " : ""}${user?.email || ""}</p>
       </div>
+      ${globalNotice
+        ? `
+          <div class="profile-notice-board">
+            <strong>Mural de avisos</strong>
+            <p>${escapeHtml(globalNotice).replace(/\n/g, "<br />")}</p>
+          </div>
+        `
+        : ""}
 
       <div class="profile-section">
         <h2>Dados do usuário</h2>
@@ -933,7 +951,7 @@ function profileEvaluationView({ summary, items, isAdmin = false, userLabel = "C
   `;
 }
 
-function adminView({ users = [], loading = false, isAdmin = false, userLabel = "Conta", credits = null, notice = "" } = {}) {
+function adminView({ users = [], loading = false, isAdmin = false, userLabel = "Conta", credits = null, notice = "", globalNotice = "" } = {}) {
   const list = users.length
     ? `<div class="admin-grid">` +
         users.map((u) => {
@@ -975,6 +993,11 @@ function adminView({ users = [], loading = false, isAdmin = false, userLabel = "
         ${notice ? `<div class="admin-notice">${notice}</div>` : ""}
       </div>
       <div class="admin-section">
+        <div class="admin-global-notice">
+          <label for="adminGlobalNotice">Mural de avisos (aparece para todos os usuários no perfil)</label>
+          <textarea id="adminGlobalNotice" rows="3" placeholder="Escreva um aviso global...">${escapeHtml(globalNotice || "")}</textarea>
+          <button type="button" id="adminGlobalNoticeSave">Salvar aviso</button>
+        </div>
         <div class="admin-filters">
           <input type="text" id="adminSearch" placeholder="Buscar por nome ou email" />
           <select id="adminRole">

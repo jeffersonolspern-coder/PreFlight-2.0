@@ -1708,6 +1708,27 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   margin-bottom: 18px;
 }
 
+.profile-notice-board {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-left: 4px solid #f59e0b;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.profile-notice-board strong {
+  display: block;
+  color: #9a3412;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.profile-notice-board p {
+  color: #7c2d12;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 
 .profile-section h2 {
   font-size: 18px;
@@ -1873,6 +1894,44 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   grid-template-columns: 1.5fr 1fr max-content max-content;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.admin-global-notice {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-global-notice label {
+  font-size: 13px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.admin-global-notice textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 84px;
+}
+
+.admin-global-notice button {
+  justify-self: start;
+  height: 36px;
+  padding: 0 14px;
+  background: #1f4f8f;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .admin-filters button {
@@ -2342,6 +2401,12 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   margin-top: 14px;
   box-shadow: none;
   border: 1px solid #e5e7eb;
+}
+
+#profileCreditsSection .credits-history-more {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* ===============================

@@ -45,7 +45,9 @@ import {
   recordConsumeCreditTransaction,
   consumeUserCredit,
   getUserCreditTransactionsPage,
-  getUserSessionCounts
+  getUserSessionCounts,
+  getGlobalNotice,
+  setGlobalNotice
 } from "./modules/users.js";
 import { startSigwxSimulado } from "./simulados/sigwx/simulado.js";
 import { sigwxQuestions } from "./simulados/sigwx/data.js";
@@ -84,6 +86,7 @@ let adminUsersCache = [];
 let profileEvaluationsCache = [];
 let profileShowAllEvaluations = false;
 let profileVisibleSpentCredits = 7;
+let globalNoticeMessage = "";
 let adminNormalizedOnce = false;
 let currentCredits = null;
 let creditHistoryItems = [];
@@ -1066,7 +1069,8 @@ function renderProfileScreen({ profile = null, evaluations = [], loading = false
     creditHistoryHasMore: creditHistoryHasMore,
     creditHistoryError: creditHistoryError,
     showAllEvaluations: profileShowAllEvaluations,
-    visibleSpentCredits: profileVisibleSpentCredits
+    visibleSpentCredits: profileVisibleSpentCredits,
+    globalNotice: globalNoticeMessage
   });
 }
 
@@ -1114,11 +1118,12 @@ async function renderProfile() {
 
   if (!currentUser) return;
 
-  const [evaluationsResult, profileResult, creditsResult, historyResult] = await Promise.allSettled([
+  const [evaluationsResult, profileResult, creditsResult, historyResult, globalNoticeResult] = await Promise.allSettled([
     getEvaluationsByUser(currentUser.uid),
     getUserProfile(currentUser.uid),
     getUserCredits(currentUser.uid),
-    loadCreditHistoryPage({ append: false })
+    loadCreditHistoryPage({ append: false }),
+    getGlobalNotice()
   ]);
 
   if (evaluationsResult.status === "fulfilled") {
@@ -1152,6 +1157,13 @@ async function renderProfile() {
     }
   }
 
+  if (globalNoticeResult.status === "fulfilled") {
+    globalNoticeMessage = String(globalNoticeResult.value?.message || "").trim();
+  } else {
+    globalNoticeMessage = "";
+    console.warn("PreFlight global notice fetch failed:", globalNoticeResult.reason);
+  }
+
   creditHistoryLoading = false;
   renderProfileScreen({ profile: currentProfile, evaluations: profileEvaluationsCache, loading: false });
   bindProfileScreenActions(currentProfile, profileEvaluationsCache);
@@ -1170,7 +1182,11 @@ async function renderAdmin() {
   setupFooterLinks();
 
   try {
-    const users = await getAllUsers();
+    const [users, globalNotice] = await Promise.all([
+      getAllUsers(),
+      getGlobalNotice().catch(() => null)
+    ]);
+    globalNoticeMessage = String(globalNotice?.message || "").trim();
     const userDetails = await Promise.all(
       users.map(async (u) => {
         const targetId = u.uid || u.id;
@@ -1210,7 +1226,15 @@ async function renderAdmin() {
       adminUsersCache.length === 0
         ? "Nenhum usuário retornado. Verifique se há usuários cadastrados."
         : "";
-    app.innerHTML = adminView({ users: adminUsersCache, loading: false, isAdmin: true, userLabel: getUserLabel(), credits: getCreditsLabel(), notice });
+    app.innerHTML = adminView({
+      users: adminUsersCache,
+      loading: false,
+      isAdmin: true,
+      userLabel: getUserLabel(),
+      credits: getCreditsLabel(),
+      notice,
+      globalNotice: globalNoticeMessage
+    });
     setupGlobalMenu();
     setupLogout();
     setupContact();
@@ -1224,7 +1248,8 @@ async function renderAdmin() {
       isAdmin: true,
       userLabel: getUserLabel(),
       credits: getCreditsLabel(),
-      notice: "Erro ao carregar usuários. Verifique as regras do Firestore."
+      notice: "Erro ao carregar usuários. Verifique as regras do Firestore.",
+      globalNotice: globalNoticeMessage
     });
     setupGlobalMenu();
     setupLogout();
@@ -1514,6 +1539,8 @@ function setupAdminActions() {
   const roleSelect = document.getElementById("adminRole");
   const exportBtn = document.getElementById("adminExport");
   const refreshBtn = document.getElementById("adminRefresh");
+  const noticeInput = document.getElementById("adminGlobalNotice");
+  const noticeSaveBtn = document.getElementById("adminGlobalNoticeSave");
 
   const applyFilters = () => {
     const term = (searchInput?.value || "").toLowerCase().trim();
@@ -1569,6 +1596,24 @@ function setupAdminActions() {
 
   refreshBtn?.addEventListener("click", () => {
     renderAdmin();
+  });
+
+  noticeSaveBtn?.addEventListener("click", async () => {
+    const message = String(noticeInput?.value || "").trim();
+    noticeSaveBtn.disabled = true;
+    const prev = noticeSaveBtn.innerText;
+    noticeSaveBtn.innerText = "Salvando...";
+    try {
+      await setGlobalNotice(message, currentUser?.email || "");
+      globalNoticeMessage = message;
+      showToast("Mural de avisos atualizado.", "success");
+    } catch (error) {
+      console.error("Erro ao salvar aviso global:", error);
+      showToast("Não foi possível salvar o aviso.", "error");
+    } finally {
+      noticeSaveBtn.disabled = false;
+      noticeSaveBtn.innerText = prev;
+    }
   });
 
   const saveCredits = async (userId) => {
