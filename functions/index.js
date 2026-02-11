@@ -3,6 +3,7 @@ const admin = require("firebase-admin");
 const express = require("express");
 const cors = require("cors");
 const mercadopago = require("mercadopago");
+const path = require("path");
 
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -539,6 +540,20 @@ app.get("/health", (req, res) => {
 });
 
 if (process.env.RENDER || process.env.RUN_LOCAL) {
+  const staticRoot = path.resolve(__dirname, "..");
+  app.use(express.static(staticRoot));
+
+  app.get("*", (req, res, next) => {
+    if (
+      req.method !== "GET" ||
+      req.path.startsWith("/api") ||
+      req.path === "/health"
+    ) {
+      return next();
+    }
+    return res.sendFile(path.join(staticRoot, "index.html"));
+  });
+
   const port = process.env.PORT || 3000;
   app.listen(port, () => {
     console.log(`API listening on ${port}`);
