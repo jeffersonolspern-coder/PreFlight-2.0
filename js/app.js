@@ -1915,47 +1915,40 @@ observeAuthState((user) => {
   creditHistoryLoadingMore = false;
   creditHistoryError = "";
   startingSessionLock = false;
-  renderHomePublic();
-  if (currentUser) {
-    getUserProfile(currentUser.uid)
-      .then(async (profile) => {
-        if (!profile) {
-          await saveUserProfile(currentUser.uid, {
-            uid: currentUser.uid,
-            name: currentUser.displayName || "",
-            email: currentUser.email || "",
-            role: "",
-            whatsapp: ""
-          });
-          currentProfile = await getUserProfile(currentUser.uid);
-          return;
-        }
-        currentProfile = profile;
-        if (!profile.uid) {
-          await saveUserProfile(currentUser.uid, {
-            uid: currentUser.uid,
-            email: currentUser.email || profile.email || ""
-          });
-        }
-      })
-      .catch(() => {
-        currentProfile = null;
-      });
-
-    getUserCredits(currentUser.uid)
-      .then((credits) => {
-        currentCredits = applyLocalCreditsBalance(credits || { balance: 0 }, true);
-        if (document.body.dataset.simuladoMode !== "training" && document.body.dataset.simuladoMode !== "evaluation") {
-          renderHomePublic();
-        }
-      })
-      .catch(() => {
-        currentCredits = applyLocalCreditsBalance(currentCredits || { balance: 0 }, false);
-        if (document.body.dataset.simuladoMode !== "training" && document.body.dataset.simuladoMode !== "evaluation") {
-          renderHomePublic();
-        }
-      });
+  if (!currentUser) {
+    renderHomePublic();
+    return;
   }
+
+  getUserProfile(currentUser.uid)
+    .then(async (profile) => {
+      if (!profile) {
+        await saveUserProfile(currentUser.uid, {
+          uid: currentUser.uid,
+          name: currentUser.displayName || "",
+          email: currentUser.email || "",
+          role: "",
+          whatsapp: ""
+        });
+        currentProfile = await getUserProfile(currentUser.uid);
+        return;
+      }
+      currentProfile = profile;
+      if (!profile.uid) {
+        await saveUserProfile(currentUser.uid, {
+          uid: currentUser.uid,
+          email: currentUser.email || profile.email || ""
+        });
+      }
+    })
+    .catch(() => {
+      currentProfile = null;
+    })
+    .finally(() => {
+      if (document.body.dataset.simuladoMode !== "training" && document.body.dataset.simuladoMode !== "evaluation") {
+        renderProfile();
+      }
+    });
 });
 
 document.addEventListener("sigwx:go-eval", () => {
@@ -2298,7 +2291,7 @@ function setupRegisterForm() {
       };
       await saveUserProfile(cred.user.uid, profileData);
       currentProfile = profileData;
-      renderDashboard();
+      renderProfile();
     } catch (error) {
       showToast(getFirebaseAuthMessage(error, "Erro ao cadastrar. Verifique seus dados."), "error");
     } finally {
