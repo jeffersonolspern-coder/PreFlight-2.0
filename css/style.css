@@ -1338,9 +1338,60 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   gap: 12px;
 }
 
+#btnToggleWrong,
+#btnRestart,
+#btnHome,
 #btnEval {
-  background: #fbbf24;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+#btnToggleWrong {
+  background: #0f4c81;
+  color: #ffffff;
+}
+
+#btnToggleWrong:hover {
+  background: #0b3a63;
+}
+
+#btnRestart {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+#btnRestart:hover {
+  background: #1d4ed8;
+}
+
+#btnEval {
+  background: #f4b400;
   color: #111827;
+}
+
+#btnEval:hover {
+  background: #e0a800;
+}
+
+#btnHome {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+#btnHome:hover {
+  background: #1e293b;
+}
+
+#btnToggleWrong:hover,
+#btnRestart:hover,
+#btnEval:hover,
+#btnHome:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.2);
 }
 .simulado-header {
   max-width: 1200px;        /* use o mesmo valor do container */
