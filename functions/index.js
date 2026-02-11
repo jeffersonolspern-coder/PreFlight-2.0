@@ -63,6 +63,23 @@ async function requireAdmin(req, res) {
   }
 }
 
+async function requireAuth(req, res) {
+  const auth = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  if (!token) {
+    res.status(401).json({ error: "missing_token" });
+    return null;
+  }
+
+  try {
+    return await admin.auth().verifyIdToken(token);
+  } catch (error) {
+    console.error("auth error:", error);
+    res.status(401).json({ error: "invalid_token" });
+    return null;
+  }
+}
+
 function toIso(value) {
   if (!value) return "";
   if (value.toDate) return value.toDate().toISOString();
@@ -345,6 +362,96 @@ app.post("/admin/credits", async (req, res) => {
   } catch (error) {
     console.error("admin credits error:", error);
     return res.status(500).json({ error: "admin_credits_error" });
+  }
+});
+
+// ===============================
+// CONSUME CREDITS (USER)
+// ===============================
+app.post("/consumeCredit", async (req, res) => {
+  const authUser = await requireAuth(req, res);
+  if (!authUser) return;
+
+  try {
+    const { mode, requestId } = req.body || {};
+    const normalizedMode = String(mode || "").trim().toLowerCase();
+    if (!["training", "evaluation"].includes(normalizedMode)) {
+      return res.status(400).json({ error: "invalid_mode" });
+    }
+
+    const normalizedRequestId = String(requestId || "").trim();
+    if (!/^[a-zA-Z0-9_-]{8,120}$/.test(normalizedRequestId)) {
+      return res.status(400).json({ error: "invalid_request_id" });
+    }
+
+    const userId = authUser.uid;
+    const now = admin.firestore.Timestamp.now();
+    const creditsRef = db.collection("credits").doc(userId);
+    const txRef = db
+      .collection("credit_transactions")
+      .doc(`consume_${userId}_${normalizedRequestId}`);
+
+    let balanceAfter = 0;
+    let alreadyProcessed = false;
+
+    await db.runTransaction(async (tx) => {
+      const existingTx = await tx.get(txRef);
+      if (existingTx.exists) {
+        const existingData = existingTx.data() || {};
+        const parsedBalance = Number(existingData.balanceAfter);
+        balanceAfter = Number.isFinite(parsedBalance) ? parsedBalance : 0;
+        alreadyProcessed = true;
+        return;
+      }
+
+      const creditsSnap = await tx.get(creditsRef);
+      const creditsData = creditsSnap.exists ? creditsSnap.data() : {};
+      const parsedBalance = Number(creditsData.balance ?? 0);
+      const currentBalance = Number.isFinite(parsedBalance) ? Math.floor(parsedBalance) : 0;
+
+      if (currentBalance <= 0) {
+        const err = new Error("insufficient_credits");
+        err.code = "insufficient_credits";
+        throw err;
+      }
+
+      balanceAfter = currentBalance - 1;
+
+      tx.set(
+        creditsRef,
+        {
+          balance: balanceAfter,
+          updatedAt: now
+        },
+        { merge: true }
+      );
+
+      tx.set(txRef, {
+        userId,
+        type: "consume",
+        mode: normalizedMode,
+        amount: -1,
+        requestId: normalizedRequestId,
+        balanceBefore: currentBalance,
+        balanceAfter,
+        createdAt: now
+      });
+    });
+
+    return res.json({
+      ok: true,
+      balance: balanceAfter,
+      alreadyProcessed
+    });
+  } catch (error) {
+    if (error?.code === "insufficient_credits" || error?.message === "insufficient_credits") {
+      return res.status(409).json({
+        error: "insufficient_credits",
+        message: "Você não possui créditos suficientes."
+      });
+    }
+    console.error("consume credit error:", error);
+    return res.status(500).json({ error: "consume_credit_error" });
   }
 });
 exports.api = functions.https.onRequest(app);

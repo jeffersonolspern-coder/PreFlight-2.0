@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        request.auth.token.email != null &&
+        request.auth.token.email in ["jeffersonolspern@gmail.com"];
+    }
+
+    match /users/{userId} {
+      allow read, create, update, delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /evaluations/{evaluationId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow update: if isAdmin();
+    }
+
+    match /credits/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+
+      allow create: if isOwner(userId) &&
+        request.resource.data.balance is number &&
+        request.resource.data.balance >= 0;
+
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        request.resource.data.balance is number &&
+        resource.data.balance is number &&
+        request.resource.data.balance == resource.data.balance - 1 &&
+        request.resource.data.balance >= 0
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /credit_transactions/{txId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+
+      allow create: if signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.type == "consume" &&
+        request.resource.data.amount == -1 &&
+        request.resource.data.balanceAfter is number &&
+        request.resource.data.balanceAfter >= 0;
+
+      allow update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

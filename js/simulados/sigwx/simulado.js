@@ -2,6 +2,8 @@
 
 let currentQuestionIndex = 0;
 let isFinished = false;
+let sigwxResetHandler = null;
+let sigwxAutoNextHandler = null;
 
 // ===============================
 // ESTADO DO SIMULADOR
@@ -68,7 +70,10 @@ export function startSigwxSimulado() {
   // ===============================
   // RESET EXTERNO (EVENTO)
   // ===============================
-  document.addEventListener("sigwx:reset", () => {
+  if (sigwxResetHandler) {
+    document.removeEventListener("sigwx:reset", sigwxResetHandler);
+  }
+  sigwxResetHandler = () => {
     currentQuestionIndex = 0;
     isFinished = false;
 
@@ -81,12 +86,16 @@ export function startSigwxSimulado() {
     btnFinalizar && (btnFinalizar.disabled = false);
 
     render();
-  });
+  };
+  document.addEventListener("sigwx:reset", sigwxResetHandler);
 
   // ===============================
   // AUTO-NEXT (ATIVAÇÃO DINÂMICA)
   // ===============================
-  document.addEventListener("sigwx:auto-next-change", (e) => {
+  if (sigwxAutoNextHandler) {
+    document.removeEventListener("sigwx:auto-next-change", sigwxAutoNextHandler);
+  }
+  sigwxAutoNextHandler = (e) => {
     if (!e?.detail?.enabled) return;
     if (isFinished) return;
 
@@ -100,7 +109,8 @@ export function startSigwxSimulado() {
         render();
       }
     }
-  });
+  };
+  document.addEventListener("sigwx:auto-next-change", sigwxAutoNextHandler);
 
   // ===============================
   // RENDER

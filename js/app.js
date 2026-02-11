@@ -40,7 +40,8 @@ import {
   getAllUsers,
   deleteUserProfile,
   getUserCredits,
-  setUserCredits
+  setUserCredits,
+  consumeUserCredit
 } from "./modules/users.js";
 import { startSigwxSimulado } from "./simulados/sigwx/simulado.js";
 import { sigwxQuestions } from "./simulados/sigwx/data.js";
@@ -53,6 +54,10 @@ const FUNCTIONS_BASE_URL =
   window.PREFLIGHT_FUNCTIONS_URL ||
   "https://us-central1-preflightsimulados.cloudfunctions.net/api";
 const USE_MP_SANDBOX = window.PREFLIGHT_MP_SANDBOX === true;
+const IS_LOCAL_DEV_HOST =
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname === "localhost";
+const LOCAL_CREDITS_KEY_PREFIX = "preflight_local_credits_";
 
 // ===============================
 // EMAILJS (CONFIG)
@@ -74,25 +79,432 @@ let adminNormalizedOnce = false;
 let currentCredits = null;
 let creditsPolling = null;
 let creditsPollingStart = null;
+let startingSessionLock = false;
+const INSUFFICIENT_CREDITS_MESSAGE = "Você não possui créditos suficientes.";
+let userMenuDocumentClickHandler = null;
+let userMenuDocumentKeydownHandler = null;
+
+function normalizeApiBase(baseUrl) {
+  return String(baseUrl || "").replace(/\/+$/, "");
+}
+
+function buildApiUrl(path, useAlternate = false) {
+  const safePath = path.startsWith("/") ? path : `/${path}`;
+  const base = normalizeApiBase(FUNCTIONS_BASE_URL);
+
+  if (!useAlternate) {
+    return `${base}${safePath}`;
+  }
+
+  if (base.endsWith("/api")) {
+    return `${base.slice(0, -4)}${safePath}`;
+  }
+  return `${base}/api${safePath}`;
+}
+
+async function fetchApiWithPathFallback(path, options = {}) {
+  let response = await fetch(buildApiUrl(path, false), options);
+  if (response.status !== 404) return response;
+  response = await fetch(buildApiUrl(path, true), options);
+  return response;
+}
+
+function showToast(message, type = "info") {
+  if (!message) return;
+  const existing = document.getElementById("appToast");
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.id = "appToast";
+  toast.className = `app-toast app-toast--${type}`;
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+  toast.setAttribute("aria-live", "polite");
+  toast.innerText = message;
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(() => toast.classList.add("is-visible"));
+
+  setTimeout(() => {
+    toast.classList.remove("is-visible");
+    setTimeout(() => toast.remove(), 220);
+  }, 2600);
+}
+
+function getFirebaseAuthMessage(error, fallback = "Não foi possível concluir a ação.") {
+  const code = String(error?.code || "").toLowerCase();
+  if (code.includes("invalid-credential") || code.includes("wrong-password")) {
+    return "Email ou senha inválidos.";
+  }
+  if (code.includes("invalid-email")) {
+    return "Email inválido.";
+  }
+  if (code.includes("too-many-requests")) {
+    return "Muitas tentativas. Tente novamente em alguns minutos.";
+  }
+  if (code.includes("user-disabled")) {
+    return "Esta conta foi desativada.";
+  }
+  if (code.includes("email-already-in-use")) {
+    return "Este email já está em uso.";
+  }
+  if (code.includes("weak-password")) {
+    return "A senha é fraca. Use pelo menos 6 caracteres.";
+  }
+  return fallback;
+}
 
 function isAdminUser() {
   return !!currentUser && currentUser.email === ADMIN_EMAIL;
 }
 
 function getUserLabel() {
-  if (currentProfile?.role) return currentProfile.role;
   if (currentProfile?.name) return currentProfile.name;
   if (currentUser?.displayName) return currentUser.displayName;
+  if (currentProfile?.role) return currentProfile.role;
   if (currentUser?.email) return currentUser.email.split("@")[0];
   return "Conta";
 }
 
 function getCreditsLabel() {
   if (!currentUser) return null;
-  if (currentCredits && Number.isFinite(currentCredits.balance)) {
-    return currentCredits.balance;
+  const balance = getCreditsBalanceValue();
+  return balance === null ? 0 : balance;
+}
+
+function updateVisibleCreditsLabel() {
+  const creditsLink = document.getElementById("goCredits");
+  if (!creditsLink || !currentUser) return;
+  const balance = getCreditsLabel();
+  creditsLink.textContent = `Créditos: ${balance ?? 0}`;
+}
+
+function parseCreditsBalance(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, Math.floor(parsed));
+}
+
+function getLocalCreditsKey(userId) {
+  return `${LOCAL_CREDITS_KEY_PREFIX}${userId}`;
+}
+
+function readLocalCreditsState(userId) {
+  if (!IS_LOCAL_DEV_HOST || !userId) return null;
+  try {
+    const raw = localStorage.getItem(getLocalCreditsKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const balance = parseCreditsBalance(parsed?.balance);
+    const serverBaseline = parseCreditsBalance(parsed?.serverBaseline);
+    if (balance === null && serverBaseline === null) return null;
+    return {
+      balance: balance ?? 0,
+      serverBaseline: serverBaseline ?? (balance ?? 0)
+    };
+  } catch (error) {
+    return null;
   }
-  return 0;
+}
+
+function writeLocalCreditsState(userId, state) {
+  if (!IS_LOCAL_DEV_HOST || !userId) return;
+  const balance = parseCreditsBalance(state?.balance);
+  const baseline = parseCreditsBalance(state?.serverBaseline);
+  if (balance === null || baseline === null) return;
+  try {
+    localStorage.setItem(
+      getLocalCreditsKey(userId),
+      JSON.stringify({ balance, serverBaseline: baseline })
+    );
+  } catch (error) {
+    // no-op
+  }
+}
+
+function readLocalCreditsBalance(userId) {
+  const state = readLocalCreditsState(userId);
+  return state ? state.balance : null;
+}
+
+function writeLocalCreditsBalance(userId, balance, syncServer = false) {
+  if (!IS_LOCAL_DEV_HOST || !userId) return;
+  const parsed = parseCreditsBalance(balance);
+  if (parsed === null) return;
+  const prev = readLocalCreditsState(userId);
+  const next = {
+    balance: parsed,
+    serverBaseline: syncServer
+      ? parsed
+      : parseCreditsBalance(prev?.serverBaseline) ?? parsed
+  };
+  writeLocalCreditsState(userId, next);
+}
+
+function applyLocalCreditsBalance(credits, preferServer = true) {
+  const serverBalance = parseCreditsBalance(credits?.balance);
+  if (!currentUser) {
+    return { ...(credits || {}), balance: serverBalance ?? 0 };
+  }
+
+  if (!IS_LOCAL_DEV_HOST) {
+    return { ...(credits || {}), balance: serverBalance ?? 0 };
+  }
+
+  const localState = readLocalCreditsState(currentUser.uid);
+  if (preferServer && serverBalance !== null) {
+    if (!localState) {
+      writeLocalCreditsState(currentUser.uid, {
+        balance: serverBalance,
+        serverBaseline: serverBalance
+      });
+      return { ...(credits || {}), balance: serverBalance };
+    }
+
+    const prevBalance = parseCreditsBalance(localState.balance) ?? 0;
+    const prevBaseline = parseCreditsBalance(localState.serverBaseline) ?? serverBalance;
+    const delta = serverBalance - prevBaseline;
+    const mergedBalance = Math.max(0, prevBalance + delta);
+
+    writeLocalCreditsState(currentUser.uid, {
+      balance: mergedBalance,
+      serverBaseline: serverBalance
+    });
+    return { ...(credits || {}), balance: mergedBalance };
+  }
+
+  if (localState) {
+    return { ...(credits || {}), balance: localState.balance };
+  }
+
+  const fallback = serverBalance ?? 0;
+  writeLocalCreditsState(currentUser.uid, {
+    balance: fallback,
+    serverBaseline: serverBalance ?? fallback
+  });
+  return { ...(credits || {}), balance: fallback };
+}
+
+function getEffectiveBalanceForUser(userId, rawServerBalance) {
+  const serverBalance = parseCreditsBalance(rawServerBalance) ?? 0;
+  if (!IS_LOCAL_DEV_HOST || !userId) return serverBalance;
+
+  const localState = readLocalCreditsState(userId);
+  if (!localState) return serverBalance;
+
+  const prevBalance = parseCreditsBalance(localState.balance) ?? 0;
+  const prevBaseline = parseCreditsBalance(localState.serverBaseline) ?? serverBalance;
+  const delta = serverBalance - prevBaseline;
+  const mergedBalance = Math.max(0, prevBalance + delta);
+
+  writeLocalCreditsState(userId, {
+    balance: mergedBalance,
+    serverBaseline: serverBalance
+  });
+
+  return mergedBalance;
+}
+
+function getCreditsBalanceValue(source = currentCredits) {
+  if (!source || source.balance === undefined || source.balance === null) {
+    return null;
+  }
+  return parseCreditsBalance(source.balance);
+}
+
+function canStartSessionByLocalCredits() {
+  const balance = getCreditsBalanceValue();
+  if (balance === null) return true;
+  return balance > 0;
+}
+
+function setDashboardStartButtonsDisabled(disabled) {
+  document
+    .querySelectorAll('[data-action="sigwx"], [data-action="sigwx-eval"]')
+    .forEach((button) => {
+      button.disabled = !!disabled;
+      button.setAttribute("aria-disabled", disabled ? "true" : "false");
+    });
+}
+
+async function refreshCurrentUserCredits() {
+  if (!currentUser) return null;
+  try {
+    const credits = await getUserCredits(currentUser.uid);
+    currentCredits = applyLocalCreditsBalance(credits || { balance: 0 }, true);
+    return getCreditsBalanceValue(currentCredits);
+  } catch (error) {
+    currentCredits = applyLocalCreditsBalance(currentCredits || { balance: 0 }, false);
+    return getCreditsBalanceValue(currentCredits);
+  }
+}
+
+function createCreditRequestId(mode) {
+  const randomPart = Math.random().toString(36).slice(2, 10);
+  return `${mode}_${Date.now()}_${randomPart}`;
+}
+
+async function consumeStartCredit(mode) {
+  if (!currentUser) {
+    throw new Error("auth_required");
+  }
+
+  const latestBalance = await refreshCurrentUserCredits();
+  if (latestBalance !== null && latestBalance <= 0) {
+    const error = new Error("insufficient_credits");
+    error.code = "insufficient_credits";
+    throw error;
+  }
+
+  const requestId = createCreditRequestId(mode);
+
+  try {
+    const token = await currentUser.getIdToken();
+    const response = await fetchApiWithPathFallback("/consumeCredit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        mode,
+        requestId
+      })
+    });
+
+    let data = {};
+    try {
+      data = await response.json();
+    } catch (error) {
+      data = {};
+    }
+
+    if (!response.ok) {
+      const code = data?.error || "consume_credit_error";
+      if (response.status === 409 || code === "insufficient_credits") {
+        const error = new Error("insufficient_credits");
+        error.code = "insufficient_credits";
+        throw error;
+      }
+      const error = new Error(code);
+      error.code = code;
+      throw error;
+    }
+
+    const parsedBalance = Number(data?.balance);
+    const safeBalance = Number.isFinite(parsedBalance) ? Math.max(0, Math.floor(parsedBalance)) : 0;
+    currentCredits = {
+      ...(currentCredits || {}),
+      balance: safeBalance
+    };
+    writeLocalCreditsBalance(currentUser.uid, safeBalance, true);
+    updateVisibleCreditsLabel();
+
+    return safeBalance;
+  } catch (error) {
+    if (error?.code === "insufficient_credits" || error?.message === "insufficient_credits") {
+      throw error;
+    }
+
+    const fallback = await consumeUserCredit(currentUser.uid, mode, requestId);
+    const fallbackBalance = Number(fallback?.balance);
+    const safeBalance = Number.isFinite(fallbackBalance) ? Math.max(0, Math.floor(fallbackBalance)) : 0;
+    currentCredits = {
+      ...(currentCredits || {}),
+      balance: safeBalance
+    };
+    writeLocalCreditsBalance(currentUser.uid, safeBalance, true);
+    updateVisibleCreditsLabel();
+    return safeBalance;
+  }
+}
+
+async function startSigwxWithCredit(mode) {
+  if (!currentUser) {
+    renderLogin();
+    return;
+  }
+  if (mode === "evaluation") {
+    renderSigwxEvaluation();
+    return;
+  }
+  renderSigwx();
+}
+
+function setupTrainingStartModal({ onStart } = {}) {
+  const modalEl = document.getElementById("trainingModal");
+  const startBtn = document.getElementById("trainingOk");
+  const cancelBtn = document.getElementById("trainingCancel");
+  if (!modalEl || !startBtn) return;
+
+  modalEl.classList.remove("hidden");
+
+  if (cancelBtn) {
+    cancelBtn.onclick = () => {
+      if (currentUser) {
+        renderDashboard();
+      } else {
+        renderHomePublic();
+      }
+    };
+  }
+
+  startBtn.onclick = async () => {
+    if (!currentUser) {
+      renderLogin();
+      return;
+    }
+    if (startingSessionLock) return;
+
+    startingSessionLock = true;
+    startBtn.disabled = true;
+
+    try {
+      await consumeStartCredit("training");
+      modalEl.classList.add("hidden");
+      if (typeof onStart === "function") onStart();
+    } catch (error) {
+      if (error?.code === "insufficient_credits" || error?.message === "insufficient_credits") {
+        currentCredits = {
+          ...(currentCredits || {}),
+          balance: 0
+        };
+        writeLocalCreditsBalance(currentUser.uid, 0);
+        updateVisibleCreditsLabel();
+        showToast(INSUFFICIENT_CREDITS_MESSAGE, "error");
+        return;
+      }
+
+      const code = String(error?.code || error?.message || "").toLowerCase();
+      if (IS_LOCAL_DEV_HOST && code.includes("permission-denied")) {
+        const localBalance = getCreditsBalanceValue();
+        if (localBalance !== null && localBalance > 0) {
+          currentCredits = {
+            ...(currentCredits || {}),
+            balance: Math.max(0, localBalance - 1)
+          };
+          writeLocalCreditsBalance(currentUser.uid, currentCredits.balance);
+          updateVisibleCreditsLabel();
+          modalEl.classList.add("hidden");
+          if (typeof onStart === "function") onStart();
+          return;
+        }
+        currentCredits = {
+          ...(currentCredits || {}),
+          balance: 0
+        };
+        writeLocalCreditsBalance(currentUser.uid, 0);
+        updateVisibleCreditsLabel();
+        showToast(INSUFFICIENT_CREDITS_MESSAGE, "error");
+        return;
+      }
+
+      console.error("Falha ao iniciar treinamento:", error);
+      showToast("Não foi possível iniciar agora. Tente novamente.", "error");
+    } finally {
+      startingSessionLock = false;
+      startBtn.disabled = false;
+    }
+  };
 }
 
 
@@ -100,7 +512,12 @@ function getCreditsLabel() {
 // RENDERIZAÇÕES
 // ===============================
 function renderHomePublic() {
-  app.innerHTML = homePublicView({ logged: !!currentUser, isAdmin: isAdminUser(), userLabel: getUserLabel() });
+  app.innerHTML = homePublicView({
+    logged: !!currentUser,
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel()
+  });
   setupGlobalMenu();
   setupLogout();
   setupHeaderLogin();
@@ -127,7 +544,12 @@ function renderRegister() {
 }
 
 function renderDashboard() {
-  app.innerHTML = dashboardView(currentUser, { isAdmin: isAdminUser(), userLabel: getUserLabel(), credits: getCreditsLabel() });
+  app.innerHTML = dashboardView(currentUser, {
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    canStartSessions: true
+  });
   setupLogout();
   setupDashboardActions();
   setupGlobalMenu();
@@ -141,6 +563,7 @@ function renderSigwx() {
 
   requestAnimationFrame(() => {
     startSigwxSimulado();
+    setupTrainingStartModal();
   });
 
   setupLogout();
@@ -274,17 +697,11 @@ function setupEvaluationResultsActions(items) {
   const homeBtn = document.getElementById("evalHome");
 
   toTrainingBtn?.addEventListener("click", () => {
-    renderSigwx();
-    requestAnimationFrame(() => {
-      document.dispatchEvent(new CustomEvent("sigwx:reset"));
-    });
+    startSigwxWithCredit("training");
   });
 
   retryBtn?.addEventListener("click", () => {
-    renderSigwxEvaluation();
-    requestAnimationFrame(() => {
-      document.dispatchEvent(new CustomEvent("sigwx:reset"));
-    });
+    startSigwxWithCredit("evaluation");
   });
 
   homeBtn?.addEventListener("click", () => {
@@ -349,14 +766,26 @@ function setupEvaluationTimer() {
   const timerEl = document.getElementById("sigwxTimer");
   const modalEl = document.getElementById("evaluationModal");
   const okBtn = document.getElementById("evaluationOk");
+  const cancelBtn = document.getElementById("evaluationCancel");
   const finishBtn = document.getElementById("sigwxFinish");
 
   if (!timerEl || !modalEl || !okBtn || !finishBtn) return;
+
+  if (cancelBtn) {
+    cancelBtn.onclick = () => {
+      if (currentUser) {
+        renderDashboard();
+      } else {
+        renderHomePublic();
+      }
+    };
+  }
 
   evaluationTotalSeconds = 15 * 60;
   let remainingSeconds = evaluationTotalSeconds;
   evaluationRemainingSeconds = remainingSeconds;
   let intervalId = null;
+  let startingEvaluation = false;
 
   const renderTimer = () => {
     const minutes = String(Math.floor(remainingSeconds / 60)).padStart(2, "0");
@@ -383,17 +812,73 @@ function setupEvaluationTimer() {
         remainingSeconds = 0;
         renderTimer();
         finishBtn.click();
-        alert("Tempo encerrado. Avaliação finalizada.");
+        showToast("Tempo encerrado. Avaliação finalizada.", "info");
       }
     }, 1000);
   };
 
   renderTimer();
 
-  okBtn.addEventListener("click", () => {
-    modalEl.classList.add("hidden");
-    evaluationStartAtMs = Date.now();
-    startTimer();
+  okBtn.addEventListener("click", async () => {
+    if (!currentUser) {
+      renderLogin();
+      return;
+    }
+    if (startingEvaluation || startingSessionLock) return;
+
+    startingEvaluation = true;
+    startingSessionLock = true;
+    okBtn.disabled = true;
+
+    try {
+      await consumeStartCredit("evaluation");
+      modalEl.classList.add("hidden");
+      evaluationStartAtMs = Date.now();
+      startTimer();
+    } catch (error) {
+      if (error?.code === "insufficient_credits" || error?.message === "insufficient_credits") {
+        currentCredits = {
+          ...(currentCredits || {}),
+          balance: 0
+        };
+        writeLocalCreditsBalance(currentUser.uid, 0);
+        updateVisibleCreditsLabel();
+        showToast(INSUFFICIENT_CREDITS_MESSAGE, "error");
+        return;
+      }
+
+      const code = String(error?.code || error?.message || "").toLowerCase();
+      if (IS_LOCAL_DEV_HOST && code.includes("permission-denied")) {
+        const localBalance = getCreditsBalanceValue();
+        if (localBalance !== null && localBalance > 0) {
+          currentCredits = {
+            ...(currentCredits || {}),
+            balance: Math.max(0, localBalance - 1)
+          };
+          writeLocalCreditsBalance(currentUser.uid, currentCredits.balance);
+          updateVisibleCreditsLabel();
+          modalEl.classList.add("hidden");
+          evaluationStartAtMs = Date.now();
+          startTimer();
+          return;
+        }
+        currentCredits = {
+          ...(currentCredits || {}),
+          balance: 0
+        };
+        writeLocalCreditsBalance(currentUser.uid, 0);
+        updateVisibleCreditsLabel();
+        showToast(INSUFFICIENT_CREDITS_MESSAGE, "error");
+        return;
+      }
+
+      console.error("Falha ao iniciar avaliação:", error);
+      showToast("Não foi possível iniciar agora. Tente novamente.", "error");
+    } finally {
+      startingEvaluation = false;
+      startingSessionLock = false;
+      okBtn.disabled = false;
+    }
   });
 
   document.addEventListener("sigwx:finish", () => {
@@ -499,7 +984,8 @@ async function renderAdmin() {
     adminUsersCache = users.map((u, index) => {
       const credit = creditsList[index];
       const rawBalance = credit?.balance ?? credit?.credits ?? credit?.saldo ?? 0;
-      const balance = Number(rawBalance);
+      const targetId = u.uid || u.id;
+      const balance = getEffectiveBalanceForUser(targetId, rawBalance);
       return {
         ...u,
         creditsBalance: Number.isFinite(balance) ? balance : 0
@@ -614,7 +1100,12 @@ function renderCredits() {
     renderLogin();
     return;
   }
-  app.innerHTML = creditsView({ user: currentUser, credits: getCreditsLabel() });
+  app.innerHTML = creditsView({
+    user: currentUser,
+    credits: getCreditsLabel(),
+    userLabel: getUserLabel(),
+    isAdmin: isAdminUser()
+  });
   setupGlobalMenu();
   setupLogout();
   setupContact();
@@ -624,7 +1115,7 @@ function renderCredits() {
 
   getUserCredits(currentUser.uid)
     .then((credits) => {
-      currentCredits = credits || { balance: 0 };
+      currentCredits = applyLocalCreditsBalance(credits || { balance: 0 }, true);
       console.log("PreFlight credits fetched:", {
         uid: currentUser.uid,
         credits: currentCredits
@@ -633,7 +1124,12 @@ function renderCredits() {
         uid: currentUser.uid,
         credits: currentCredits
       };
-      app.innerHTML = creditsView({ user: currentUser, credits: getCreditsLabel() });
+      app.innerHTML = creditsView({
+        user: currentUser,
+        credits: getCreditsLabel(),
+        userLabel: getUserLabel(),
+        isAdmin: isAdminUser()
+      });
       setupGlobalMenu();
       setupLogout();
       setupContact();
@@ -642,7 +1138,7 @@ function renderCredits() {
       restoreCreditsStatus();
     })
     .catch(() => {
-      currentCredits = { balance: 0 };
+      currentCredits = applyLocalCreditsBalance(currentCredits || { balance: 0 }, false);
       console.warn("PreFlight credits fetch failed for uid:", currentUser.uid);
     });
 }
@@ -844,6 +1340,10 @@ function setupAdminActions() {
 
     try {
       await setUserCredits(userId, balance);
+      writeLocalCreditsState(userId, {
+        balance,
+        serverBaseline: balance
+      });
       const user = adminUsersCache.find((u) => u.id === userId);
       if (user) {
         user.creditsBalance = balance;
@@ -914,7 +1414,7 @@ function startCreditsPolling(initialBalance) {
       const credits = await getUserCredits(currentUser.uid);
       const balance = credits?.balance ?? 0;
       if (balance > initialBalance) {
-        currentCredits = credits || { balance: balance };
+        currentCredits = applyLocalCreditsBalance(credits || { balance: balance }, true);
         renderCredits();
         stopCreditsPolling();
         return;
@@ -994,6 +1494,8 @@ function renderEvaluationHistory(evaluation) {
 observeAuthState((user) => {
   currentUser = user;
   currentProfile = null;
+  currentCredits = null;
+  startingSessionLock = false;
   renderHomePublic();
   if (currentUser) {
     getUserProfile(currentUser.uid)
@@ -1023,16 +1525,35 @@ observeAuthState((user) => {
 
     getUserCredits(currentUser.uid)
       .then((credits) => {
-        currentCredits = credits || { balance: 0 };
+        currentCredits = applyLocalCreditsBalance(credits || { balance: 0 }, true);
+        if (document.body.dataset.simuladoMode !== "training" && document.body.dataset.simuladoMode !== "evaluation") {
+          renderHomePublic();
+        }
       })
       .catch(() => {
-        currentCredits = { balance: 0 };
+        currentCredits = applyLocalCreditsBalance(currentCredits || { balance: 0 }, false);
+        if (document.body.dataset.simuladoMode !== "training" && document.body.dataset.simuladoMode !== "evaluation") {
+          renderHomePublic();
+        }
       });
   }
 });
 
 document.addEventListener("sigwx:go-eval", () => {
-  renderSigwxEvaluation();
+  startSigwxWithCredit("evaluation");
+});
+
+document.addEventListener("sigwx:restart-training-request", async () => {
+  if (document.body.dataset.simuladoMode !== "training") return;
+  if (!currentUser) {
+    renderLogin();
+    return;
+  }
+  setupTrainingStartModal({
+    onStart: () => {
+      document.dispatchEvent(new CustomEvent("sigwx:reset"));
+    }
+  });
 });
 
 // ===============================
@@ -1106,25 +1627,33 @@ function setupUserMenu() {
     menu.classList.toggle("hidden");
   };
 
-  btn.addEventListener("click", (e) => {
+  btn.onclick = (e) => {
     e.stopPropagation();
     toggle();
-  });
+  };
 
-  document.addEventListener("click", (e) => {
+  if (userMenuDocumentClickHandler) {
+    document.removeEventListener("click", userMenuDocumentClickHandler);
+  }
+  userMenuDocumentClickHandler = () => {
     if (!menu.classList.contains("hidden")) {
       menu.classList.add("hidden");
     }
-  });
+  };
+  document.addEventListener("click", userMenuDocumentClickHandler);
 
-  document.addEventListener("keydown", (e) => {
+  if (userMenuDocumentKeydownHandler) {
+    document.removeEventListener("keydown", userMenuDocumentKeydownHandler);
+  }
+  userMenuDocumentKeydownHandler = (e) => {
     if (e.key === "Escape" && !menu.classList.contains("hidden")) {
       menu.classList.add("hidden");
       btn.focus();
     }
-  });
+  };
+  document.addEventListener("keydown", userMenuDocumentKeydownHandler);
 
-  logoutBtn?.addEventListener("click", async (e) => {
+  logoutBtn && (logoutBtn.onclick = async (e) => {
     e.preventDefault();
     await logout();
   });
@@ -1209,14 +1738,14 @@ function setupLoginForm() {
   const emailInput = document.getElementById("email");
   const passwordInput = document.getElementById("password");
 
-  if (!loginBtn) return;
+  if (!loginBtn || !emailInput || !passwordInput) return;
 
-  loginBtn.addEventListener("click", async () => {
+  const submitLogin = async () => {
     const email = emailInput.value.trim();
     const password = passwordInput.value.trim();
 
     if (!email || !password) {
-      alert("Preencha email e senha.");
+      showToast("Preencha email e senha.", "error");
       return;
     }
 
@@ -1226,11 +1755,20 @@ function setupLoginForm() {
     try {
       await login(email, password);
     } catch (error) {
-      alert("Erro ao fazer login.");
+      showToast(getFirebaseAuthMessage(error, "Erro ao fazer login."), "error");
     } finally {
       loginBtn.disabled = false;
       loginBtn.innerText = "Entrar";
     }
+  };
+
+  loginBtn.addEventListener("click", submitLogin);
+  [emailInput, passwordInput].forEach((input) => {
+    input.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      submitLogin();
+    });
   });
 }
 
@@ -1238,19 +1776,39 @@ function setupLoginForm() {
 // DASHBOARD
 // ===============================
 function setupDashboardActions() {
-  const sigwxTargets = document.querySelectorAll('[data-action="sigwx"]');
-  sigwxTargets.forEach((el) => {
-    el.addEventListener("click", () => {
-      renderSigwx();
-    });
-  });
+  const trainingBtn = document.getElementById("dashboardSigwxTraining");
+  const evalBtn = document.getElementById("dashboardSigwxEval");
+  const page = document.querySelector(".simulados-page");
 
-  const sigwxEvalTargets = document.querySelectorAll('[data-action="sigwx-eval"]');
-  sigwxEvalTargets.forEach((el) => {
-    el.addEventListener("click", () => {
-      renderSigwxEvaluation();
-    });
-  });
+  if (trainingBtn) {
+    trainingBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (trainingBtn.disabled) return;
+      startSigwxWithCredit("training");
+    };
+  }
+
+  if (evalBtn) {
+    evalBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (evalBtn.disabled) return;
+      startSigwxWithCredit("evaluation");
+    };
+  }
+
+  if (page) {
+    page.onclick = (e) => {
+      const target = e.target instanceof Element ? e.target.closest("[data-action]") : null;
+      if (!target || target.hasAttribute("disabled")) return;
+
+      const action = target.getAttribute("data-action");
+      if (action === "sigwx") {
+        startSigwxWithCredit("training");
+      } else if (action === "sigwx-eval") {
+        startSigwxWithCredit("evaluation");
+      }
+    };
+  }
 }
 
 // ===============================
@@ -1264,9 +1822,9 @@ function setupRegisterForm() {
   const emailInput = document.getElementById("email");
   const passwordInput = document.getElementById("password");
 
-  if (!registerBtn) return;
+  if (!registerBtn || !nameInput || !roleInput || !whatsappInput || !emailInput || !passwordInput) return;
 
-  registerBtn.addEventListener("click", async () => {
+  const submitRegister = async () => {
     const name = nameInput.value.trim();
     const role = roleInput?.value.trim() ?? "";
     const whatsapp = whatsappInput?.value.trim() ?? "";
@@ -1274,12 +1832,12 @@ function setupRegisterForm() {
     const password = passwordInput.value.trim();
 
     if (!name || !role || !email || !password) {
-      alert("Preencha nome, perfil, email e senha.");
+      showToast("Preencha nome, perfil, email e senha.", "error");
       return;
     }
 
     if (password.length < 6) {
-      alert("A senha deve ter pelo menos 6 caracteres.");
+      showToast("A senha deve ter pelo menos 6 caracteres.", "error");
       return;
     }
 
@@ -1300,11 +1858,20 @@ function setupRegisterForm() {
       currentProfile = profileData;
       renderDashboard();
     } catch (error) {
-      alert("Erro ao cadastrar. Verifique seus dados.");
+      showToast(getFirebaseAuthMessage(error, "Erro ao cadastrar. Verifique seus dados."), "error");
     } finally {
       registerBtn.disabled = false;
       registerBtn.innerText = "Cadastrar";
     }
+  };
+
+  registerBtn.addEventListener("click", submitRegister);
+  [nameInput, roleInput, whatsappInput, emailInput, passwordInput].forEach((input) => {
+    input.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      submitRegister();
+    });
   });
 }
 
@@ -1366,6 +1933,7 @@ function setupContact() {
 
   const openModal = () => {
     modal.classList.remove("hidden");
+    if (fabClose) fabClose.classList.remove("hidden");
   };
 
   const closeModal = () => {
@@ -1375,9 +1943,15 @@ function setupContact() {
   fab.addEventListener("click", openModal);
 
   if (fabClose) {
-    fabClose.addEventListener("click", () => {
+    fabClose.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal();
       fab.classList.add("hidden");
       fabClose.classList.add("hidden");
+      fab.style.display = "none";
+      fabClose.style.display = "none";
+      fabClose.setAttribute("aria-label", "Mostrar contato");
     });
   }
 
@@ -1399,12 +1973,12 @@ function setupContact() {
       const message = messageInput?.value.trim() ?? "";
 
       if (!name || !email || !subject || !message) {
-        alert("Preencha nome, email, assunto e mensagem.");
+        showToast("Preencha nome, email, assunto e mensagem.", "error");
         return;
       }
 
       if (!window.emailjs) {
-        alert("EmailJS não carregou. Verifique sua conexão.");
+        showToast("EmailJS não carregou. Verifique sua conexão.", "error");
         return;
       }
 
@@ -1419,14 +1993,14 @@ function setupContact() {
           message,
           reply_to: email
         });
-        alert("Mensagem enviada com sucesso.");
         if (nameInput) nameInput.value = "";
         if (emailInput) emailInput.value = "";
         if (subjectInput) subjectInput.value = "";
         if (messageInput) messageInput.value = "";
         closeModal();
+        showToast("Mensagem enviada com sucesso.", "success");
       } catch (error) {
-        alert("Erro ao enviar mensagem. Tente novamente.");
+        showToast("Erro ao enviar mensagem. Tente novamente.", "error");
       } finally {
         sendBtn.disabled = false;
         sendBtn.innerText = "Enviar";
@@ -1442,7 +2016,7 @@ async function startCreditsCheckout() {
   }
   try {
     const baseBalance = currentCredits?.balance ?? 0;
-    const res = await fetch(`${FUNCTIONS_BASE_URL}/createPreference`, {
+    const res = await fetchApiWithPathFallback("/createPreference", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1455,14 +2029,14 @@ async function startCreditsCheckout() {
       ? (data.sandbox_init_point || data.init_point)
       : (data.init_point || data.sandbox_init_point);
     if (!url) {
-      alert("Não foi possível iniciar o pagamento.");
+      showToast("Não foi possível iniciar o pagamento.", "error");
       return;
     }
     window.open(url, "_blank");
     startCreditsPolling(baseBalance);
   } catch (error) {
     console.error("Checkout error:", error);
-    alert("Erro ao iniciar pagamento.");
+    showToast("Erro ao iniciar pagamento.", "error");
   }
 }
 

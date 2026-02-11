@@ -85,9 +85,7 @@
     document.getElementById("btnRestart").onclick = () => {
       panelEl.classList.add("hidden");
 
-      document.dispatchEvent(
-        new CustomEvent("sigwx:reset")
-      );
+      document.dispatchEvent(new CustomEvent("sigwx:restart-training-request"));
     };
 
     document.getElementById("btnEval").onclick = () => {
@@ -144,3 +142,4 @@
     panelEl.classList.remove("hidden");
   });
 })();
+

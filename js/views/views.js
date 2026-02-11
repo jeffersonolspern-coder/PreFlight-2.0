@@ -13,9 +13,9 @@ function headerView({ logged = false, isAdmin = false, userLabel = "Conta", cred
               ? `
                 <a href="#" id="goHome">Início</a>
                 <a href="#" id="goDashboard">Simulados</a>
-                <a href="#" id="goCredits">Créditos${credits !== null ? `: ${credits}` : ""}</a>
                 ${isAdmin ? `<a href="#" id="goAdmin">Admin</a>` : ""}
                 <a href="#" id="goContact">Contato</a>
+                <a href="#" id="goCredits">Créditos${credits !== null ? `: ${credits}` : ""}</a>
                 <div class="user-menu">
                   <button type="button" id="userMenuBtn" class="user-menu-btn">
                     ${userLabel}
@@ -62,7 +62,12 @@ function contactBoxView() {
 
 function contactWidgetView() {
   return `
-    <button class="contact-fab" id="contactFab" aria-label="Contato"></button>
+    <button class="contact-fab" id="contactFab" aria-label="Contato">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="contact-icon">
+        <path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/>
+        <rect x="2" y="4" width="20" height="16" rx="2"/>
+      </svg>
+    </button>
     <button class="contact-fab-close" id="contactFabClose" aria-label="Fechar contato">&times;</button>
 
     <div class="contact-modal hidden" id="contactModal" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
@@ -99,9 +104,9 @@ function footerView() {
 // ===============================
 // HOME PÃšBLICA
 // ===============================
-function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta" } = {}) {
+function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", credits = null } = {}) {
   return `
-    ${headerView({ logged, isAdmin, userLabel, credits: null })}
+    ${headerView({ logged, isAdmin, userLabel, credits: logged ? credits : null })}
 
     <section class="hero">
       <h1>Simulados para Formação Aeronáutica</h1>
@@ -177,8 +182,10 @@ function loginView({ isAdmin = false, userLabel = "Conta" } = {}) {
 
     <div class="box">
       <h1>Login</h1>
-      <input type="email" id="email" placeholder="Email" />
-      <input type="password" id="password" placeholder="Senha" />
+      <label class="sr-only" for="email">Email</label>
+      <input type="email" id="email" placeholder="Email" autocomplete="email" />
+      <label class="sr-only" for="password">Senha</label>
+      <input type="password" id="password" placeholder="Senha" autocomplete="current-password" />
       <button id="loginBtn">Entrar</button>
       <p class="auth-alt">
         Não tem conta? <a href="#" id="registerLink">Criar conta</a>
@@ -196,16 +203,21 @@ function registerView({ isAdmin = false, userLabel = "Conta" } = {}) {
 
     <div class="box">
       <h1>Criar conta</h1>
-      <input type="text" id="name" placeholder="Nome completo" />
+      <label class="sr-only" for="name">Nome completo</label>
+      <input type="text" id="name" placeholder="Nome completo" autocomplete="name" />
+      <label class="sr-only" for="role">Perfil</label>
       <select id="role">
         <option value="">Selecione o perfil</option>
         <option value="Aluno Piloto">Aluno Piloto</option>
         <option value="Piloto">Piloto</option>
         <option value="Outro">Outro</option>
       </select>
-      <input type="text" id="whatsapp" placeholder="WhatsApp (opcional)" />
-      <input type="email" id="email" placeholder="Email" />
-      <input type="password" id="password" placeholder="Senha (mín. 6 caracteres)" />
+      <label class="sr-only" for="whatsapp">WhatsApp</label>
+      <input type="text" id="whatsapp" placeholder="WhatsApp (opcional)" autocomplete="tel" />
+      <label class="sr-only" for="email">Email</label>
+      <input type="email" id="email" placeholder="Email" autocomplete="email" />
+      <label class="sr-only" for="password">Senha</label>
+      <input type="password" id="password" placeholder="Senha (mín. 6 caracteres)" autocomplete="new-password" />
       <button id="registerBtn">Cadastrar</button>
       <p class="auth-alt">
         Já tem conta? <a href="#" id="loginLinkAlt">Entrar</a>
@@ -220,7 +232,7 @@ function registerView({ isAdmin = false, userLabel = "Conta" } = {}) {
 // ===============================
 // DASHBOARD
 // ===============================
-function dashboardView(user, { isAdmin = false, userLabel = "Conta", credits = null } = {}) {
+function dashboardView(user, { isAdmin = false, userLabel = "Conta", credits = null, canStartSessions = true } = {}) {
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
 
@@ -236,8 +248,8 @@ function dashboardView(user, { isAdmin = false, userLabel = "Conta", credits = n
           <h3>SIGWX</h3>
           <p>Cartas de tempo significativo e interpretação operacional.</p>
           <div class="simulado-actions">
-            <button class="simulado-btn primary" data-action="sigwx">Treinamento</button>
-            <button class="simulado-btn ghost" data-action="sigwx-eval">Avaliação</button>
+            <button id="dashboardSigwxTraining" class="simulado-btn primary" data-action="sigwx"${canStartSessions ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button id="dashboardSigwxEval" class="simulado-btn ghost" data-action="sigwx-eval"${canStartSessions ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
           </div>
         </div>
 
@@ -329,6 +341,18 @@ function sigwxView({ isAdmin = false, userLabel = "Conta", credits = null } = {}
       </div>
     </div>
 
+    <div class="evaluation-modal" id="trainingModal" role="dialog" aria-modal="true" aria-labelledby="trainingTitle">
+      <div class="evaluation-box">
+        <h3 id="trainingTitle">Modo Treinamento</h3>
+        <p>Ao iniciar, o simulado será aberto normalmente.</p>
+        <p>Nesse momento, <strong>1 crédito</strong> será descontado do seu saldo.</p>
+        <div class="evaluation-actions">
+          <button type="button" id="trainingCancel" style="background:#6b7280;color:#ffffff;">Cancelar</button>
+          <button type="button" id="trainingOk">Iniciar</button>
+        </div>
+      </div>
+    </div>
+
     ${footerView()}
     ${contactWidgetView()}
   `;
@@ -382,8 +406,11 @@ function sigwxEvaluationView({ isAdmin = false, userLabel = "Conta", credits = n
       <div class="evaluation-box">
         <h3 id="evaluationTitle">Modo Avaliação</h3>
         <p>Você terá <strong>15 minutos</strong> para concluir o simulado.</p>
-        <p>O tempo começará a contar após clicar em iniciar.</p>
-        <button type="button" id="evaluationOk">Iniciar avaliação</button>
+        <p>O tempo começará a contar após clicar em iniciar. Nesse momento, <strong>1 crédito</strong> será descontado do seu saldo.</p>
+        <div class="evaluation-actions">
+          <button type="button" id="evaluationCancel" style="background:#6b7280;color:#ffffff;">Cancelar</button>
+          <button type="button" id="evaluationOk">Iniciar</button>
+        </div>
       </div>
     </div>
 
@@ -827,9 +854,9 @@ function adminView({ users = [], loading = false, isAdmin = false, userLabel = "
 // ===============================
 // CRÃ‰DITOS
 // ===============================
-function creditsView({ user, credits = null }) {
+function creditsView({ user, credits = null, userLabel = "Conta", isAdmin = false }) {
   return `
-    ${headerView({ logged: true, isAdmin: false, userLabel: user?.email || "Conta", credits })}
+    ${headerView({ logged: true, isAdmin, userLabel, credits })}
 
     <section class="credits-page">
       <div class="credits-header">
@@ -883,4 +910,3 @@ export {
   privacyView,
   cookiesView
 };
-
