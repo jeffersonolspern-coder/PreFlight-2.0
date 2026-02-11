@@ -770,6 +770,35 @@ function profileView({
         <p>${user?.displayName ? user.displayName + " &middot; " : ""}${user?.email || ""}</p>
       </div>
 
+      <div class="profile-section">
+        <h2>Dados do usuário</h2>
+        <div class="profile-form">
+          <div class="profile-field">
+            <label>Nome completo</label>
+            <input type="text" id="profileName" value="${profile?.name || ""}" />
+          </div>
+          <div class="profile-field">
+            <label>Perfil</label>
+            <select id="profileRole">
+              <option value="">Selecione</option>
+              ${roleSelect}
+            </select>
+          </div>
+          <div class="profile-field">
+            <label>WhatsApp (opcional)</label>
+            <input type="text" id="profileWhatsapp" value="${profile?.whatsapp || ""}" />
+          </div>
+          <div class="profile-field profile-field--button">
+            <label>&nbsp;</label>
+            <button type="button" id="profileSave">Salvar</button>
+          </div>
+        </div>
+        <div class="profile-danger">
+          <small>Essa ação é permanente.</small>
+          <button type="button" id="profileDelete">Excluir minha conta</button>
+        </div>
+      </div>
+
       <div class="profile-stats">
         <div><span>Créditos</span><strong>${credits ?? 0}</strong></div>
         <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
@@ -820,35 +849,6 @@ function profileView({
               <button type="button" id="creditsCheckoutConfirm">Confirmar pagamento</button>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="profile-section">
-        <h2>Dados do usuário</h2>
-        <div class="profile-form">
-          <div class="profile-field">
-            <label>Nome completo</label>
-            <input type="text" id="profileName" value="${profile?.name || ""}" />
-          </div>
-          <div class="profile-field">
-            <label>Perfil</label>
-            <select id="profileRole">
-              <option value="">Selecione</option>
-              ${roleSelect}
-            </select>
-          </div>
-          <div class="profile-field">
-            <label>WhatsApp (opcional)</label>
-            <input type="text" id="profileWhatsapp" value="${profile?.whatsapp || ""}" />
-          </div>
-          <div class="profile-field profile-field--button">
-            <label>&nbsp;</label>
-            <button type="button" id="profileSave">Salvar</button>
-          </div>
-        </div>
-        <div class="profile-danger">
-          <small>Essa ação é permanente.</small>
-          <button type="button" id="profileDelete">Excluir minha conta</button>
         </div>
       </div>
 
