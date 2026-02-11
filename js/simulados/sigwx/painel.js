@@ -57,9 +57,6 @@
           <button type="button" class="btn-primary" id="btnEval">
             Modo avaliação
           </button>
-          <button type="button" class="btn-danger" id="btnHome">
-            Home
-          </button>
         </div>
       </div>
     `;
@@ -92,9 +89,6 @@
       document.dispatchEvent(new CustomEvent("sigwx:go-eval"));
     };
 
-    document.getElementById("btnHome").onclick = () => {
-      location.href = "/";
-    };
   }
 
   // ===============================

@@ -572,7 +572,6 @@ function sigwxEvaluationResultView({ summary, items, isAdmin = false, userLabel 
       <div class="eval-actions">
         <button type="button" id="evalToTraining">Ir para Treinamento</button>
         <button type="button" id="evalRetry">Refazer Avaliação</button>
-        <button type="button" id="evalHome">Ir para Início</button>
       </div>
     </section>
 
@@ -897,13 +896,6 @@ function profileView({
         </div>
       </div>
 
-      <div class="profile-stats">
-        <div><span>Créditos</span><strong>${credits ?? 0}</strong></div>
-        <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
-        <div><span>Aprovadas</span><strong>${approvedCount}</strong></div>
-        <div class="is-percent"><span>Média</span><strong>${averagePercent}%</strong></div>
-      </div>
-
       <div class="profile-columns">
         <div class="profile-column profile-column--left">
           <div class="profile-section" id="profileCreditsSection">
@@ -917,10 +909,9 @@ function profileView({
                 <span>Validade: 30 dias</span>
                 <span>Pacotes ativos: Bronze, Silver e Gold</span>
               </div>
-              <div class="credits-card-actions">
-                <button type="button" id="buyCreditsBtn">Escolher pacote</button>
-                <button type="button" id="creditsCheckBtn" class="credits-check-btn credits-check-btn--inline">Já paguei, atualizar créditos</button>
-                <button type="button" id="creditsPackagesBtn" class="credits-check-btn credits-check-btn--inline">Ver pacotes</button>
+              <div class="credits-card-actions credits-card-actions--profile">
+                <button type="button" id="buyCreditsBtn" class="credits-action-primary">Comprar créditos</button>
+                <button type="button" id="creditsCheckBtn" class="credits-check-btn credits-check-btn--inline credits-action-secondary">Atualizar créditos</button>
               </div>
             </div>
             <div class="credits-note">
@@ -955,6 +946,11 @@ function profileView({
         <div class="profile-column profile-column--right">
           <div class="profile-section">
             <h2>Histórico de avaliações</h2>
+            <div class="profile-summary-inline">
+              <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
+              <div><span>Aprovadas</span><strong>${approvedCount}</strong></div>
+              <div class="is-percent"><span>Média</span><strong>${averagePercent}%</strong></div>
+            </div>
             <div class="profile-filters">
               <button type="button" class="active" data-profile-filter="all">Todas</button>
               <button type="button" data-profile-filter="Aprovado">Aprovadas</button>

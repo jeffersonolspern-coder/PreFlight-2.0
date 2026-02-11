@@ -952,7 +952,6 @@ async function saveEvaluationResult({ simulado, percentage, correct, total, stat
 function setupEvaluationResultsActions(items) {
   const toTrainingBtn = document.getElementById("evalToTraining");
   const retryBtn = document.getElementById("evalRetry");
-  const homeBtn = document.getElementById("evalHome");
 
   toTrainingBtn?.addEventListener("click", () => {
     startSigwxWithCredit("training");
@@ -960,10 +959,6 @@ function setupEvaluationResultsActions(items) {
 
   retryBtn?.addEventListener("click", () => {
     startSigwxWithCredit("evaluation");
-  });
-
-  homeBtn?.addEventListener("click", () => {
-    renderHomePublic();
   });
 
   document.querySelectorAll(".eval-report").forEach((link) => {
@@ -1941,7 +1936,6 @@ function setupAdminActions() {
 
 function setupCreditsActions() {
   const btn = document.getElementById("buyCreditsBtn");
-  const packagesBtn = document.getElementById("creditsPackagesBtn");
   const modal = document.getElementById("creditsCheckoutModal");
   const confirmBtn = document.getElementById("creditsCheckoutConfirm");
   const cancelBtn = document.getElementById("creditsCheckoutCancel");
@@ -1952,10 +1946,6 @@ function setupCreditsActions() {
       renderPackages();
     });
   }
-
-  packagesBtn?.addEventListener("click", () => {
-    renderPackages();
-  });
 
   if (cancelBtn && modal) {
     cancelBtn.addEventListener("click", () => {
