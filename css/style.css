@@ -435,9 +435,9 @@ textarea:focus-visible {
 }
 
 .contact-fab::before {
-  content: "?";
+  content: "💬";
   display: block;
-  font-size: 28px;
+  font-size: 26px;
   line-height: 1;
 }
 
@@ -786,18 +786,29 @@ textarea:focus-visible {
   margin-top: auto;
 }
 
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .btn-primary {
   background: #1f4f8f;
   color: #fff;
-  border-radius: 8px;
-  padding: 10px 53px;
 }
 
 .btn-secondary {
   background: #9599a1;
   color: #111827;
-  border-radius: 8px;
-  padding: 10px 40px;
+}
+
+.btn-danger {
+  background: #0f172a;
+  color: #ffffff;
 }
 /* ===============================
    SIGWX - ESTADOS VISUAIS
@@ -1018,8 +1029,18 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
 .sigwx-stats .stats-actions {
   margin-top: 16px;
   display: flex;
-  gap: 6px;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
+}
+
+.sigwx-stats .stats-actions-right {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
 }
 /* REMOVE ESPAï¿½O EXTRA ENTRE SIMULADOR E PAINEL */
 .simulado-container {
@@ -1066,14 +1087,29 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   min-height: 360px;
 }
 .simulado-global-footer {
-  max-width: 260px;      /* mesma largura visual do card central */
-  margin: 24px auto 0;  /* centraliza abaixo do card */
+  max-width: 520px;
+  margin: 24px auto 0;
   display: flex;
   justify-content: center;
   gap: 12px;
 }
 
-.simulado-global-footer button.is-edge {
+.simulado-global-footer button {
+  background: #1f4f8f;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.simulado-global-footer button#sigwxFinish {
+  background: #0f172a;
+}
+
+.simulado-global-footer button.is-edge,
+.simulado-global-footer button:disabled {
   background: #cbd5e1;
   color: #475569;
   cursor: not-allowed;
@@ -1455,6 +1491,7 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   margin-bottom: 18px;
 }
 
+
 .profile-section h2 {
   font-size: 18px;
   margin-bottom: 12px;
@@ -1477,6 +1514,23 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   font-size: 12px;
   color: #6b7280;
   margin-bottom: 6px;
+}
+
+.profile-form input,
+.profile-form select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #f8fafc;
+  font-size: 14px;
+  color: #111827;
+}
+
+.profile-form input:focus,
+.profile-form select:focus {
+  outline: 2px solid #bfdbfe;
+  border-color: #60a5fa;
 }
 
 .profile-form button {
@@ -1535,9 +1589,19 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   margin-bottom: 18px;
 }
 
+.admin-notice {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 13px;
+}
+
 .admin-filters {
   display: grid;
-  grid-template-columns: 1.5fr 1fr auto;
+  grid-template-columns: 1.5fr 1fr auto auto;
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -1567,6 +1631,65 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   gap: 6px;
   font-size: 13px;
 }
+
+.admin-credits {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-credits-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  letter-spacing: 0.3px;
+}
+
+.admin-credits-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-credits-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.admin-credits-input {
+  width: 90px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  font-size: 12px;
+}
+
+.admin-credits-save {
+  padding: 6px 10px;
+  background: #1f4f8f;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-credits-save:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.admin-credits-hint {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
 
 /* ===============================
    CRÉDITOS

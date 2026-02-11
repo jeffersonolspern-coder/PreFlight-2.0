@@ -1,4 +1,4 @@
-const functions = require("firebase-functions");
+﻿const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const express = require("express");
 const cors = require("cors");
@@ -19,6 +19,10 @@ const CREDIT_PACK_SIZE = 10;
 const CREDIT_PACK_PRICE = 5;
 const CREDIT_PACK_TITLE = "Pacote 10 créditos (PreFlight)";
 const BUILD_ID = process.env.RENDER_GIT_COMMIT || process.env.SOURCE_VERSION || "local";
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || (functions.config()?.admin?.emails ?? "") || "jeffersonolspern@gmail.com")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -31,6 +35,41 @@ if (!MP_ACCESS_TOKEN) {
   console.warn("MP_ACCESS_TOKEN not set");
 } else {
   mercadopago.configure({ access_token: MP_ACCESS_TOKEN });
+}
+
+// ===============================
+// ADMIN HELPERS
+// ===============================
+async function requireAdmin(req, res) {
+  const auth = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  if (!token) {
+    res.status(401).json({ error: "missing_token" });
+    return null;
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    const email = String(decoded.email || "").toLowerCase();
+    if (!email || !ADMIN_EMAILS.includes(email)) {
+      res.status(403).json({ error: "forbidden" });
+      return null;
+    }
+    return decoded;
+  } catch (error) {
+    console.error("admin auth error:", error);
+    res.status(401).json({ error: "invalid_token" });
+    return null;
+  }
+}
+
+function toIso(value) {
+  if (!value) return "";
+  if (value.toDate) return value.toDate().toISOString();
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return new Date(value).toISOString();
+  if (value._seconds) return new Date(value._seconds * 1000).toISOString();
+  return "";
 }
 
 // ===============================
@@ -236,6 +275,78 @@ app.post("/reprocessPayment", async (req, res) => {
   }
 });
 
+// ===============================
+// ADMIN - LIST USERS
+// ===============================
+app.get("/admin/users", async (req, res) => {
+  const adminUser = await requireAdmin(req, res);
+  if (!adminUser) return;
+
+  try {
+    const usersSnap = await db.collection("users").get();
+    const creditsSnap = await db.collection("credits").get();
+    const creditsMap = new Map(creditsSnap.docs.map((d) => [d.id, d.data()]));
+
+    const users = usersSnap.docs.map((doc) => {
+      const data = doc.data() || {};
+      const credits = creditsMap.get(doc.id) || {};
+      return {
+        id: doc.id,
+        name: data.name || "",
+        email: data.email || "",
+        role: data.role || "",
+        whatsapp: data.whatsapp || "",
+        createdAt: toIso(data.createdAt),
+        creditsBalance: Number.isFinite(credits.balance) ? credits.balance : 0
+      };
+    });
+
+    users.sort((a, b) => {
+      const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dbt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dbt - da;
+    });
+
+    return res.json({ users });
+  } catch (error) {
+    console.error("admin users error:", error);
+    return res.status(500).json({ error: "admin_users_error" });
+  }
+});
+
+// ===============================
+// ADMIN - SET CREDITS
+// ===============================
+app.post("/admin/credits", async (req, res) => {
+  const adminUser = await requireAdmin(req, res);
+  if (!adminUser) return;
+
+  try {
+    const { userId, balance } = req.body || {};
+    if (!userId) {
+      return res.status(400).json({ error: "userId_required" });
+    }
+    const parsed = Number(balance);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return res.status(400).json({ error: "invalid_balance" });
+    }
+
+    const safeBalance = Math.floor(parsed);
+    const now = admin.firestore.Timestamp.now();
+    await db.collection("credits").doc(userId).set(
+      {
+        balance: safeBalance,
+        updatedAt: now
+      },
+      { merge: true }
+    );
+
+    return res.json({ ok: true, balance: safeBalance });
+  } catch (error) {
+    console.error("admin credits error:", error);
+    return res.status(500).json({ error: "admin_credits_error" });
+  }
+});
 exports.api = functions.https.onRequest(app);
 
 app.get("/health", (req, res) => {
@@ -256,3 +367,10 @@ if (process.env.RENDER || process.env.RUN_LOCAL) {
     console.log(`API listening on ${port}`);
   });
 }
+
+
+
+
+
+
+

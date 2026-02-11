@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "firebase experiments:enable legacyRuntimeConfigCommands": "preflightsimulados"
+  },
+  "targets": {},
+  "etags": {}
+}

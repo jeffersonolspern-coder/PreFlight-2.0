@@ -6,6 +6,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocFromServer,
   deleteDoc,
   collection,
   getDocs,
@@ -43,6 +44,11 @@ async function getAllUsers() {
   return items;
 }
 
+async function getAllCredits() {
+  const snap = await getDocs(collection(db, "credits"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
 async function deleteUserProfile(userId) {
   const ref = doc(db, "users", userId);
   await deleteDoc(ref);
@@ -50,14 +56,33 @@ async function deleteUserProfile(userId) {
 
 async function getUserCredits(userId) {
   const ref = doc(db, "credits", userId);
-  const snap = await getDoc(ref);
+  let snap;
+  try {
+    snap = await getDocFromServer(ref);
+  } catch (error) {
+    snap = await getDoc(ref);
+  }
   return snap.exists() ? snap.data() : null;
+}
+
+async function setUserCredits(userId, balance) {
+  const ref = doc(db, "credits", userId);
+  await setDoc(
+    ref,
+    {
+      balance,
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
 }
 
 export {
   saveUserProfile,
   getUserProfile,
   getAllUsers,
+  getAllCredits,
   deleteUserProfile,
-  getUserCredits
+  getUserCredits,
+  setUserCredits
 };

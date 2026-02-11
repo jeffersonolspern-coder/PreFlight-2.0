@@ -39,7 +39,8 @@ import {
   getUserProfile,
   getAllUsers,
   deleteUserProfile,
-  getUserCredits
+  getUserCredits,
+  setUserCredits
 } from "./modules/users.js";
 import { startSigwxSimulado } from "./simulados/sigwx/simulado.js";
 import { sigwxQuestions } from "./simulados/sigwx/data.js";
@@ -69,6 +70,7 @@ let evaluationStartAtMs = null;
 let evaluationTotalSeconds = 15 * 60;
 let evaluationRemainingSeconds = 15 * 60;
 let adminUsersCache = [];
+let adminNormalizedOnce = false;
 let currentCredits = null;
 let creditsPolling = null;
 let creditsPollingStart = null;
@@ -92,6 +94,7 @@ function getCreditsLabel() {
   }
   return 0;
 }
+
 
 // ===============================
 // RENDERIZAÇÕES
@@ -472,8 +475,41 @@ async function renderAdmin() {
   setupFooterLinks();
 
   try {
-    adminUsersCache = await getAllUsers();
-    app.innerHTML = adminView({ users: adminUsersCache, loading: false, isAdmin: true, userLabel: getUserLabel(), credits: getCreditsLabel() });
+    const users = await getAllUsers();
+    const creditsList = await Promise.all(
+      users.map(async (u) => {
+        const targetId = u.uid || u.id;
+        try {
+          return await getUserCredits(targetId);
+        } catch (error) {
+          return null;
+        }
+      })
+    );
+
+    if (!adminNormalizedOnce) {
+      const normalized = await normalizeDuplicateUsers(users, creditsList);
+      adminNormalizedOnce = true;
+      if (normalized) {
+        await renderAdmin();
+        return;
+      }
+    }
+
+    adminUsersCache = users.map((u, index) => {
+      const credit = creditsList[index];
+      const rawBalance = credit?.balance ?? credit?.credits ?? credit?.saldo ?? 0;
+      const balance = Number(rawBalance);
+      return {
+        ...u,
+        creditsBalance: Number.isFinite(balance) ? balance : 0
+      };
+    });
+    const notice =
+      adminUsersCache.length === 0
+        ? "Nenhum usuário retornado. Verifique se há usuários cadastrados."
+        : "";
+    app.innerHTML = adminView({ users: adminUsersCache, loading: false, isAdmin: true, userLabel: getUserLabel(), credits: getCreditsLabel(), notice });
     setupGlobalMenu();
     setupLogout();
     setupContact();
@@ -481,6 +517,95 @@ async function renderAdmin() {
     setupAdminActions();
   } catch (error) {
     console.error("Erro ao carregar usuários:", error);
+    app.innerHTML = adminView({
+      users: [],
+      loading: false,
+      isAdmin: true,
+      userLabel: getUserLabel(),
+      credits: getCreditsLabel(),
+      notice: "Erro ao carregar usuários. Verifique as regras do Firestore."
+    });
+    setupGlobalMenu();
+    setupLogout();
+    setupContact();
+    setupFooterLinks();
+  }
+}
+
+function pickFirstNonEmpty(values) {
+  return values.find((v) => String(v || "").trim() !== "") || "";
+}
+
+function parseDateValue(value) {
+  if (!value) return null;
+  if (value.toDate) return value.toDate();
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    return Number.isFinite(d.getTime()) ? d : null;
+  }
+  if (value._seconds) return new Date(value._seconds * 1000);
+  return null;
+}
+
+async function normalizeDuplicateUsers(users, creditsList) {
+  const byEmail = new Map();
+  users.forEach((u, index) => {
+    const email = String(u.email || "").toLowerCase().trim();
+    if (!email) return;
+    if (!byEmail.has(email)) byEmail.set(email, []);
+    byEmail.get(email).push({ u, index });
+  });
+
+  const actions = [];
+  for (const [email, entries] of byEmail.entries()) {
+    if (entries.length <= 1) continue;
+
+    const enriched = entries.map(({ u, index }) => {
+      const credit = creditsList[index];
+      const rawBalance = credit?.balance ?? credit?.credits ?? credit?.saldo ?? 0;
+      const balance = Number(rawBalance);
+      const creditId = u.uid || u.id;
+      return { u, credit, balance, creditId };
+    });
+
+    const primary =
+      enriched.find((e) => Number.isFinite(e.balance) && e.balance > 0) ||
+      enriched.find((e) => e.u.uid && e.u.uid === e.u.id) ||
+      enriched.find((e) => e.u.uid) ||
+      enriched[0];
+
+    const primaryId = primary.creditId || primary.u.id;
+    const mergedName = pickFirstNonEmpty(enriched.map((e) => e.u.name));
+    const mergedRole = pickFirstNonEmpty(enriched.map((e) => e.u.role));
+    const mergedWhatsapp = pickFirstNonEmpty(enriched.map((e) => e.u.whatsapp));
+    const createdDates = enriched.map((e) => parseDateValue(e.u.createdAt)).filter(Boolean);
+    const earliest = createdDates.length ? new Date(Math.min(...createdDates.map((d) => d.getTime()))) : null;
+
+    actions.push(
+      saveUserProfile(primaryId, {
+        uid: primaryId,
+        email,
+        name: mergedName,
+        role: mergedRole,
+        whatsapp: mergedWhatsapp,
+        createdAt: earliest ? earliest.toISOString() : undefined
+      })
+    );
+
+    enriched.forEach((e) => {
+      if (e.u.id !== primaryId) {
+        actions.push(deleteUserProfile(e.u.id));
+      }
+    });
+  }
+
+  if (!actions.length) return false;
+  try {
+    await Promise.all(actions);
+    return true;
+  } catch (error) {
+    console.error("Falha ao normalizar duplicados:", error);
+    return false;
   }
 }
 
@@ -591,6 +716,7 @@ function setupProfileForm(profile) {
 
     try {
       await saveUserProfile(currentUser.uid, {
+        uid: currentUser.uid,
         name,
         role,
         whatsapp,
@@ -640,16 +766,17 @@ function setupAdminActions() {
   const searchInput = document.getElementById("adminSearch");
   const roleSelect = document.getElementById("adminRole");
   const exportBtn = document.getElementById("adminExport");
+  const refreshBtn = document.getElementById("adminRefresh");
 
   const applyFilters = () => {
     const term = (searchInput?.value || "").toLowerCase().trim();
-    const role = roleSelect?.value || "";
+    const role = (roleSelect?.value || "").toLowerCase().trim();
     const cards = document.querySelectorAll(".admin-card");
 
     cards.forEach((card) => {
       const name = card.getAttribute("data-name") || "";
       const email = card.getAttribute("data-email") || "";
-      const cardRole = card.getAttribute("data-role") || "";
+      const cardRole = (card.getAttribute("data-role") || "").toLowerCase().trim();
 
       const matchesTerm =
         !term || name.includes(term) || email.includes(term);
@@ -668,12 +795,13 @@ function setupAdminActions() {
       email: u.email || "",
       role: u.role || "",
       whatsapp: u.whatsapp || "",
+      creditsBalance: Number.isFinite(u.creditsBalance) ? u.creditsBalance : 0,
       createdAt: u.createdAt && u.createdAt.toDate
         ? u.createdAt.toDate().toISOString()
         : u.createdAt || ""
     }));
 
-    const header = ["name", "email", "role", "whatsapp", "createdAt"];
+    const header = ["name", "email", "role", "whatsapp", "creditsBalance", "createdAt"];
     const csv = [
       header.join(","),
       ...rows.map((r) =>
@@ -688,6 +816,65 @@ function setupAdminActions() {
     a.download = "usuarios.csv";
     a.click();
     URL.revokeObjectURL(url);
+  });
+
+  refreshBtn?.addEventListener("click", () => {
+    renderAdmin();
+  });
+
+  const saveCredits = async (userId) => {
+    if (!userId) return;
+    const input = document.querySelector(`.admin-credits-input[data-user-id="${userId}"]`);
+    const btn = document.querySelector(`.admin-credits-save[data-user-id="${userId}"]`);
+    const card = document.querySelector(`.admin-card[data-user-id="${userId}"]`);
+    const valueEl = card?.querySelector(".admin-credits-value");
+    if (!input || !btn) return;
+
+    const rawValue = String(input.value || "").trim();
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      alert("Informe um saldo válido (0 ou maior).");
+      return;
+    }
+
+    const balance = Math.floor(parsed);
+    btn.disabled = true;
+    const prevText = btn.innerText;
+    btn.innerText = "Salvando...";
+
+    try {
+      await setUserCredits(userId, balance);
+      const user = adminUsersCache.find((u) => u.id === userId);
+      if (user) {
+        user.creditsBalance = balance;
+      }
+      if (valueEl) {
+        valueEl.textContent = `Saldo: ${balance}`;
+      }
+      input.value = String(balance);
+      alert("Créditos atualizados.");
+    } catch (error) {
+      console.error("Erro ao salvar crÃ©ditos:", error);
+      alert("Não foi possível atualizar os créditos.");
+    } finally {
+      btn.disabled = false;
+      btn.innerText = prevText;
+    }
+  };
+
+  document.querySelectorAll(".admin-credits-save").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const userId = btn.getAttribute("data-user-id") || "";
+      saveCredits(userId);
+    });
+  });
+
+  document.querySelectorAll(".admin-credits-input").forEach((input) => {
+    input.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const userId = input.getAttribute("data-user-id") || "";
+      saveCredits(userId);
+    });
   });
 }
 
@@ -810,8 +997,25 @@ observeAuthState((user) => {
   renderHomePublic();
   if (currentUser) {
     getUserProfile(currentUser.uid)
-      .then((profile) => {
+      .then(async (profile) => {
+        if (!profile) {
+          await saveUserProfile(currentUser.uid, {
+            uid: currentUser.uid,
+            name: currentUser.displayName || "",
+            email: currentUser.email || "",
+            role: "",
+            whatsapp: ""
+          });
+          currentProfile = await getUserProfile(currentUser.uid);
+          return;
+        }
         currentProfile = profile;
+        if (!profile.uid) {
+          await saveUserProfile(currentUser.uid, {
+            uid: currentUser.uid,
+            email: currentUser.email || profile.email || ""
+          });
+        }
       })
       .catch(() => {
         currentProfile = null;
@@ -1085,6 +1289,7 @@ function setupRegisterForm() {
     try {
       const cred = await register(name, email, password);
       const profileData = {
+        uid: cred.user.uid,
         name,
         email,
         role,

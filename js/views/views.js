@@ -1,4 +1,4 @@
-// ===============================
+﻿// ===============================
 // HEADER PADRONIZADO (GLOBAL)
 // ===============================
 function headerView({ logged = false, isAdmin = false, userLabel = "Conta", credits = null } = {}) {
@@ -19,7 +19,7 @@ function headerView({ logged = false, isAdmin = false, userLabel = "Conta", cred
                 <div class="user-menu">
                   <button type="button" id="userMenuBtn" class="user-menu-btn">
                     ${userLabel}
-                    <span class="user-menu-caret">▾</span>
+                    <span class="user-menu-caret">&#9662;</span>
                   </button>
                   <div id="userMenu" class="user-menu-dropdown hidden">
                     <button type="button" id="goProfile" class="user-menu-item">Perfil</button>
@@ -63,7 +63,7 @@ function contactBoxView() {
 function contactWidgetView() {
   return `
     <button class="contact-fab" id="contactFab" aria-label="Contato"></button>
-    <button class="contact-fab-close" id="contactFabClose" aria-label="Fechar contato">×</button>
+    <button class="contact-fab-close" id="contactFabClose" aria-label="Fechar contato">&times;</button>
 
     <div class="contact-modal hidden" id="contactModal" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
       ${contactBoxView()}
@@ -80,7 +80,7 @@ function footerView() {
       <div class="footer-divider"></div>
 
       <div class="footer-content">
-        <div>© 2026 · PreFlight Simulados</div>
+        <div>&copy; 2026 &middot; PreFlight Simulados</div>
 
         <div class="footer-right">
           <a href="/css/legal/politica-privacidade.html" id="privacyLink">Política de Privacidade</a>
@@ -97,7 +97,7 @@ function footerView() {
 }
 
 // ===============================
-// HOME PÚBLICA
+// HOME PÃšBLICA
 // ===============================
 function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta" } = {}) {
   return `
@@ -108,7 +108,7 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta" }
       <p>Ambiente de treinamento e avaliação para estudo técnico na aviação.</p>
 
       <button id="accessBtn" class="cta-button">Acessar simulados</button>
-      <small>Cadastro rápido • Sem pagamento • Acesso imediato após login</small>
+      <small>Cadastro rápido &bull; Sem pagamento &bull; Acesso imediato após login</small>
     </section>
 
     <section class="about">
@@ -226,8 +226,8 @@ function dashboardView(user, { isAdmin = false, userLabel = "Conta", credits = n
 
     <section class="simulados-page">
       <div class="simulados-header">
-        <h1>Simulados disponíveis</h1>
-        <p>Ferramentas desenvolvidas para treinamento e avaliação na formação aeronáutica.</p>
+      <h1>Simulados disponíveis</h1>
+      <p>Ferramentas desenvolvidas para treinamento e avaliação na formação aeronáutica.</p>
       </div>
 
       <div class="simulados-grid">
@@ -289,7 +289,7 @@ function dashboardView(user, { isAdmin = false, userLabel = "Conta", credits = n
 }
 
 // ===============================
-// SIGWX (TREINO / AVALIAÇÃO / RESULTADO)
+// SIGWX (TREINO / AVALIAÃ‡ÃƒO / RESULTADO)
 // ===============================
 function sigwxView({ isAdmin = false, userLabel = "Conta", credits = null } = {}) {
   return `
@@ -297,7 +297,7 @@ function sigwxView({ isAdmin = false, userLabel = "Conta", credits = null } = {}
 
     <div class="simulado-header">
       <div>
-        <h2 class="simulado-mode-title">Modo Treinamento · SIGWX</h2>
+        <h2 class="simulado-mode-title">Modo Treinamento &middot; SIGWX</h2>
         <div class="simulado-status" id="sigwxProgress"></div>
       </div>
     </div>
@@ -340,7 +340,7 @@ function sigwxEvaluationView({ isAdmin = false, userLabel = "Conta", credits = n
 
     <div class="simulado-header">
       <div>
-        <h2 class="simulado-mode-title">Modo Avaliação · SIGWX</h2>
+        <h2 class="simulado-mode-title">Modo Avaliação &middot; SIGWX</h2>
         <div class="simulado-status" id="sigwxProgress"></div>
       </div>
       <div class="simulado-timer" id="sigwxTimer" aria-live="polite">15:00</div>
@@ -399,7 +399,7 @@ function sigwxEvaluationResultView({ summary, items, isAdmin = false, userLabel 
     <section class="eval-result">
       <div class="eval-header">
         <div>
-          <h1>Resultado · Avaliação SIGWX</h1>
+          <h1>Resultado &middot; Avaliação SIGWX</h1>
           <p>Confira seu desempenho e o gabarito completo abaixo.</p>
         </div>
         <div class="eval-score-group">
@@ -586,7 +586,7 @@ function contactView({ logged = false, isAdmin = false, userLabel = "Conta", cre
             </div>
             <div class="contact-side-item">
               <span>Horário</span>
-              <strong>09:00 – 18:00</strong>
+              <strong>09:00 &ndash; 18:00</strong>
             </div>
           </div>
 
@@ -630,7 +630,7 @@ function profileView({ user, profile, evaluations = [], loading = false, isAdmin
               : e.createdAt
                 ? new Date(e.createdAt)
                 : null;
-          const dateText = date ? date.toLocaleString("pt-BR") : "—";
+          const dateText = date ? date.toLocaleString("pt-BR") : "&mdash;";
           const statusClass = e.status === "Aprovado" ? "approved" : "reproved";
 
           const timeText = formatDuration(
@@ -647,7 +647,7 @@ function profileView({ user, profile, evaluations = [], loading = false, isAdmin
               <div>
                 <span class="profile-score-line">
                   ${e.correct}/${e.total} (${e.percentage}%)
-                  • ${timeText || "--:--"}
+                  &bull; ${timeText || "--:--"}
                 </span>
                 <span class="profile-status ${statusClass}">${e.status}</span>
                 <button class="profile-link" data-eval-id="${e.id}">Ver gabarito</button>
@@ -663,7 +663,7 @@ function profileView({ user, profile, evaluations = [], loading = false, isAdmin
     <section class="profile-page">
       <div class="profile-header">
         <h1>Seu perfil</h1>
-        <p>${user?.displayName ? user.displayName + " · " : ""}${user?.email || ""}</p>
+        <p>${user?.displayName ? user.displayName + " &middot; " : ""}${user?.email || ""}</p>
       </div>
 
       <div class="profile-section">
@@ -716,7 +716,7 @@ function profileEvaluationView({ summary, items, isAdmin = false, userLabel = "C
     <section class="eval-result">
       <div class="eval-header">
         <div>
-          <h1>Gabarito · Avaliação SIGWX</h1>
+          <h1>Gabarito &middot; Avaliação SIGWX</h1>
           <p>Resultado e gabarito da avaliação selecionada.</p>
         </div>
       </div>
@@ -764,7 +764,7 @@ function profileEvaluationView({ summary, items, isAdmin = false, userLabel = "C
   `;
 }
 
-function adminView({ users = [], loading = false, isAdmin = false, userLabel = "Conta", credits = null } = {}) {
+function adminView({ users = [], loading = false, isAdmin = false, userLabel = "Conta", credits = null, notice = "" } = {}) {
   const list = users.length
     ? `<div class="admin-grid">` +
         users.map((u) => {
@@ -773,14 +773,23 @@ function adminView({ users = [], loading = false, isAdmin = false, userLabel = "
             : u.createdAt
               ? new Date(u.createdAt)
               : null;
-          const createdText = createdAt ? createdAt.toLocaleString("pt-BR") : "—";
+          const createdText = createdAt ? createdAt.toLocaleString("pt-BR") : "&mdash;";
           return `
-            <div class="admin-card" data-name="${(u.name || "").toLowerCase()}" data-email="${(u.email || "").toLowerCase()}" data-role="${u.role || ""}">
+            <div class="admin-card" data-name="${(u.name || "").toLowerCase()}" data-email="${(u.email || "").toLowerCase()}" data-role="${(u.role || "").toLowerCase().trim()}" data-user-id="${u.id || ""}">
               <strong>${u.name || "Sem nome"}</strong>
-              <span>${u.email || "—"}</span>
-              <span>${u.role || "—"}</span>
-              <span>${u.whatsapp || "—"}</span>
+              <span>${u.email || "&mdash;"}</span>
+              <span>${u.role || "&mdash;"}</span>
+              <span>${u.whatsapp || "&mdash;"}</span>
               <span>${createdText}</span>
+              <div class="admin-credits">
+                <span class="admin-credits-label">Créditos</span>
+                <div class="admin-credits-row">
+                  <span class="admin-credits-value">Saldo: ${Number.isFinite(u.creditsBalance) ? u.creditsBalance : 0}</span>
+                  <input type="number" min="0" step="1" class="admin-credits-input" data-user-id="${u.id || ""}" value="${Number.isFinite(u.creditsBalance) ? u.creditsBalance : 0}" />
+                  <button type="button" class="admin-credits-save" data-user-id="${u.id || ""}">Salvar</button>
+                </div>
+                <small class="admin-credits-hint">Ajuste o saldo e salve.</small>
+              </div>
             </div>
           `;
         }).join("") +
@@ -793,6 +802,7 @@ function adminView({ users = [], loading = false, isAdmin = false, userLabel = "
       <div class="admin-header">
         <h1>Administração</h1>
         <p>Relatório de cadastros e perfis.</p>
+        ${notice ? `<div class="admin-notice">${notice}</div>` : ""}
       </div>
       <div class="admin-section">
         <div class="admin-filters">
@@ -803,6 +813,7 @@ function adminView({ users = [], loading = false, isAdmin = false, userLabel = "
             <option value="Piloto">Piloto</option>
             <option value="Outro">Outro</option>
           </select>
+          <button type="button" id="adminRefresh">Atualizar</button>
           <button type="button" id="adminExport">Exportar CSV</button>
         </div>
         ${loading ? `<div class="profile-loading">Carregando...</div>` : list}
@@ -814,7 +825,7 @@ function adminView({ users = [], loading = false, isAdmin = false, userLabel = "
 }
 
 // ===============================
-// CRÉDITOS
+// CRÃ‰DITOS
 // ===============================
 function creditsView({ user, credits = null }) {
   return `
@@ -827,8 +838,8 @@ function creditsView({ user, credits = null }) {
       </div>
 
       <div class="credits-status" id="creditsStatus" hidden>
-        <strong>Aguardando confirmação do pagamento...</strong>
-        <span>Quando o pagamento for confirmado, seus créditos aparecem automaticamente.</span>
+        <strong>Pagamento recente?</strong>
+        <span>Se você acabou de pagar, aguarde alguns instantes e seus créditos serão atualizados aqui.</span>
       </div>
 
       <div class="credits-card">
@@ -872,3 +883,4 @@ export {
   privacyView,
   cookiesView
 };
+
