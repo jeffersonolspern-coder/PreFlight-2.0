@@ -1298,7 +1298,12 @@ function renderCredits() {
 
       if (historyResult.status === "rejected") {
         console.warn("PreFlight credits history fetch failed:", historyResult.reason);
-        creditHistoryError = "Não foi possível carregar o histórico agora.";
+        if (!creditHistoryItems.length) {
+          creditHistoryError = "Não foi possível carregar o histórico agora.";
+        } else {
+          creditHistoryError = "";
+          showToast("Histórico atualizado parcialmente. Tentaremos novamente.", "info");
+        }
       }
     })
     .finally(() => {

@@ -877,13 +877,10 @@ function creditsView({
     `)
     .join("");
 
-  const historyContent = historyLoading
+  const historyContent = historyLoading && !safeItems.length
     ? `<div class="profile-loading">Carregando histórico...</div>`
-    : historyError
-      ? `<div class="credits-history-error">${historyError}</div>`
-      : !safeItems.length
-        ? `<div class="profile-empty">Nenhuma movimentação encontrada ainda.</div>`
-        : `
+    : safeItems.length
+      ? `
           <div class="credits-history-table-wrap">
             <table class="credits-history-table">
               <thead>
@@ -899,7 +896,10 @@ function creditsView({
               </tbody>
             </table>
           </div>
-        `;
+        `
+      : historyError
+        ? `<div class="credits-history-error">${historyError}</div>`
+        : `<div class="profile-empty">Nenhuma movimentação encontrada ainda.</div>`;
 
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
