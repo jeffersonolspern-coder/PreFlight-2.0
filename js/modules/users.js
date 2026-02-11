@@ -58,6 +58,11 @@ async function deleteUserProfile(userId) {
   await deleteDoc(ref);
 }
 
+async function deleteUserCredits(userId) {
+  const ref = doc(db, "credits", userId);
+  await deleteDoc(ref);
+}
+
 async function getUserCredits(userId) {
   const ref = doc(db, "credits", userId);
   let snap;
@@ -334,6 +339,7 @@ export {
   getAllUsers,
   getAllCredits,
   deleteUserProfile,
+  deleteUserCredits,
   getUserCredits,
   setUserCredits,
   recordConsumeCreditTransaction,

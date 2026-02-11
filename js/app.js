@@ -24,24 +24,23 @@ import {
   loginWithGoogle,
   register,
   logout,
-  deleteAccount,
   observeAuthState
 } from "./modules/auth.js";
 
 import {
   saveEvaluation,
   getEvaluationsByUser,
-  getEvaluationById,
-  deleteEvaluationsByUser
+  getEvaluationById
 } from "./modules/evaluations.js";
 
 import {
   saveUserProfile,
   getUserProfile,
   getAllUsers,
-  deleteUserProfile,
   getUserCredits,
   setUserCredits,
+  deleteUserProfile,
+  deleteUserCredits,
   recordConsumeCreditTransaction,
   consumeUserCredit,
   getUserCreditTransactionsPage,
@@ -66,6 +65,7 @@ const IS_LOCAL_DEV_HOST =
   window.location.hostname === "localhost";
 const LOCAL_CREDITS_KEY_PREFIX = "preflight_local_credits_";
 const CREDITS_HISTORY_PAGE_SIZE = 30;
+const WELCOME_BONUS_CREDITS = 5;
 
 // ===============================
 // EMAILJS (CONFIG)
@@ -87,6 +87,7 @@ let profileEvaluationsCache = [];
 let profileShowAllEvaluations = false;
 let profileVisibleSpentCredits = 7;
 let globalNoticeMessage = "";
+let pendingWelcomeAnnouncement = "";
 let adminNormalizedOnce = false;
 let currentCredits = null;
 let creditHistoryItems = [];
@@ -294,6 +295,95 @@ function formatCreditHistoryItem(item) {
     amountClass,
     statusLabel
   };
+}
+
+async function grantWelcomeBonusIfNeeded(userId, profile = null) {
+  if (!userId) return false;
+  if (profile?.welcomeBonusGranted) return false;
+
+  const credits = await getUserCredits(userId).catch(() => null);
+  const currentBalance = parseCreditsBalance(credits?.balance) ?? 0;
+
+  // If a credits doc already exists, only mark the flag to avoid duplicate bonus attempts.
+  if (credits) {
+    await saveUserProfile(userId, {
+      welcomeBonusGranted: true,
+      welcomeBonusGrantedAt: new Date().toISOString()
+    });
+    currentProfile = {
+      ...(currentProfile || {}),
+      ...(profile || {}),
+      welcomeBonusGranted: true,
+      welcomeBonusGrantedAt: new Date().toISOString()
+    };
+    currentCredits = applyLocalCreditsBalance(credits, true);
+    return false;
+  }
+
+  const nextBalance = currentBalance + WELCOME_BONUS_CREDITS;
+
+  try {
+    await setUserCredits(userId, nextBalance);
+    await saveUserProfile(userId, {
+      welcomeBonusGranted: true,
+      welcomeBonusGrantedAt: new Date().toISOString()
+    });
+
+    currentProfile = {
+      ...(currentProfile || {}),
+      ...(profile || {}),
+      welcomeBonusGranted: true,
+      welcomeBonusGrantedAt: new Date().toISOString()
+    };
+    currentCredits = applyLocalCreditsBalance({ ...(credits || {}), balance: nextBalance }, true);
+    updateVisibleCreditsLabel();
+    pendingWelcomeAnnouncement = [
+      "Bem-vindo(a) ao PreFlight!",
+      "",
+      `Você ganhou ${WELCOME_BONUS_CREDITS} créditos para explorar e testar o site.`,
+      "Use em treinos e avaliações para conhecer a plataforma.",
+      "",
+      "Se tiver qualquer dúvida, fale com a gente na página de contato.",
+      "Quando quiser, você pode comprar mais créditos a qualquer momento."
+    ].join("\n");
+    showToast(`Você ganhou ${WELCOME_BONUS_CREDITS} créditos de boas-vindas.`, "success");
+    return true;
+  } catch (error) {
+    console.warn("Welcome bonus grant failed:", error);
+    return false;
+  }
+}
+
+function showWelcomeAnnouncementIfPending() {
+  if (!pendingWelcomeAnnouncement) return;
+  const message = pendingWelcomeAnnouncement;
+  pendingWelcomeAnnouncement = "";
+
+  const existing = document.getElementById("welcomeBonusModal");
+  if (existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "welcomeBonusModal";
+  modal.className = "evaluation-modal";
+  modal.innerHTML = `
+    <div class="evaluation-box">
+      <h3>Mensagem de boas-vindas</h3>
+      <div class="welcome-bonus-highlight">🎉 Você ganhou ${WELCOME_BONUS_CREDITS} créditos!</div>
+      <p>${message.replace(/\n/g, "<br />")}</p>
+      <div class="evaluation-actions">
+        <button type="button" id="welcomeBonusOk">Entendi</button>
+      </div>
+    </div>
+  `;
+
+  const close = () => modal.remove();
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) close();
+  });
+  document.body.appendChild(modal);
+
+  const okBtn = document.getElementById("welcomeBonusOk");
+  okBtn?.addEventListener("click", close);
 }
 
 function getLocalCreditsKey(userId) {
@@ -670,6 +760,8 @@ function renderHomePublic() {
 
 function renderLogin() {
   app.innerHTML = loginView({ isAdmin: isAdminUser(), userLabel: getUserLabel() });
+  setupGlobalMenu();
+  setupHeaderLogin();
   setupLoginForm();
   setupRegisterLink();
   setupContact();
@@ -678,6 +770,8 @@ function renderLogin() {
 
 function renderRegister() {
   app.innerHTML = registerView({ isAdmin: isAdminUser(), userLabel: getUserLabel() });
+  setupGlobalMenu();
+  setupHeaderLogin();
   setupRegisterForm();
   setupLoginLinkAlt();
   setupContact();
@@ -1167,6 +1261,7 @@ async function renderProfile() {
   creditHistoryLoading = false;
   renderProfileScreen({ profile: currentProfile, evaluations: profileEvaluationsCache, loading: false });
   bindProfileScreenActions(currentProfile, profileEvaluationsCache);
+  showWelcomeAnnouncementIfPending();
 }
 
 async function renderAdmin() {
@@ -1510,26 +1605,29 @@ function setupProfileForm(profile) {
   });
 
   if (deleteBtn) {
-    deleteBtn.addEventListener("click", async () => {
+    deleteBtn.addEventListener("click", () => {
       if (!currentUser) return;
-      const confirmText = prompt("Digite EXCLUIR para confirmar:");
-      if (confirmText !== "EXCLUIR") return;
+      const name = currentProfile?.name || currentUser.displayName || "";
+      const email = currentUser.email || "";
+      renderContact();
 
-      deleteBtn.disabled = true;
-      deleteBtn.innerText = "Excluindo...";
+      const nameInput = document.getElementById("contactName");
+      const emailInput = document.getElementById("contactEmail");
+      const subjectInput = document.getElementById("contactSubject");
+      const messageInput = document.getElementById("contactMessage");
 
-      try {
-        await deleteEvaluationsByUser(currentUser.uid);
-        await deleteUserProfile(currentUser.uid);
-        await deleteAccount();
-        alert("Conta excluída.");
-        renderHomePublic();
-      } catch (error) {
-        alert("Não foi possível excluir a conta. Faça login novamente e tente.");
-      } finally {
-        deleteBtn.disabled = false;
-        deleteBtn.innerText = "Excluir minha conta";
+      if (nameInput && !nameInput.value) nameInput.value = name;
+      if (emailInput && !emailInput.value) emailInput.value = email;
+      if (subjectInput) subjectInput.value = "Solicitação de exclusão de conta";
+      if (messageInput) {
+        messageInput.value = [
+          "Olá, gostaria de solicitar a exclusão da minha conta.",
+          "",
+          `Nome: ${name || "-"}`,
+          `Email: ${email || "-"}`
+        ].join("\n");
       }
+      showToast("Envie a solicitação de exclusão pelo formulário de contato.", "info");
     });
   }
 }
@@ -1672,6 +1770,44 @@ function setupAdminActions() {
       if (e.key !== "Enter") return;
       const userId = input.getAttribute("data-user-id") || "";
       saveCredits(userId);
+    });
+  });
+
+  const deleteUserFromSite = async (userId) => {
+    if (!userId) return;
+    const confirmed = confirm("Remover este usuário do site? Isso apaga perfil e créditos no Firestore.");
+    if (!confirmed) return;
+
+    const btn = document.querySelector(`.admin-user-delete[data-user-id="${userId}"]`);
+    const card = document.querySelector(`.admin-card[data-user-id="${userId}"]`);
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = "Removendo...";
+    }
+
+    try {
+      await Promise.all([
+        deleteUserProfile(userId).catch(() => null),
+        deleteUserCredits(userId).catch(() => null)
+      ]);
+
+      adminUsersCache = adminUsersCache.filter((u) => (u.id || u.uid) !== userId);
+      card?.remove();
+      showToast("Usuário removido do site.", "success");
+    } catch (error) {
+      console.error("Erro ao remover usuário do site:", error);
+      showToast("Não foi possível remover o usuário.", "error");
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = "Remover do site";
+      }
+    }
+  };
+
+  document.querySelectorAll(".admin-user-delete").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const userId = btn.getAttribute("data-user-id") || "";
+      deleteUserFromSite(userId);
     });
   });
 }
@@ -1931,6 +2067,7 @@ observeAuthState((user) => {
           whatsapp: ""
         });
         currentProfile = await getUserProfile(currentUser.uid);
+        await grantWelcomeBonusIfNeeded(currentUser.uid, currentProfile);
         return;
       }
       currentProfile = profile;
@@ -1940,6 +2077,7 @@ observeAuthState((user) => {
           email: currentUser.email || profile.email || ""
         });
       }
+      await grantWelcomeBonusIfNeeded(currentUser.uid, currentProfile);
     })
     .catch(() => {
       currentProfile = null;
@@ -2291,6 +2429,7 @@ function setupRegisterForm() {
       };
       await saveUserProfile(cred.user.uid, profileData);
       currentProfile = profileData;
+      await grantWelcomeBonusIfNeeded(cred.user.uid, profileData);
       renderProfile();
     } catch (error) {
       showToast(getFirebaseAuthMessage(error, "Erro ao cadastrar. Verifique seus dados."), "error");
@@ -2356,28 +2495,30 @@ function setupContact() {
   const fab = document.getElementById("contactFab");
   const fabClose = document.getElementById("contactFabClose");
   const modal = document.getElementById("contactModal");
-
-  if (!fab || !modal) return;
-
   const closeBtn = document.getElementById("contactClose");
   const sendBtn = document.getElementById("contactSend");
   const nameInput = document.getElementById("contactName");
   const emailInput = document.getElementById("contactEmail");
   const subjectInput = document.getElementById("contactSubject");
   const messageInput = document.getElementById("contactMessage");
+  const hasModalWidget = !!fab && !!modal;
 
   const openModal = () => {
+    if (!modal) return;
     modal.classList.remove("hidden");
     if (fabClose) fabClose.classList.remove("hidden");
   };
 
   const closeModal = () => {
+    if (!modal) return;
     modal.classList.add("hidden");
   };
 
-  fab.addEventListener("click", openModal);
+  if (hasModalWidget) {
+    fab.addEventListener("click", openModal);
+  }
 
-  if (fabClose) {
+  if (hasModalWidget && fabClose && fab) {
     fabClose.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -2391,14 +2532,25 @@ function setupContact() {
   }
 
   if (closeBtn) {
-    closeBtn.addEventListener("click", closeModal);
+    closeBtn.addEventListener("click", () => {
+      if (hasModalWidget) {
+        closeModal();
+        return;
+      }
+      if (nameInput) nameInput.value = "";
+      if (emailInput) emailInput.value = "";
+      if (subjectInput) subjectInput.value = "";
+      if (messageInput) messageInput.value = "";
+    });
   }
 
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) {
-      closeModal();
-    }
-  });
+  if (hasModalWidget && modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+  }
 
   if (sendBtn) {
     sendBtn.addEventListener("click", async () => {
@@ -2432,7 +2584,7 @@ function setupContact() {
         if (emailInput) emailInput.value = "";
         if (subjectInput) subjectInput.value = "";
         if (messageInput) messageInput.value = "";
-        closeModal();
+        if (hasModalWidget) closeModal();
         showToast("Mensagem enviada com sucesso.", "success");
       } catch (error) {
         showToast("Erro ao enviar mensagem. Tente novamente.", "error");

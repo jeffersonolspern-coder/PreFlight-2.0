@@ -646,7 +646,6 @@ function contactView({ logged = false, isAdmin = false, userLabel = "Conta", cre
       </div>
     </section>
     ${footerView()}
-    ${contactWidgetView()}
   `;
 }
 
@@ -817,8 +816,8 @@ function profileView({
           </div>
         </div>
         <div class="profile-danger">
-          <small>Essa ação é permanente.</small>
-          <button type="button" id="profileDelete">Excluir minha conta</button>
+          <small>Exclusão via solicitação para análise da equipe.</small>
+          <button type="button" id="profileDelete">Solicitar exclusão</button>
         </div>
       </div>
 
@@ -833,11 +832,6 @@ function profileView({
         <div class="profile-column profile-column--left">
           <div class="profile-section" id="profileCreditsSection">
             <h2>Créditos</h2>
-            <div class="credits-status" id="creditsStatus" hidden>
-              <strong>Pagamento recente?</strong>
-              <span>Após pagar, clique em confirmar para atualizar seus créditos.</span>
-              <button type="button" id="creditsCheckBtn" class="credits-check-btn">Já paguei, atualizar créditos</button>
-            </div>
             <div class="credits-card">
               <div>
                 <span>Saldo atual</span>
@@ -847,7 +841,10 @@ function profileView({
                 <span>Validade: 30 dias</span>
                 <span>Pacote: 10 créditos por R$ 5,00</span>
               </div>
-              <button type="button" id="buyCreditsBtn">Comprar créditos</button>
+              <div class="credits-card-actions">
+                <button type="button" id="buyCreditsBtn">Comprar créditos</button>
+                <button type="button" id="creditsCheckBtn" class="credits-check-btn credits-check-btn--inline">Já paguei, atualizar créditos</button>
+              </div>
             </div>
             <div class="credits-note">
               Treino e avaliação consomem 1 crédito cada.
@@ -977,6 +974,9 @@ function adminView({ users = [], loading = false, isAdmin = false, userLabel = "
                   <button type="button" class="admin-credits-save" data-user-id="${u.id || ""}">Salvar</button>
                 </div>
                 <small class="admin-credits-hint">Ajuste o saldo e salve.</small>
+              </div>
+              <div class="admin-user-actions">
+                <button type="button" class="admin-user-delete" data-user-id="${u.id || ""}">Remover do site</button>
               </div>
             </div>
           `;

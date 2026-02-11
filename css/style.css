@@ -2021,6 +2021,28 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   color: #9ca3af;
 }
 
+.admin-user-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-user-delete {
+  padding: 6px 10px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-user-delete:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 
 /* ===============================
    CRÉDITOS
@@ -2393,6 +2415,17 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   justify-self: start;
 }
 
+#profileCreditsSection .credits-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+#profileCreditsSection .credits-check-btn--inline {
+  margin-top: 0;
+}
+
 #profileCreditsSection .credits-note {
   margin-top: 10px;
 }
@@ -2565,6 +2598,18 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
 
 .eval-actions button:nth-child(3) {
   background: #6b7280;
+}
+
+.welcome-bonus-highlight {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  font-weight: 800;
+  text-align: center;
+  font-size: 16px;
 }
 
 @media (max-width: 900px) {
