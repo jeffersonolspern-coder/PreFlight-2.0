@@ -15,8 +15,16 @@ function headerView({ logged = false, isAdmin = false, userLabel = "Conta", cred
     <header class="site-header">
       <div class="header-content">
         <div class="logo">PreFlight Simulados</div>
+        <div class="header-top-actions">
+          <a href="#" id="goCreditsTop" class="header-credits-pill">Créditos${logged ? `: ${credits ?? 0}` : ""}</a>
+          <button type="button" id="mobileMenuToggle" class="mobile-menu-toggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="primaryMenu">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
 
-        <nav class="menu">
+        <nav class="menu" id="primaryMenu">
           ${
             logged
               ? `
@@ -179,6 +187,7 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
         </div>
         <button type="button" class="simulados-carousel-btn next" aria-label="Próximo simulado">&#8250;</button>
       </div>
+      <small class="simulados-scroll-hint">Deslize para ver mais simulados</small>
     </section>
 
     <section class="modes">
@@ -396,7 +405,11 @@ function sigwxView({ isAdmin = false, userLabel = "Conta", credits = null } = {}
     </div>
 
     <section class="simulado-container">
-      <aside class="simulado-nav">
+      <button type="button" class="simulado-nav-toggle" data-sim-nav-toggle aria-expanded="false" aria-controls="sigwxNavPanel">
+        Questões <span aria-hidden="true">▾</span>
+      </button>
+
+      <aside class="simulado-nav" id="sigwxNavPanel" data-sim-nav-panel>
         <div class="nav-grid" id="sigwxNav"></div>
       </aside>
 
@@ -452,7 +465,11 @@ function sigwxEvaluationView({ isAdmin = false, userLabel = "Conta", credits = n
     </div>
 
     <section class="simulado-container">
-      <aside class="simulado-nav">
+      <button type="button" class="simulado-nav-toggle" data-sim-nav-toggle aria-expanded="false" aria-controls="sigwxNavPanel">
+        Questões <span aria-hidden="true">▾</span>
+      </button>
+
+      <aside class="simulado-nav" id="sigwxNavPanel" data-sim-nav-panel>
         <div class="nav-grid" id="sigwxNav"></div>
       </aside>
 
@@ -899,10 +916,10 @@ function profileView({
               </div>
               <div class="credits-meta">
                 <span>Validade: 30 dias</span>
-                <span>Pacote: 10 créditos por R$ 5,00</span>
+                <span>Pacotes ativos: Bronze, Silver e Gold</span>
               </div>
               <div class="credits-card-actions">
-                <button type="button" id="buyCreditsBtn">Comprar créditos</button>
+                <button type="button" id="buyCreditsBtn">Escolher pacote</button>
                 <button type="button" id="creditsCheckBtn" class="credits-check-btn credits-check-btn--inline">Já paguei, atualizar créditos</button>
                 <button type="button" id="creditsPackagesBtn" class="credits-check-btn credits-check-btn--inline">Ver pacotes</button>
               </div>
@@ -1150,9 +1167,9 @@ function creditsView({
         </div>
         <div class="credits-meta">
           <span>Validade: 30 dias</span>
-          <span>Pacote: 10 créditos por R$ 5,00</span>
+          <span>Pacotes ativos: Bronze, Silver e Gold</span>
         </div>
-        <button type="button" id="buyCreditsBtn">Comprar créditos</button>
+        <button type="button" id="buyCreditsBtn">Escolher pacote</button>
       </div>
 
       <div class="credits-note">
@@ -1195,6 +1212,16 @@ function packagesView({ isAdmin = false, userLabel = "Conta", credits = null } =
       <div class="packages-header">
         <h1>Pacotes de créditos</h1>
         <p>Escolha o plano ideal para treinar e evoluir no PreFlight.</p>
+        <div class="packages-trust-line">
+          <span>Pagamento seguro via Mercado Pago</span>
+          <img
+            class="packages-mp-logo"
+            src="https://cdn.simpleicons.org/mercadopago/009ee3"
+            alt="Logo Mercado Pago"
+            loading="lazy"
+          />
+          <span>&bull; Liberação rápida dos créditos &bull; Suporte no contato</span>
+        </div>
       </div>
 
       <div class="packages-grid">
@@ -1213,11 +1240,11 @@ function packagesView({ isAdmin = false, userLabel = "Conta", credits = null } =
           <div class="package-price">R$ 9,90</div>
           <ul class="package-list">
             <li>10 créditos para treino/avaliação</li>
-            <li>Sem vencimento de sessão ativa</li>
-            <li>Histórico completo no perfil</li>
-            <li>Acesso às próximas atualizações</li>
+            <li>Validade de 30 dias</li>
+            <li>Ideal para começar</li>
+            <li>Menor investimento inicial</li>
           </ul>
-          <button type="button" class="package-buy-btn">Entrar para comprar</button>
+          <button type="button" class="package-buy-btn" data-package-id="bronze" data-package-name="Bronze">Escolher Bronze</button>
         </article>
 
         <article class="package-card package-card--popular">
@@ -1238,10 +1265,10 @@ function packagesView({ isAdmin = false, userLabel = "Conta", credits = null } =
           <ul class="package-list">
             <li>Economia de 33%</li>
             <li>30 créditos para usar como quiser</li>
-            <li>Sem vencimento de sessão ativa</li>
-            <li>Ideal para rotina semanal</li>
+            <li>Validade de 30 dias</li>
+            <li>Melhor equilíbrio entre preço e volume</li>
           </ul>
-          <button type="button" class="package-buy-btn">Entrar para comprar</button>
+          <button type="button" class="package-buy-btn" data-package-id="silver" data-package-name="Silver">Escolher Silver</button>
         </article>
 
         <article class="package-card">
@@ -1259,19 +1286,49 @@ function packagesView({ isAdmin = false, userLabel = "Conta", credits = null } =
           <ul class="package-list">
             <li>Melhor custo por crédito</li>
             <li>50 créditos para alto volume</li>
-            <li>Sem vencimento de sessão ativa</li>
-            <li>Perfeito para reta final</li>
+            <li>Validade de 30 dias</li>
+            <li>Ideal para rotina intensa</li>
           </ul>
-          <button type="button" class="package-buy-btn">Entrar para comprar</button>
+          <button type="button" class="package-buy-btn" data-package-id="gold" data-package-name="Gold">Escolher Gold</button>
         </article>
       </div>
 
-      <div class="packages-note">
-        1 crédito = 1 treino ou 1 avaliação. Nesta etapa os botões são demonstrativos.
+      <div class="packages-summary">
+        <h2>Comparativo rápido</h2>
+        <div class="packages-summary-table-wrap">
+          <table class="packages-summary-table">
+            <thead>
+              <tr>
+                <th>Pacote</th>
+                <th>Créditos</th>
+                <th>Valor por crédito</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Bronze</td>
+                <td>10</td>
+                <td>R$ 0,99</td>
+              </tr>
+              <tr>
+                <td>Silver</td>
+                <td>30</td>
+                <td>R$ 0,66</td>
+              </tr>
+              <tr>
+                <td>Gold</td>
+                <td>50</td>
+                <td>R$ 0,59</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div class="packages-actions">
-        <button type="button" id="packagesBackBtn">Voltar</button>
+      <p class="packages-shared-benefits">Todos os pacotes incluem: histórico completo no perfil e acesso às próximas atualizações.</p>
+
+      <div class="packages-note">
+        1 crédito = 1 treino ou 1 avaliação. Todos os pacotes possuem validade de 30 dias.
       </div>
     </section>
     ${footerView()}

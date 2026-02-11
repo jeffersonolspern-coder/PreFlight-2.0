@@ -16,9 +16,12 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 
 const db = admin.firestore();
 
-const CREDIT_PACK_SIZE = 10;
-const CREDIT_PACK_PRICE = 5;
-const CREDIT_PACK_TITLE = "Pacote 10 créditos (PreFlight)";
+const CREDIT_PACKS = {
+  bronze: { id: "bronze", credits: 10, price: 9.9, title: "Pacote Bronze - 10 créditos (PreFlight)" },
+  silver: { id: "silver", credits: 30, price: 19.9, title: "Pacote Silver - 30 créditos (PreFlight)" },
+  gold: { id: "gold", credits: 50, price: 29.9, title: "Pacote Gold - 50 créditos (PreFlight)" }
+};
+const DEFAULT_CREDIT_PACK_ID = "bronze";
 const BUILD_ID = process.env.RENDER_GIT_COMMIT || process.env.SOURCE_VERSION || "local";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || (functions.config()?.admin?.emails ?? "") || "jeffersonolspern@gmail.com")
   .split(",")
@@ -90,29 +93,52 @@ function toIso(value) {
   return "";
 }
 
+function resolvePackById(rawId) {
+  const id = String(rawId || "").trim().toLowerCase();
+  return CREDIT_PACKS[id] || CREDIT_PACKS[DEFAULT_CREDIT_PACK_ID];
+}
+
+function resolvePackFromPayment(paymentData = {}) {
+  const metadata = paymentData?.metadata || {};
+  if (metadata.packageId) {
+    return resolvePackById(metadata.packageId);
+  }
+
+  const itemTitle = String(paymentData?.additional_info?.items?.[0]?.title || paymentData?.description || "");
+  const matched = Object.values(CREDIT_PACKS).find((pack) => itemTitle.includes(pack.title));
+  if (matched) return matched;
+
+  return CREDIT_PACKS[DEFAULT_CREDIT_PACK_ID];
+}
+
 // ===============================
 // CREATE CHECKOUT PREFERENCE
 // ===============================
 app.post("/createPreference", async (req, res) => {
   try {
-    const { userId, email } = req.body || {};
+    const { userId, email, packageId } = req.body || {};
     if (!userId) {
       return res.status(400).json({ error: "userId required" });
     }
+    const selectedPack = resolvePackById(packageId);
 
     const preference = {
       items: [
         {
-          title: CREDIT_PACK_TITLE,
+          title: selectedPack.title,
           quantity: 1,
           currency_id: "BRL",
-          unit_price: CREDIT_PACK_PRICE
+          unit_price: selectedPack.price
         }
       ],
       external_reference: userId,
       metadata: {
         userId,
-        email: email || ""
+        email: email || "",
+        packageId: selectedPack.id,
+        packageCredits: selectedPack.credits,
+        packagePrice: selectedPack.price,
+        packageTitle: selectedPack.title
       },
       notification_url: `${process.env.MP_WEBHOOK_URL || ""}`.trim() || undefined
     };
@@ -123,12 +149,7 @@ app.post("/createPreference", async (req, res) => {
       init_point: response.body.init_point,
       sandbox_init_point: response.body.sandbox_init_point,
       public_key: MP_PUBLIC_KEY || "",
-      pack: {
-        size: CREDIT_PACK_SIZE,
-        price: CREDIT_PACK_PRICE,
-        title: CREDIT_PACK_TITLE,
-        build: BUILD_ID
-      }
+      pack: { ...selectedPack, build: BUILD_ID }
     });
   } catch (error) {
     console.error("createPreference error:", error);
@@ -159,6 +180,7 @@ app.post("/mpWebhook", async (req, res) => {
     }
 
     const userId = p.metadata?.userId || p.external_reference;
+    const selectedPack = resolvePackFromPayment(p);
     if (!userId) {
       console.log("mpWebhook no_user for payment:", p?.id);
       return res.status(200).send("no_user");
@@ -185,7 +207,7 @@ app.post("/mpWebhook", async (req, res) => {
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(creditsRef);
       const current = snap.exists ? snap.data() : { balance: 0 };
-      const nextBalance = (current.balance || 0) + CREDIT_PACK_SIZE;
+      const nextBalance = (current.balance || 0) + selectedPack.credits;
 
       tx.set(
         creditsRef,
@@ -199,9 +221,12 @@ app.post("/mpWebhook", async (req, res) => {
 
       tx.set(txRef, {
         userId,
-        amount: CREDIT_PACK_SIZE,
+        amount: selectedPack.credits,
         type: "purchase",
         paymentId: p.id,
+        packageId: selectedPack.id,
+        packageTitle: selectedPack.title,
+        packagePrice: selectedPack.price,
         createdAt: now,
         expiresAt
       });
@@ -240,6 +265,7 @@ app.post("/reprocessPayment", async (req, res) => {
     }
 
     const resolvedUserId = userId || p.metadata?.userId || p.external_reference;
+    const selectedPack = resolvePackFromPayment(p);
     if (!resolvedUserId) {
       return res.status(400).json({ error: "no_user" });
     }
@@ -264,7 +290,7 @@ app.post("/reprocessPayment", async (req, res) => {
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(creditsRef);
       const current = snap.exists ? snap.data() : { balance: 0 };
-      const nextBalance = (current.balance || 0) + CREDIT_PACK_SIZE;
+      const nextBalance = (current.balance || 0) + selectedPack.credits;
 
       tx.set(
         creditsRef,
@@ -278,9 +304,12 @@ app.post("/reprocessPayment", async (req, res) => {
 
       tx.set(txRef, {
         userId: resolvedUserId,
-        amount: CREDIT_PACK_SIZE,
+        amount: selectedPack.credits,
         type: "reprocess",
         paymentId: p.id,
+        packageId: selectedPack.id,
+        packageTitle: selectedPack.title,
+        packagePrice: selectedPack.price,
         createdAt: now,
         expiresAt
       });
@@ -502,6 +531,9 @@ app.get("/credits/history", async (req, res) => {
           mode: data.mode || "",
           amount: Number.isFinite(Number(data.amount)) ? Number(data.amount) : 0,
           paymentId: data.paymentId || "",
+          packageId: data.packageId || "",
+          packageTitle: data.packageTitle || "",
+          packagePrice: Number.isFinite(Number(data.packagePrice)) ? Number(data.packagePrice) : null,
           requestId: data.requestId || "",
           balanceBefore: Number.isFinite(Number(data.balanceBefore)) ? Number(data.balanceBefore) : null,
           balanceAfter: Number.isFinite(Number(data.balanceAfter)) ? Number(data.balanceAfter) : null,
@@ -530,11 +562,7 @@ exports.api = functions.https.onRequest(app);
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
-    pack: {
-      size: CREDIT_PACK_SIZE,
-      price: CREDIT_PACK_PRICE,
-      title: CREDIT_PACK_TITLE
-    },
+    packs: Object.values(CREDIT_PACKS),
     build: BUILD_ID
   });
 });

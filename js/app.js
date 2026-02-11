@@ -67,6 +67,11 @@ const IS_LOCAL_DEV_HOST =
 const LOCAL_CREDITS_KEY_PREFIX = "preflight_local_credits_";
 const CREDITS_HISTORY_PAGE_SIZE = 30;
 const WELCOME_BONUS_CREDITS = 5;
+const CREDIT_PACKS = {
+  bronze: { id: "bronze", name: "Bronze", credits: 10, price: 9.9 },
+  silver: { id: "silver", name: "Silver", credits: 30, price: 19.9 },
+  gold: { id: "gold", name: "Gold", credits: 50, price: 29.9 }
+};
 
 // ===============================
 // EMAILJS (CONFIG)
@@ -241,10 +246,17 @@ function getCreditsLabel() {
 }
 
 function updateVisibleCreditsLabel() {
-  const creditsLink = document.getElementById("goCredits");
-  if (!creditsLink || !currentUser) return;
+  const navCreditsLink = document.getElementById("goCredits");
+  const topCreditsLink = document.getElementById("goCreditsTop");
   const balance = getCreditsLabel();
-  creditsLink.textContent = `Créditos: ${balance ?? 0}`;
+
+  if (navCreditsLink) {
+    navCreditsLink.textContent = currentUser ? `Créditos: ${balance ?? 0}` : "Créditos";
+  }
+
+  if (topCreditsLink) {
+    topCreditsLink.textContent = currentUser ? `Créditos: ${balance ?? 0}` : "Créditos";
+  }
 }
 
 function parseCreditsBalance(value) {
@@ -273,10 +285,10 @@ function formatCreditHistoryItem(item) {
   let description = "Movimentação de créditos";
   let statusLabel = "Concluído";
   if (type === "purchase") {
-    description = "Compra de pacote";
+    description = item?.packageTitle ? `Compra: ${item.packageTitle}` : "Compra de pacote";
     statusLabel = "Aprovado";
   } else if (type === "reprocess") {
-    description = "Compra reprocessada";
+    description = item?.packageTitle ? `Compra reprocessada: ${item.packageTitle}` : "Compra reprocessada";
     statusLabel = "Aprovado";
   } else if (type === "consume") {
     description = mode === "evaluation" ? "Uso em avaliação" : "Uso em treinamento";
@@ -808,6 +820,7 @@ function renderSigwx() {
 
   setupLogout();
   setupGlobalMenu();
+  setupSimuladoNavToggle();
   setupContact();
   setupFooterLinks();
 }
@@ -828,6 +841,7 @@ function renderSigwxEvaluation() {
   setupEvaluationTimer();
   setupLogout();
   setupGlobalMenu();
+  setupSimuladoNavToggle();
   setupContact();
   setupFooterLinks();
 }
@@ -1527,9 +1541,29 @@ function renderPackages() {
 }
 
 function setupPackagesActions() {
-  const backBtn = document.getElementById("packagesBackBtn");
-  backBtn?.addEventListener("click", () => {
-    renderProfile();
+  const packageButtons = document.querySelectorAll(".package-buy-btn[data-package-id]");
+  packageButtons.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const packageId = String(btn.getAttribute("data-package-id") || "").trim().toLowerCase();
+      const packageName = String(btn.getAttribute("data-package-name") || "").trim() || "pacote";
+      if (!CREDIT_PACKS[packageId]) {
+        showToast("Pacote inválido.", "error");
+        return;
+      }
+
+      const defaultText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = "Abrindo pagamento...";
+      try {
+        const opened = await startCreditsCheckout(packageId);
+        if (opened) {
+          showToast(`Pagamento do pacote ${packageName} aberto. Após pagar, confirme os créditos.`, "info");
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerText = defaultText;
+      }
+    });
   });
 }
 function setupProfileActions(evaluations) {
@@ -1849,9 +1883,9 @@ function setupCreditsActions() {
   const cancelBtn = document.getElementById("creditsCheckoutCancel");
   const checkBtn = document.getElementById("creditsCheckBtn");
 
-  if (btn && modal) {
+  if (btn) {
     btn.addEventListener("click", () => {
-      modal.classList.remove("hidden");
+      renderPackages();
     });
   }
 
@@ -1879,7 +1913,7 @@ function setupCreditsActions() {
       if (cancelBtn) cancelBtn.disabled = true;
 
       try {
-        const opened = await startCreditsCheckout();
+        const opened = await startCreditsCheckout("silver");
         if (opened && modal) {
           modal.classList.add("hidden");
           showToast("Pagamento aberto. Após pagar, volte aqui e confirme os créditos.", "info");
@@ -2150,6 +2184,7 @@ function setupGlobalMenu() {
   const goProfile = document.getElementById("goProfile");
   const goAdmin = document.getElementById("goAdmin");
   const goCredits = document.getElementById("goCredits");
+  const goCreditsTop = document.getElementById("goCreditsTop");
 
   if (goHome) {
     goHome.addEventListener("click", (e) => {
@@ -2193,11 +2228,55 @@ function setupGlobalMenu() {
   if (goCredits) {
     goCredits.addEventListener("click", (e) => {
       e.preventDefault();
+      if (!currentUser) {
+        renderLogin();
+        return;
+      }
       renderCredits();
     });
   }
 
+  if (goCreditsTop) {
+    goCreditsTop.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (!currentUser) {
+        renderLogin();
+        return;
+      }
+      renderCredits();
+    });
+  }
+
+  setupMobileHeaderMenu();
   setupUserMenu();
+}
+
+function setupMobileHeaderMenu() {
+  const toggleBtn = document.getElementById("mobileMenuToggle");
+  const menu = document.getElementById("primaryMenu");
+  if (!toggleBtn || !menu) return;
+
+  const closeMenu = () => {
+    menu.classList.remove("is-open");
+    toggleBtn.classList.remove("is-open");
+    toggleBtn.setAttribute("aria-expanded", "false");
+  };
+
+  toggleBtn.addEventListener("click", () => {
+    const isOpen = menu.classList.toggle("is-open");
+    toggleBtn.classList.toggle("is-open", isOpen);
+    toggleBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  });
+
+  menu.querySelectorAll("a").forEach((item) => {
+    item.addEventListener("click", () => {
+      if (window.innerWidth <= 900) closeMenu();
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 900) closeMenu();
+  });
 }
 
 function setupUserMenu() {
@@ -2616,6 +2695,50 @@ function setupHomeSimuladosCarousel() {
   updateButtons();
 }
 
+function setupSimuladoNavToggle() {
+  const toggleBtn = document.querySelector("[data-sim-nav-toggle]");
+  const panel = document.querySelector("[data-sim-nav-panel]");
+  if (!toggleBtn || !panel) return;
+
+  const labelSpan = toggleBtn.querySelector("span");
+
+  const closePanel = () => {
+    panel.classList.remove("is-open");
+    toggleBtn.setAttribute("aria-expanded", "false");
+    if (labelSpan) labelSpan.textContent = "▾";
+  };
+
+  const openPanel = () => {
+    panel.classList.add("is-open");
+    toggleBtn.setAttribute("aria-expanded", "true");
+    if (labelSpan) labelSpan.textContent = "▴";
+  };
+
+  if (window.innerWidth <= 900) {
+    closePanel();
+  } else {
+    openPanel();
+  }
+
+  toggleBtn.addEventListener("click", () => {
+    const isOpen = panel.classList.contains("is-open");
+    if (isOpen) closePanel();
+    else openPanel();
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 900) {
+      panel.classList.add("is-open");
+      toggleBtn.setAttribute("aria-expanded", "true");
+      if (labelSpan) labelSpan.textContent = "▴";
+      return;
+    }
+    panel.classList.remove("is-open");
+    toggleBtn.setAttribute("aria-expanded", "false");
+    if (labelSpan) labelSpan.textContent = "▾";
+  });
+}
+
 // ===============================
 // LOGOUT
 // ===============================
@@ -2745,11 +2868,19 @@ function setupContact() {
   }
 }
 
-async function startCreditsCheckout() {
+async function startCreditsCheckout(packageId = "silver") {
   if (!currentUser) {
     renderLogin();
     return false;
   }
+
+  const normalizedPackageId = String(packageId || "").trim().toLowerCase();
+  const selectedPack = CREDIT_PACKS[normalizedPackageId];
+  if (!selectedPack) {
+    showToast("Pacote inválido.", "error");
+    return false;
+  }
+
   try {
     const baseBalance = currentCredits?.balance ?? 0;
     const res = await fetchApiWithPathFallback("/createPreference", {
@@ -2757,7 +2888,8 @@ async function startCreditsCheckout() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId: currentUser.uid,
-        email: currentUser.email || ""
+        email: currentUser.email || "",
+        packageId: normalizedPackageId
       })
     });
     if (!res.ok) {
