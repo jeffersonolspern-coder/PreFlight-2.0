@@ -41,6 +41,7 @@ import {
   deleteUserProfile,
   getUserCredits,
   setUserCredits,
+  recordConsumeCreditTransaction,
   consumeUserCredit,
   getUserCreditTransactionsPage
 } from "./modules/users.js";
@@ -492,10 +493,21 @@ async function consumeStartCredit(mode) {
 
     const parsedBalance = Number(data?.balance);
     const safeBalance = Number.isFinite(parsedBalance) ? Math.max(0, Math.floor(parsedBalance)) : 0;
+    const balanceBefore = Math.max(safeBalance + 1, latestBalance ?? safeBalance + 1);
     currentCredits = {
       ...(currentCredits || {}),
       balance: safeBalance
     };
+    try {
+      await recordConsumeCreditTransaction(currentUser.uid, {
+        mode,
+        requestId,
+        balanceBefore,
+        balanceAfter: safeBalance
+      });
+    } catch (error) {
+      // no-op: history write is best-effort and consume was already confirmed
+    }
     writeLocalCreditsBalance(currentUser.uid, safeBalance, true);
     updateVisibleCreditsLabel();
 

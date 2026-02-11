@@ -11,8 +11,6 @@ import {
   deleteDoc,
   collection,
   getDocs,
-  query,
-  where,
   serverTimestamp,
   runTransaction
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -81,11 +79,48 @@ async function setUserCredits(userId, balance) {
   );
 }
 
+function buildUserConsumeTransactionRef(userId, requestId) {
+  return doc(db, "users", userId, "credit_transactions", `consume_${userId}_${requestId}`);
+}
+
+async function recordConsumeCreditTransaction(
+  userId,
+  {
+    mode = "training",
+    requestId = "",
+    balanceBefore = null,
+    balanceAfter = 0
+  } = {}
+) {
+  const normalizedMode = String(mode || "").trim().toLowerCase();
+  const normalizedRequestId = String(requestId || `fallback_${Date.now()}`).trim();
+  const parsedAfter = Number(balanceAfter);
+  const safeAfter = Number.isFinite(parsedAfter) ? Math.max(0, Math.floor(parsedAfter)) : 0;
+  const parsedBefore = Number(balanceBefore);
+  const safeBefore = Number.isFinite(parsedBefore) ? Math.max(0, Math.floor(parsedBefore)) : safeAfter + 1;
+  const txRef = buildUserConsumeTransactionRef(userId, normalizedRequestId);
+
+  await setDoc(
+    txRef,
+    {
+      userId,
+      type: "consume",
+      mode: normalizedMode,
+      amount: -1,
+      requestId: normalizedRequestId,
+      balanceBefore: safeBefore,
+      balanceAfter: safeAfter,
+      createdAt: serverTimestamp()
+    },
+    { merge: false }
+  );
+}
+
 async function consumeUserCredit(userId, mode = "training", requestId = "") {
   const normalizedMode = String(mode || "").trim().toLowerCase();
   const normalizedRequestId = String(requestId || `fallback_${Date.now()}`).trim();
   const creditsRef = doc(db, "credits", userId);
-  const txRef = doc(db, "credit_transactions", `consume_${userId}_${normalizedRequestId}`);
+  const txRef = buildUserConsumeTransactionRef(userId, normalizedRequestId);
 
   let result = { balance: 0, alreadyProcessed: false };
 
@@ -210,16 +245,11 @@ async function getUserCreditTransactionsPage(userId, { pageSize = 8, cursor = nu
     ? Math.max(0, Math.floor(Number(cursor)))
     : 0;
 
-  const txQuery = query(
-    collection(db, "credit_transactions"),
-    where("userId", "==", userId)
-  );
-
   let snap;
   try {
-    snap = await getDocsFromServer(txQuery);
+    snap = await getDocsFromServer(collection(db, "users", userId, "credit_transactions"));
   } catch (error) {
-    snap = await getDocs(txQuery);
+    snap = await getDocs(collection(db, "users", userId, "credit_transactions"));
   }
 
   const getTimestampMs = (value) => {
@@ -258,6 +288,7 @@ export {
   deleteUserProfile,
   getUserCredits,
   setUserCredits,
+  recordConsumeCreditTransaction,
   consumeUserCredit,
   getUserCreditTransactionsPage
 };

@@ -17,6 +17,19 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read, create, update, delete: if isOwner(userId) || isAdmin();
+
+      match /credit_transactions/{txId} {
+        allow read: if isOwner(userId) || isAdmin();
+
+        allow create: if isOwner(userId) &&
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.type == "consume" &&
+          request.resource.data.amount == -1 &&
+          request.resource.data.balanceAfter is number &&
+          request.resource.data.balanceAfter >= 0;
+
+        allow update, delete: if isAdmin();
+      }
     }
 
     match /evaluations/{evaluationId} {
