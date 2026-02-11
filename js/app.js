@@ -63,7 +63,7 @@ const IS_LOCAL_DEV_HOST =
   window.location.hostname === "127.0.0.1" ||
   window.location.hostname === "localhost";
 const LOCAL_CREDITS_KEY_PREFIX = "preflight_local_credits_";
-const CREDITS_HISTORY_PAGE_SIZE = 8;
+const CREDITS_HISTORY_PAGE_SIZE = 12;
 
 // ===============================
 // EMAILJS (CONFIG)
