@@ -83,6 +83,7 @@ let evaluationRemainingSeconds = 15 * 60;
 let adminUsersCache = [];
 let profileEvaluationsCache = [];
 let profileShowAllEvaluations = false;
+let profileVisibleSpentCredits = 7;
 let adminNormalizedOnce = false;
 let currentCredits = null;
 let creditHistoryItems = [];
@@ -1064,7 +1065,8 @@ function renderProfileScreen({ profile = null, evaluations = [], loading = false
     creditHistoryLoadingMore: creditHistoryLoadingMore,
     creditHistoryHasMore: creditHistoryHasMore,
     creditHistoryError: creditHistoryError,
-    showAllEvaluations: profileShowAllEvaluations
+    showAllEvaluations: profileShowAllEvaluations,
+    visibleSpentCredits: profileVisibleSpentCredits
   });
 }
 
@@ -1090,6 +1092,10 @@ function rerenderProfileFromCache() {
   bindProfileScreenActions(currentProfile, profileEvaluationsCache);
 }
 
+function getLoadedSpentCreditsCount() {
+  return creditHistoryItems.filter((item) => String(item?.type || "").toLowerCase() === "consume").length;
+}
+
 async function renderProfile() {
   creditHistoryLoading = true;
   creditHistoryLoadingMore = false;
@@ -1098,6 +1104,7 @@ async function renderProfile() {
   creditHistoryCursor = null;
   creditHistoryError = "";
   profileShowAllEvaluations = false;
+  profileVisibleSpentCredits = 7;
 
   renderProfileScreen({ profile: currentProfile, evaluations: [], loading: true });
   setupGlobalMenu();
@@ -1690,13 +1697,22 @@ function setupCreditsHistoryActions() {
   if (!moreBtn) return;
 
   moreBtn.addEventListener("click", async () => {
-    if (!currentUser || creditHistoryLoadingMore || !creditHistoryHasMore) return;
+    if (!currentUser || creditHistoryLoadingMore) return;
+
+    const loadedSpent = getLoadedSpentCreditsCount();
+    if (loadedSpent > profileVisibleSpentCredits) {
+      profileVisibleSpentCredits += 7;
+      rerenderProfileFromCache();
+      return;
+    }
+    if (!creditHistoryHasMore) return;
 
     creditHistoryLoadingMore = true;
     rerenderProfileFromCache();
 
     try {
       await loadCreditHistoryPage({ append: true });
+      profileVisibleSpentCredits += 7;
     } catch (error) {
       console.warn("PreFlight credits history pagination failed:", error);
       showToast("Não foi possível carregar mais itens do histórico.", "error");

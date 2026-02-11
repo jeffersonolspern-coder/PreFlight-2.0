@@ -657,7 +657,8 @@ function profileView({
   creditHistoryLoadingMore = false,
   creditHistoryHasMore = false,
   creditHistoryError = "",
-  showAllEvaluations = false
+  showAllEvaluations = false,
+  visibleSpentCredits = 7
 }) {
   const formatDuration = (secs) => {
     if (secs === null || secs === undefined) return "";
@@ -727,10 +728,11 @@ function profileView({
     : 0;
 
   const safeHistoryItems = Array.isArray(creditHistoryItems) ? creditHistoryItems : [];
-  const spentHistoryItems = safeHistoryItems
-    .filter((item) => String(item?.rawType || "").toLowerCase() === "consume")
-    .slice(0, 7);
-  const historyRows = spentHistoryItems
+  const allSpentHistoryItems = safeHistoryItems
+    .filter((item) => String(item?.rawType || "").toLowerCase() === "consume");
+  const visibleSpentHistoryItems = allSpentHistoryItems.slice(0, visibleSpentCredits);
+  const hasMoreSpentToShow = allSpentHistoryItems.length > visibleSpentCredits || creditHistoryHasMore;
+  const historyRows = visibleSpentHistoryItems
     .map((item) => `
       <tr>
         <td>${item.dateLabel || "&mdash;"}</td>
@@ -741,9 +743,9 @@ function profileView({
     `)
     .join("");
 
-  const historyContent = creditHistoryLoading && !spentHistoryItems.length
+  const historyContent = creditHistoryLoading && !visibleSpentHistoryItems.length
     ? `<div class="profile-loading">Carregando histórico...</div>`
-    : spentHistoryItems.length
+    : visibleSpentHistoryItems.length
       ? `
           <div class="credits-history-table-wrap">
             <table class="credits-history-table">
@@ -839,6 +841,9 @@ function profileView({
                 <p>Últimos 7 créditos gastos (consumos) da sua conta.</p>
               </div>
               ${historyContent}
+              ${hasMoreSpentToShow && !creditHistoryLoading
+                ? `<button type="button" class="credits-history-more" id="creditsHistoryMoreBtn"${creditHistoryLoadingMore ? " disabled" : ""}>${creditHistoryLoadingMore ? "Carregando..." : "Visualizar mais"}</button>`
+                : ""}
             </section>
 
             <div class="evaluation-modal hidden" id="creditsCheckoutModal" role="dialog" aria-modal="true" aria-labelledby="creditsCheckoutTitle">
