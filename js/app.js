@@ -56,6 +56,7 @@ const FUNCTIONS_BASE_URL =
   window.PREFLIGHT_FUNCTIONS_URL ||
   "https://us-central1-preflightsimulados.cloudfunctions.net/api";
 const USE_MP_SANDBOX = window.PREFLIGHT_MP_SANDBOX === true;
+const USE_BACKEND_CREDITS_API = window.PREFLIGHT_USE_BACKEND_CREDITS_API === true;
 const IS_LOCAL_DEV_HOST =
   window.location.hostname === "127.0.0.1" ||
   window.location.hostname === "localhost";
@@ -159,6 +160,7 @@ async function fetchCreditHistoryPageFromApi({ pageSize = 8, cursor = null } = {
 }
 
 function warmupApi() {
+  if (!USE_BACKEND_CREDITS_API) return;
   if (apiWarmupDone) return;
   apiWarmupDone = true;
   fetchApiWithPathFallback("/health", { method: "GET", cache: "no-store" }).catch(() => {
@@ -457,6 +459,19 @@ async function consumeStartCredit(mode) {
   }
 
   const requestId = createCreditRequestId(mode);
+
+  if (!USE_BACKEND_CREDITS_API) {
+    const result = await consumeUserCredit(currentUser.uid, mode, requestId);
+    const parsedBalance = Number(result?.balance);
+    const safeBalance = Number.isFinite(parsedBalance) ? Math.max(0, Math.floor(parsedBalance)) : 0;
+    currentCredits = {
+      ...(currentCredits || {}),
+      balance: safeBalance
+    };
+    writeLocalCreditsBalance(currentUser.uid, safeBalance, true);
+    updateVisibleCreditsLabel();
+    return safeBalance;
+  }
 
   try {
     const token = await currentUser.getIdToken();
@@ -1252,12 +1267,19 @@ async function loadCreditHistoryPage({ append = false } = {}) {
   if (!currentUser) return;
 
   let page;
-  try {
-    page = await fetchCreditHistoryPageFromApi({
-      pageSize: CREDITS_HISTORY_PAGE_SIZE,
-      cursor: append ? creditHistoryCursor : null
-    });
-  } catch (apiError) {
+  if (USE_BACKEND_CREDITS_API) {
+    try {
+      page = await fetchCreditHistoryPageFromApi({
+        pageSize: CREDITS_HISTORY_PAGE_SIZE,
+        cursor: append ? creditHistoryCursor : null
+      });
+    } catch (apiError) {
+      page = await getUserCreditTransactionsPage(currentUser.uid, {
+        pageSize: CREDITS_HISTORY_PAGE_SIZE,
+        cursor: append ? creditHistoryCursor : null
+      });
+    }
+  } else {
     page = await getUserCreditTransactionsPage(currentUser.uid, {
       pageSize: CREDITS_HISTORY_PAGE_SIZE,
       cursor: append ? creditHistoryCursor : null
