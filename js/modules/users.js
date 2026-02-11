@@ -13,9 +13,6 @@ import {
   getDocs,
   query,
   where,
-  orderBy,
-  limit,
-  startAfter,
   serverTimestamp,
   runTransaction
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -187,18 +184,14 @@ async function getUserCreditTransactionsPage(userId, { pageSize = 8, cursor = nu
   const safePageSize = Number.isFinite(Number(pageSize))
     ? Math.max(1, Math.min(20, Math.floor(Number(pageSize))))
     : 8;
+  const safeOffset = Number.isFinite(Number(cursor))
+    ? Math.max(0, Math.floor(Number(cursor)))
+    : 0;
 
-  const constraints = [
-    where("userId", "==", userId),
-    orderBy("createdAt", "desc"),
-    limit(safePageSize)
-  ];
-
-  if (cursor) {
-    constraints.push(startAfter(cursor));
-  }
-
-  const txQuery = query(collection(db, "credit_transactions"), ...constraints);
+  const txQuery = query(
+    collection(db, "credit_transactions"),
+    where("userId", "==", userId)
+  );
 
   let snap;
   try {
@@ -207,13 +200,31 @@ async function getUserCreditTransactionsPage(userId, { pageSize = 8, cursor = nu
     snap = await getDocs(txQuery);
   }
 
-  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  const nextCursor = snap.docs.length ? snap.docs[snap.docs.length - 1] : cursor;
+  const getTimestampMs = (value) => {
+    if (!value) return 0;
+    if (typeof value?.toDate === "function") {
+      const dt = value.toDate();
+      return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
+    }
+    if (typeof value?.seconds === "number") {
+      return value.seconds * 1000;
+    }
+    const dt = new Date(value);
+    return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
+  };
+
+  const allItems = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
+
+  const items = allItems.slice(safeOffset, safeOffset + safePageSize);
+  const nextCursor = safeOffset + items.length;
+  const hasMore = nextCursor < allItems.length;
 
   return {
     items,
-    nextCursor,
-    hasMore: snap.docs.length === safePageSize
+    nextCursor: hasMore ? nextCursor : null,
+    hasMore
   };
 }
 
