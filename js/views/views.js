@@ -644,7 +644,20 @@ function contactView({ logged = false, isAdmin = false, userLabel = "Conta", cre
 // ===============================
 // PERFIL / ADMIN (SIMPLIFICADOS)
 // ===============================
-function profileView({ user, profile, evaluations = [], loading = false, isAdmin = false, userLabel = "Conta", credits = null }) {
+function profileView({
+  user,
+  profile,
+  evaluations = [],
+  loading = false,
+  isAdmin = false,
+  userLabel = "Conta",
+  credits = null,
+  creditHistoryItems = [],
+  creditHistoryLoading = false,
+  creditHistoryLoadingMore = false,
+  creditHistoryHasMore = false,
+  creditHistoryError = ""
+}) {
   const formatDuration = (secs) => {
     if (secs === null || secs === undefined) return "";
     const m = String(Math.floor(secs / 60)).padStart(2, "0");
@@ -697,12 +710,109 @@ function profileView({ user, profile, evaluations = [], loading = false, isAdmin
       `</div>`
     : `<div class="profile-empty">Nenhuma avaliação registrada ainda.</div>`;
 
+  const approvedCount = evaluations.filter((e) => e.status === "Aprovado").length;
+  const evaluationsTotal = evaluations.length;
+  const averagePercent = evaluationsTotal
+    ? Math.round(
+      evaluations.reduce((acc, e) => acc + (Number(e.percentage) || 0), 0) / evaluationsTotal
+    )
+    : 0;
+
+  const safeHistoryItems = Array.isArray(creditHistoryItems) ? creditHistoryItems : [];
+  const historyRows = safeHistoryItems
+    .map((item) => `
+      <tr>
+        <td>${item.dateLabel || "&mdash;"}</td>
+        <td>${item.description || "&mdash;"}</td>
+        <td><strong class="credits-amount ${item.amountClass || ""}">${item.amountLabel || "&mdash;"}</strong></td>
+        <td>${item.statusLabel || "&mdash;"}</td>
+      </tr>
+    `)
+    .join("");
+
+  const historyContent = creditHistoryLoading && !safeHistoryItems.length
+    ? `<div class="profile-loading">Carregando histórico...</div>`
+    : safeHistoryItems.length
+      ? `
+          <div class="credits-history-table-wrap">
+            <table class="credits-history-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Movimentação</th>
+                  <th>Créditos</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${historyRows}
+              </tbody>
+            </table>
+          </div>
+        `
+      : creditHistoryError
+        ? `<div class="credits-history-error">${creditHistoryError}</div>`
+        : `<div class="profile-empty">Nenhuma movimentação encontrada ainda.</div>`;
+
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
     <section class="profile-page">
       <div class="profile-header">
         <h1>Seu perfil</h1>
         <p>${user?.displayName ? user.displayName + " &middot; " : ""}${user?.email || ""}</p>
+      </div>
+
+      <div class="eval-stats">
+        <div><span>Créditos</span><strong>${credits ?? 0}</strong></div>
+        <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
+        <div><span>Aprovadas</span><strong>${approvedCount}</strong></div>
+        <div class="is-percent"><span>Média</span><strong>${averagePercent}%</strong></div>
+      </div>
+
+      <div class="profile-section" id="profileCreditsSection">
+        <h2>Créditos</h2>
+        <div class="credits-status" id="creditsStatus" hidden>
+          <strong>Pagamento recente?</strong>
+          <span>Após pagar, clique em confirmar para atualizar seus créditos.</span>
+          <button type="button" id="creditsCheckBtn" class="credits-check-btn">Já paguei, atualizar créditos</button>
+        </div>
+        <div class="credits-card">
+          <div>
+            <span>Saldo atual</span>
+            <strong class="credits-balance">${credits ?? 0} créditos</strong>
+          </div>
+          <div class="credits-meta">
+            <span>Validade: 30 dias</span>
+            <span>Pacote: 10 créditos por R$ 5,00</span>
+          </div>
+          <button type="button" id="buyCreditsBtn">Comprar créditos</button>
+        </div>
+        <div class="credits-note">
+          Treino e avaliação consomem 1 crédito cada.
+        </div>
+
+        <section class="credits-history">
+          <div class="credits-history-header">
+            <h2>Histórico de créditos</h2>
+            <p>Compras e consumos mais recentes da sua conta.</p>
+          </div>
+          ${historyContent}
+          ${creditHistoryHasMore && !creditHistoryLoading
+            ? `<button type="button" class="credits-history-more" id="creditsHistoryMoreBtn"${creditHistoryLoadingMore ? " disabled" : ""}>${creditHistoryLoadingMore ? "Carregando..." : "Carregar mais"}</button>`
+            : ""}
+        </section>
+
+        <div class="evaluation-modal hidden" id="creditsCheckoutModal" role="dialog" aria-modal="true" aria-labelledby="creditsCheckoutTitle">
+          <div class="evaluation-box credits-checkout-box">
+            <h3 id="creditsCheckoutTitle">Comprar créditos</h3>
+            <p>Você será redirecionado para uma plataforma de pagamento segura (Mercado Pago).</p>
+            <p>Após concluir o pagamento, retorne para esta página e confirme a atualização dos créditos.</p>
+            <div class="evaluation-actions">
+              <button type="button" id="creditsCheckoutCancel" style="background:#6b7280;color:#ffffff;">Cancelar</button>
+              <button type="button" id="creditsCheckoutConfirm">Confirmar pagamento</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="profile-section">
