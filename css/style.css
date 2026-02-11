@@ -1753,6 +1753,19 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   color: #111827;
 }
 
+.profile-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.profile-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .profile-form {
   background: transparent;
   border-radius: 0;
@@ -2150,6 +2163,10 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
 }
 
 @media (max-width: 900px) {
+  .profile-columns {
+    grid-template-columns: 1fr;
+  }
+
   .profile-form {
     grid-template-columns: 1fr;
   }

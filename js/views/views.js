@@ -799,67 +799,73 @@ function profileView({
         </div>
       </div>
 
-      <div class="profile-stats">
-        <div><span>Créditos</span><strong>${credits ?? 0}</strong></div>
-        <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
-        <div><span>Aprovadas</span><strong>${approvedCount}</strong></div>
-        <div class="is-percent"><span>Média</span><strong>${averagePercent}%</strong></div>
-      </div>
-
-      <div class="profile-section" id="profileCreditsSection">
-        <h2>Créditos</h2>
-        <div class="credits-status" id="creditsStatus" hidden>
-          <strong>Pagamento recente?</strong>
-          <span>Após pagar, clique em confirmar para atualizar seus créditos.</span>
-          <button type="button" id="creditsCheckBtn" class="credits-check-btn">Já paguei, atualizar créditos</button>
-        </div>
-        <div class="credits-card">
-          <div>
-            <span>Saldo atual</span>
-            <strong class="credits-balance">${credits ?? 0} créditos</strong>
+      <div class="profile-columns">
+        <div class="profile-column profile-column--left">
+          <div class="profile-stats">
+            <div><span>Créditos</span><strong>${credits ?? 0}</strong></div>
+            <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
+            <div><span>Aprovadas</span><strong>${approvedCount}</strong></div>
+            <div class="is-percent"><span>Média</span><strong>${averagePercent}%</strong></div>
           </div>
-          <div class="credits-meta">
-            <span>Validade: 30 dias</span>
-            <span>Pacote: 10 créditos por R$ 5,00</span>
-          </div>
-          <button type="button" id="buyCreditsBtn">Comprar créditos</button>
-        </div>
-        <div class="credits-note">
-          Treino e avaliação consomem 1 crédito cada.
-        </div>
 
-        <section class="credits-history">
-          <div class="credits-history-header">
-            <h2>Histórico de créditos</h2>
-            <p>Compras e consumos mais recentes da sua conta.</p>
-          </div>
-          ${historyContent}
-          ${creditHistoryHasMore && !creditHistoryLoading
-            ? `<button type="button" class="credits-history-more" id="creditsHistoryMoreBtn"${creditHistoryLoadingMore ? " disabled" : ""}>${creditHistoryLoadingMore ? "Carregando..." : "Carregar mais"}</button>`
-            : ""}
-        </section>
+          <div class="profile-section" id="profileCreditsSection">
+            <h2>Créditos</h2>
+            <div class="credits-status" id="creditsStatus" hidden>
+              <strong>Pagamento recente?</strong>
+              <span>Após pagar, clique em confirmar para atualizar seus créditos.</span>
+              <button type="button" id="creditsCheckBtn" class="credits-check-btn">Já paguei, atualizar créditos</button>
+            </div>
+            <div class="credits-card">
+              <div>
+                <span>Saldo atual</span>
+                <strong class="credits-balance">${credits ?? 0} créditos</strong>
+              </div>
+              <div class="credits-meta">
+                <span>Validade: 30 dias</span>
+                <span>Pacote: 10 créditos por R$ 5,00</span>
+              </div>
+              <button type="button" id="buyCreditsBtn">Comprar créditos</button>
+            </div>
+            <div class="credits-note">
+              Treino e avaliação consomem 1 crédito cada.
+            </div>
 
-        <div class="evaluation-modal hidden" id="creditsCheckoutModal" role="dialog" aria-modal="true" aria-labelledby="creditsCheckoutTitle">
-          <div class="evaluation-box credits-checkout-box">
-            <h3 id="creditsCheckoutTitle">Comprar créditos</h3>
-            <p>Você será redirecionado para uma plataforma de pagamento segura (Mercado Pago).</p>
-            <p>Após concluir o pagamento, retorne para esta página e confirme a atualização dos créditos.</p>
-            <div class="evaluation-actions">
-              <button type="button" id="creditsCheckoutCancel" style="background:#6b7280;color:#ffffff;">Cancelar</button>
-              <button type="button" id="creditsCheckoutConfirm">Confirmar pagamento</button>
+            <section class="credits-history">
+              <div class="credits-history-header">
+                <h2>Histórico de créditos</h2>
+                <p>Compras e consumos mais recentes da sua conta.</p>
+              </div>
+              ${historyContent}
+              ${creditHistoryHasMore && !creditHistoryLoading
+                ? `<button type="button" class="credits-history-more" id="creditsHistoryMoreBtn"${creditHistoryLoadingMore ? " disabled" : ""}>${creditHistoryLoadingMore ? "Carregando..." : "Carregar mais"}</button>`
+                : ""}
+            </section>
+
+            <div class="evaluation-modal hidden" id="creditsCheckoutModal" role="dialog" aria-modal="true" aria-labelledby="creditsCheckoutTitle">
+              <div class="evaluation-box credits-checkout-box">
+                <h3 id="creditsCheckoutTitle">Comprar créditos</h3>
+                <p>Você será redirecionado para uma plataforma de pagamento segura (Mercado Pago).</p>
+                <p>Após concluir o pagamento, retorne para esta página e confirme a atualização dos créditos.</p>
+                <div class="evaluation-actions">
+                  <button type="button" id="creditsCheckoutCancel" style="background:#6b7280;color:#ffffff;">Cancelar</button>
+                  <button type="button" id="creditsCheckoutConfirm">Confirmar pagamento</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="profile-section">
-        <h2>Histórico de avaliações</h2>
-        <div class="profile-filters">
-          <button type="button" class="active" data-profile-filter="all">Todas</button>
-          <button type="button" data-profile-filter="Aprovado">Aprovadas</button>
-          <button type="button" data-profile-filter="Reprovado">Reprovadas</button>
+        <div class="profile-column profile-column--right">
+          <div class="profile-section">
+            <h2>Histórico de avaliações</h2>
+            <div class="profile-filters">
+              <button type="button" class="active" data-profile-filter="all">Todas</button>
+              <button type="button" data-profile-filter="Aprovado">Aprovadas</button>
+              <button type="button" data-profile-filter="Reprovado">Reprovadas</button>
+            </div>
+            ${loading ? `<div class="profile-loading">Carregando...</div>` : list}
+          </div>
         </div>
-        ${loading ? `<div class="profile-loading">Carregando...</div>` : list}
       </div>
     </section>
     ${footerView()}
