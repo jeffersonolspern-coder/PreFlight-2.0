@@ -799,15 +799,15 @@ function profileView({
         </div>
       </div>
 
+      <div class="profile-stats">
+        <div><span>Créditos</span><strong>${credits ?? 0}</strong></div>
+        <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
+        <div><span>Aprovadas</span><strong>${approvedCount}</strong></div>
+        <div class="is-percent"><span>Média</span><strong>${averagePercent}%</strong></div>
+      </div>
+
       <div class="profile-columns">
         <div class="profile-column profile-column--left">
-          <div class="profile-stats">
-            <div><span>Créditos</span><strong>${credits ?? 0}</strong></div>
-            <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
-            <div><span>Aprovadas</span><strong>${approvedCount}</strong></div>
-            <div class="is-percent"><span>Média</span><strong>${averagePercent}%</strong></div>
-          </div>
-
           <div class="profile-section" id="profileCreditsSection">
             <h2>Créditos</h2>
             <div class="credits-status" id="creditsStatus" hidden>
@@ -867,6 +867,7 @@ function profileView({
           </div>
         </div>
       </div>
+
     </section>
     ${footerView()}
     ${contactWidgetView()}
