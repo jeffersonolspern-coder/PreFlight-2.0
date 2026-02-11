@@ -182,7 +182,17 @@ function loginView({ isAdmin = false, userLabel = "Conta" } = {}) {
 
     <div class="box">
       <h1>Login</h1>
-      <button id="loginGoogleBtn" class="google-login-btn" type="button">Entrar com Google</button>
+      <button id="loginGoogleBtn" class="google-login-btn" type="button">
+        <span class="google-login-content">
+          <img
+            class="google-login-icon"
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+            alt=""
+            aria-hidden="true"
+          />
+          <span>Entrar com Google</span>
+        </span>
+      </button>
       <div class="auth-divider"><span>ou</span></div>
       <label class="sr-only" for="email">Email</label>
       <input type="email" id="email" placeholder="Email" autocomplete="email" />

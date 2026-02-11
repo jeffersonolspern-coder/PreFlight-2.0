@@ -452,6 +452,19 @@ textarea:focus-visible {
   font-weight: 600;
 }
 
+.google-login-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.google-login-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;
