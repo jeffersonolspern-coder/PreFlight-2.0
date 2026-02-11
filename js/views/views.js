@@ -685,7 +685,7 @@ function profileView({
                 : null;
           const dateText = date ? date.toLocaleString("pt-BR") : "&mdash;";
           const statusClass = e.status === "Aprovado" ? "approved" : "reproved";
-          const isExtra = index >= 6;
+          const isExtra = index >= 5;
           const hiddenStyle = isExtra && !showAllEvaluations ? ` style="display:none;"` : "";
 
           const timeText = formatDuration(
@@ -712,7 +712,7 @@ function profileView({
         }).join("") +
       `</div>` +
       (
-        evaluations.length > 6 && !showAllEvaluations
+        evaluations.length > 5 && !showAllEvaluations
           ? `<div class="profile-evals-more"><button type="button" id="profileShowAllEvals">Ver todas</button></div>`
           : ""
       )
@@ -727,7 +727,10 @@ function profileView({
     : 0;
 
   const safeHistoryItems = Array.isArray(creditHistoryItems) ? creditHistoryItems : [];
-  const historyRows = safeHistoryItems
+  const spentHistoryItems = safeHistoryItems
+    .filter((item) => String(item?.rawType || "").toLowerCase() === "consume")
+    .slice(0, 7);
+  const historyRows = spentHistoryItems
     .map((item) => `
       <tr>
         <td>${item.dateLabel || "&mdash;"}</td>
@@ -738,9 +741,9 @@ function profileView({
     `)
     .join("");
 
-  const historyContent = creditHistoryLoading && !safeHistoryItems.length
+  const historyContent = creditHistoryLoading && !spentHistoryItems.length
     ? `<div class="profile-loading">Carregando histórico...</div>`
-    : safeHistoryItems.length
+    : spentHistoryItems.length
       ? `
           <div class="credits-history-table-wrap">
             <table class="credits-history-table">
@@ -760,7 +763,7 @@ function profileView({
         `
       : creditHistoryError
         ? `<div class="credits-history-error">${creditHistoryError}</div>`
-        : `<div class="profile-empty">Nenhuma movimentação encontrada ainda.</div>`;
+        : `<div class="profile-empty">Nenhum crédito gasto encontrado ainda.</div>`;
 
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
@@ -833,12 +836,9 @@ function profileView({
             <section class="credits-history">
               <div class="credits-history-header">
                 <h2>Histórico de créditos</h2>
-                <p>Compras e consumos mais recentes da sua conta.</p>
+                <p>Últimos 7 créditos gastos (consumos) da sua conta.</p>
               </div>
               ${historyContent}
-              ${creditHistoryHasMore && !creditHistoryLoading
-                ? `<button type="button" class="credits-history-more" id="creditsHistoryMoreBtn"${creditHistoryLoadingMore ? " disabled" : ""}>${creditHistoryLoadingMore ? "Carregando..." : "Carregar mais"}</button>`
-                : ""}
             </section>
 
             <div class="evaluation-modal hidden" id="creditsCheckoutModal" role="dialog" aria-modal="true" aria-labelledby="creditsCheckoutTitle">
