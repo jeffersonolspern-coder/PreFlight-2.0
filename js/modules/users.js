@@ -280,6 +280,29 @@ async function getUserCreditTransactionsPage(userId, { pageSize = 8, cursor = nu
   };
 }
 
+async function getUserSessionCounts(userId) {
+  let snap;
+  try {
+    snap = await getDocsFromServer(collection(db, "users", userId, "credit_transactions"));
+  } catch (error) {
+    snap = await getDocs(collection(db, "users", userId, "credit_transactions"));
+  }
+
+  let trainingCount = 0;
+  let evaluationCount = 0;
+
+  snap.docs.forEach((d) => {
+    const data = d.data() || {};
+    if (String(data.type || "").toLowerCase() !== "consume") return;
+
+    const mode = String(data.mode || "").toLowerCase();
+    if (mode === "training") trainingCount += 1;
+    if (mode === "evaluation") evaluationCount += 1;
+  });
+
+  return { trainingCount, evaluationCount };
+}
+
 export {
   saveUserProfile,
   getUserProfile,
@@ -290,5 +313,6 @@ export {
   setUserCredits,
   recordConsumeCreditTransaction,
   consumeUserCredit,
-  getUserCreditTransactionsPage
+  getUserCreditTransactionsPage,
+  getUserSessionCounts
 };

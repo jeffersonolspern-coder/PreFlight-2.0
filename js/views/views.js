@@ -808,6 +808,7 @@ function adminView({ users = [], loading = false, isAdmin = false, userLabel = "
               <span>${u.role || "&mdash;"}</span>
               <span>${u.whatsapp || "&mdash;"}</span>
               <span>${createdText}</span>
+              <span>Treinos: ${Number.isFinite(Number(u.trainingCount)) ? Number(u.trainingCount) : 0} &bull; Avaliações: ${Number.isFinite(Number(u.evaluationCount)) ? Number(u.evaluationCount) : 0}</span>
               <div class="admin-credits">
                 <span class="admin-credits-label">Créditos</span>
                 <div class="admin-credits-row">

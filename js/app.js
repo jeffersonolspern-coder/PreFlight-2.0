@@ -43,7 +43,8 @@ import {
   setUserCredits,
   recordConsumeCreditTransaction,
   consumeUserCredit,
-  getUserCreditTransactionsPage
+  getUserCreditTransactionsPage,
+  getUserSessionCounts
 } from "./modules/users.js";
 import { startSigwxSimulado } from "./simulados/sigwx/simulado.js";
 import { sigwxQuestions } from "./simulados/sigwx/data.js";
@@ -1099,16 +1100,17 @@ async function renderAdmin() {
 
   try {
     const users = await getAllUsers();
-    const creditsList = await Promise.all(
+    const userDetails = await Promise.all(
       users.map(async (u) => {
         const targetId = u.uid || u.id;
-        try {
-          return await getUserCredits(targetId);
-        } catch (error) {
-          return null;
-        }
+        const [credit, sessions] = await Promise.all([
+          getUserCredits(targetId).catch(() => null),
+          getUserSessionCounts(targetId).catch(() => ({ trainingCount: 0, evaluationCount: 0 }))
+        ]);
+        return { targetId, credit, sessions };
       })
     );
+    const creditsList = userDetails.map((item) => item.credit);
 
     if (!adminNormalizedOnce) {
       const normalized = await normalizeDuplicateUsers(users, creditsList);
@@ -1120,13 +1122,17 @@ async function renderAdmin() {
     }
 
     adminUsersCache = users.map((u, index) => {
-      const credit = creditsList[index];
+      const item = userDetails[index] || {};
+      const credit = item.credit;
+      const sessions = item.sessions || { trainingCount: 0, evaluationCount: 0 };
       const rawBalance = credit?.balance ?? credit?.credits ?? credit?.saldo ?? 0;
-      const targetId = u.uid || u.id;
+      const targetId = item.targetId || u.uid || u.id;
       const balance = getEffectiveBalanceForUser(targetId, rawBalance);
       return {
         ...u,
-        creditsBalance: Number.isFinite(balance) ? balance : 0
+        creditsBalance: Number.isFinite(balance) ? balance : 0,
+        trainingCount: Number.isFinite(Number(sessions.trainingCount)) ? Number(sessions.trainingCount) : 0,
+        evaluationCount: Number.isFinite(Number(sessions.evaluationCount)) ? Number(sessions.evaluationCount) : 0
       };
     });
     const notice =
@@ -1495,12 +1501,14 @@ function setupAdminActions() {
       role: u.role || "",
       whatsapp: u.whatsapp || "",
       creditsBalance: Number.isFinite(u.creditsBalance) ? u.creditsBalance : 0,
+      trainingCount: Number.isFinite(Number(u.trainingCount)) ? Number(u.trainingCount) : 0,
+      evaluationCount: Number.isFinite(Number(u.evaluationCount)) ? Number(u.evaluationCount) : 0,
       createdAt: u.createdAt && u.createdAt.toDate
         ? u.createdAt.toDate().toISOString()
         : u.createdAt || ""
     }));
 
-    const header = ["name", "email", "role", "whatsapp", "creditsBalance", "createdAt"];
+    const header = ["name", "email", "role", "whatsapp", "creditsBalance", "trainingCount", "evaluationCount", "createdAt"];
     const csv = [
       header.join(","),
       ...rows.map((r) =>
