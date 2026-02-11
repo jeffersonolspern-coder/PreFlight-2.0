@@ -1021,23 +1021,57 @@ function profileEvaluationView({ summary, items, isAdmin = false, userLabel = "C
   `;
 }
 
-function adminView({ users = [], loading = false, isAdmin = false, userLabel = "Conta", credits = null, notice = "", globalNotice = "" } = {}) {
+function adminView({
+  users = [],
+  loading = false,
+  isAdmin = false,
+  userLabel = "Conta",
+  credits = null,
+  notice = "",
+  globalNotice = "",
+  metrics = null,
+  metricsRange = "30d"
+} = {}) {
   const list = users.length
     ? `<div class="admin-grid">` +
         users.map((u) => {
+          const parseDate = (value) => {
+            if (!value) return null;
+            if (typeof value?.toDate === "function") {
+              const dt = value.toDate();
+              return Number.isNaN(dt.getTime()) ? null : dt;
+            }
+            if (typeof value?.seconds === "number") {
+              const dt = new Date(value.seconds * 1000);
+              return Number.isNaN(dt.getTime()) ? null : dt;
+            }
+            if (typeof value?._seconds === "number") {
+              const dt = new Date(value._seconds * 1000);
+              return Number.isNaN(dt.getTime()) ? null : dt;
+            }
+            const dt = new Date(value);
+            return Number.isNaN(dt.getTime()) ? null : dt;
+          };
+
           const createdAt = u.createdAt && u.createdAt.toDate
             ? u.createdAt.toDate()
             : u.createdAt
               ? new Date(u.createdAt)
               : null;
           const createdText = createdAt ? createdAt.toLocaleString("pt-BR") : "&mdash;";
+          const lastSeenAt = parseDate(u.lastSeenAt);
+          const onlineFreshMs = 2 * 60 * 1000;
+          const isOnline = !!u.isOnline && !!lastSeenAt && (Date.now() - lastSeenAt.getTime() <= onlineFreshMs);
+          const seenText = lastSeenAt ? lastSeenAt.toLocaleString("pt-BR") : "&mdash;";
           return `
             <div class="admin-card" data-name="${(u.name || "").toLowerCase()}" data-email="${(u.email || "").toLowerCase()}" data-role="${(u.role || "").toLowerCase().trim()}" data-user-id="${u.id || ""}">
               <strong>${u.name || "Sem nome"}</strong>
+              <span class="admin-presence ${isOnline ? "is-online" : "is-offline"}"><i></i>${isOnline ? "Online" : "Offline"}</span>
               <span>${u.email || "&mdash;"}</span>
               <span>${u.role || "&mdash;"}</span>
               <span>${u.whatsapp || "&mdash;"}</span>
               <span>${createdText}</span>
+              <span>Última atividade: ${seenText}</span>
               <span>Treinos: ${Number.isFinite(Number(u.trainingCount)) ? Number(u.trainingCount) : 0} &bull; Avaliações: ${Number.isFinite(Number(u.evaluationCount)) ? Number(u.evaluationCount) : 0}</span>
               <div class="admin-credits">
                 <span class="admin-credits-label">Créditos</span>
@@ -1066,6 +1100,50 @@ function adminView({ users = [], loading = false, isAdmin = false, userLabel = "
         ${notice ? `<div class="admin-notice">${notice}</div>` : ""}
       </div>
       <div class="admin-section">
+        <div class="admin-metrics">
+          <div class="admin-metrics-head">
+            <h2>Métricas</h2>
+            <div class="admin-metrics-range" role="group" aria-label="Período das métricas">
+              <button type="button" class="${metricsRange === "today" ? "active" : ""}" data-metrics-range="today">Hoje</button>
+              <button type="button" class="${metricsRange === "7d" ? "active" : ""}" data-metrics-range="7d">7 dias</button>
+              <button type="button" class="${metricsRange === "30d" ? "active" : ""}" data-metrics-range="30d">30 dias</button>
+            </div>
+          </div>
+          <div class="admin-metrics-grid">
+            <article class="admin-metric-card">
+              <span>Usuários cadastrados</span>
+              <strong>${Number.isFinite(Number(metrics?.totalUsersCurrent)) ? Number(metrics.totalUsersCurrent) : 0}</strong>
+            </article>
+            <article class="admin-metric-card">
+              <span>Usuários no histórico</span>
+              <strong>${Number.isFinite(Number(metrics?.totalUsersHistorical)) ? Number(metrics.totalUsersHistorical) : 0}</strong>
+            </article>
+            <article class="admin-metric-card">
+              <span>Usuários com atividade</span>
+              <strong>${Number.isFinite(Number(metrics?.activeUsers)) ? Number(metrics.activeUsers) : 0}</strong>
+            </article>
+            <article class="admin-metric-card">
+              <span>Treinos iniciados</span>
+              <strong>${Number.isFinite(Number(metrics?.trainingStarted)) ? Number(metrics.trainingStarted) : 0}</strong>
+            </article>
+            <article class="admin-metric-card">
+              <span>Avaliações concluídas</span>
+              <strong>${Number.isFinite(Number(metrics?.evaluationsCompleted)) ? Number(metrics.evaluationsCompleted) : 0}</strong>
+            </article>
+            <article class="admin-metric-card">
+              <span>Taxa de aprovação</span>
+              <strong>${Number.isFinite(Number(metrics?.approvalRate)) ? Number(metrics.approvalRate) : 0}%</strong>
+            </article>
+            <article class="admin-metric-card">
+              <span>Créditos (gasto/comprado)</span>
+              <strong>${Number.isFinite(Number(metrics?.creditsConsumed)) ? Number(metrics.creditsConsumed) : 0} / ${Number.isFinite(Number(metrics?.creditsPurchased)) ? Number(metrics.creditsPurchased) : 0}</strong>
+            </article>
+          </div>
+          <p class="admin-metrics-footnote">
+            "Usuários no histórico" inclui contas removidas com atividade registrada. Top erros: ${Array.isArray(metrics?.topErrors) && metrics.topErrors.length ? metrics.topErrors.join(" • ") : "Sem dados no período."}
+          </p>
+        </div>
+
         <div class="admin-global-notice">
           <label for="adminGlobalNotice">Mural de avisos (aparece para todos os usuários no perfil)</label>
           <textarea id="adminGlobalNotice" rows="3" placeholder="Escreva um aviso global...">${escapeHtml(globalNotice || "")}</textarea>

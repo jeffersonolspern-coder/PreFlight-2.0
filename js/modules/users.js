@@ -320,6 +320,16 @@ async function getGlobalNotice() {
   return snap.exists() ? snap.data() : null;
 }
 
+async function getAllCreditTransactions() {
+  let snap;
+  try {
+    snap = await getDocsFromServer(collection(db, "credit_transactions"));
+  } catch (error) {
+    snap = await getDocs(collection(db, "credit_transactions"));
+  }
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
 async function setGlobalNotice(message, updatedBy = "") {
   const text = String(message || "").trim();
   await setDoc(
@@ -347,5 +357,6 @@ export {
   getUserCreditTransactionsPage,
   getUserSessionCounts,
   getGlobalNotice,
-  setGlobalNotice
+  setGlobalNotice,
+  getAllCreditTransactions
 };

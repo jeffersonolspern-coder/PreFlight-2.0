@@ -2383,6 +2383,87 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   font-size: 13px;
 }
 
+.admin-metrics {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.admin-metrics-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-metrics-head h2 {
+  margin: 0;
+  font-size: 17px;
+  color: #0f2f5a;
+}
+
+.admin-metrics-range {
+  display: inline-flex;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.admin-metrics-range button {
+  border: none;
+  background: transparent;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.admin-metrics-range button.active {
+  background: #1f4f8f;
+  color: #ffffff;
+}
+
+.admin-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.admin-metric-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f8fafc;
+  min-height: 78px;
+}
+
+.admin-metric-card span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-metric-card strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f2f5a;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.admin-metrics-footnote {
+  margin: 10px 2px 2px;
+  color: #475569;
+  font-size: 12px;
+}
+
 .admin-filters {
   display: grid;
   grid-template-columns: 1.5fr 1fr max-content max-content;
@@ -2455,6 +2536,35 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   display: grid;
   gap: 6px;
   font-size: 13px;
+}
+
+.admin-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-presence i {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #9ca3af;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+}
+
+.admin-presence.is-online {
+  color: #166534;
+}
+
+.admin-presence.is-online i {
+  background: #22c55e;
+}
+
+.admin-presence.is-offline {
+  color: #64748b;
 }
 
 .admin-credits {
@@ -2999,6 +3109,15 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
 
   .admin-filters {
     grid-template-columns: 1fr;
+  }
+
+  .admin-metrics-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-metrics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 }
 
@@ -3674,6 +3793,7 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   .contact-page-grid,
   .profile-columns,
   .admin-grid,
+  .admin-metrics-grid,
   .packages-grid,
   .admin-filters,
   .admin-credits-row,

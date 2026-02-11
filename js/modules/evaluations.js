@@ -10,6 +10,7 @@ import {
   where,
   getDoc,
   getDocs,
+  getDocsFromServer,
   deleteDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -71,9 +72,27 @@ async function deleteEvaluationsByUser(userId) {
   await Promise.all(deletions);
 }
 
+async function getAllEvaluations() {
+  let snap;
+  try {
+    snap = await getDocsFromServer(collection(db, COLLECTION));
+  } catch (error) {
+    snap = await getDocs(collection(db, COLLECTION));
+  }
+
+  const items = snap.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+  items.sort((a, b) => {
+    const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+    const dbt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+    return dbt - da;
+  });
+  return items;
+}
+
 export {
   saveEvaluation,
   getEvaluationsByUser,
   getEvaluationById,
-  deleteEvaluationsByUser
+  deleteEvaluationsByUser,
+  getAllEvaluations
 };

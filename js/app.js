@@ -31,7 +31,8 @@ import {
 import {
   saveEvaluation,
   getEvaluationsByUser,
-  getEvaluationById
+  getEvaluationById,
+  getAllEvaluations
 } from "./modules/evaluations.js";
 
 import {
@@ -47,7 +48,8 @@ import {
   getUserCreditTransactionsPage,
   getUserSessionCounts,
   getGlobalNotice,
-  setGlobalNotice
+  setGlobalNotice,
+  getAllCreditTransactions
 } from "./modules/users.js";
 import { startSigwxSimulado } from "./simulados/sigwx/simulado.js";
 import { sigwxQuestions } from "./simulados/sigwx/data.js";
@@ -67,6 +69,7 @@ const IS_LOCAL_DEV_HOST =
 const LOCAL_CREDITS_KEY_PREFIX = "preflight_local_credits_";
 const CREDITS_HISTORY_PAGE_SIZE = 30;
 const WELCOME_BONUS_CREDITS = 5;
+const PRESENCE_HEARTBEAT_MS = 45 * 1000;
 const CREDIT_PACKS = {
   bronze: { id: "bronze", name: "Bronze", credits: 10, price: 9.9 },
   silver: { id: "silver", name: "Silver", credits: 30, price: 19.9 },
@@ -89,6 +92,8 @@ let evaluationStartAtMs = null;
 let evaluationTotalSeconds = 15 * 60;
 let evaluationRemainingSeconds = 15 * 60;
 let adminUsersCache = [];
+let adminMetricsRange = "30d";
+let adminMetricsData = { evaluations: [], transactions: [] };
 let profileEvaluationsCache = [];
 let profileShowAllEvaluations = false;
 let profileVisibleSpentCredits = 7;
@@ -105,6 +110,9 @@ let creditHistoryError = "";
 let creditsPolling = null;
 let creditsPollingStart = null;
 let startingSessionLock = false;
+let presenceHeartbeat = null;
+let presenceVisibilityHandler = null;
+let presencePageHideHandler = null;
 const INSUFFICIENT_CREDITS_MESSAGE = "Você não possui créditos suficientes.";
 let userMenuDocumentClickHandler = null;
 let userMenuDocumentKeydownHandler = null;
@@ -202,6 +210,65 @@ function showToast(message, type = "info") {
     toast.classList.remove("is-visible");
     setTimeout(() => toast.remove(), 220);
   }, 2600);
+}
+
+function startPresenceTracking() {
+  if (!currentUser?.uid) return;
+  stopPresenceTracking();
+
+  const ping = async (online) => {
+    if (!currentUser?.uid) return;
+    try {
+      await saveUserProfile(currentUser.uid, {
+        isOnline: !!online,
+        lastSeenAt: new Date().toISOString()
+      });
+    } catch (error) {
+      // no-op: presença é best-effort
+    }
+  };
+
+  ping(true);
+  presenceHeartbeat = setInterval(() => {
+    const isVisible = typeof document.hidden === "boolean" ? !document.hidden : true;
+    ping(isVisible);
+  }, PRESENCE_HEARTBEAT_MS);
+
+  presenceVisibilityHandler = () => {
+    const isVisible = !document.hidden;
+    ping(isVisible);
+  };
+  document.addEventListener("visibilitychange", presenceVisibilityHandler);
+
+  presencePageHideHandler = () => {
+    ping(false);
+  };
+  window.addEventListener("pagehide", presencePageHideHandler);
+}
+
+function stopPresenceTracking({ setOffline = false, userId = "" } = {}) {
+  if (presenceHeartbeat) {
+    clearInterval(presenceHeartbeat);
+    presenceHeartbeat = null;
+  }
+  if (presenceVisibilityHandler) {
+    document.removeEventListener("visibilitychange", presenceVisibilityHandler);
+    presenceVisibilityHandler = null;
+  }
+  if (presencePageHideHandler) {
+    window.removeEventListener("pagehide", presencePageHideHandler);
+    presencePageHideHandler = null;
+  }
+
+  const targetId = String(userId || currentUser?.uid || "").trim();
+  if (!setOffline || !targetId) return;
+
+  saveUserProfile(targetId, {
+    isOnline: false,
+    lastSeenAt: new Date().toISOString()
+  }).catch(() => {
+    // no-op: presença é best-effort
+  });
 }
 
 function getFirebaseAuthMessage(error, fallback = "Não foi possível concluir a ação.") {
@@ -1287,18 +1354,32 @@ async function renderAdmin() {
     return;
   }
 
-  app.innerHTML = adminView({ users: [], loading: true, isAdmin: true, userLabel: getUserLabel(), credits: getCreditsLabel() });
+  app.innerHTML = adminView({
+    users: [],
+    loading: true,
+    isAdmin: true,
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    metrics: computeAdminMetrics({ users: [], evaluations: [], transactions: [], range: adminMetricsRange }),
+    metricsRange: adminMetricsRange
+  });
   setupGlobalMenu();
   setupLogout();
   setupContact();
   setupFooterLinks();
 
   try {
-    const [users, globalNotice] = await Promise.all([
+    const [users, globalNotice, allEvaluations, allTransactions] = await Promise.all([
       getAllUsers(),
-      getGlobalNotice().catch(() => null)
+      getGlobalNotice().catch(() => null),
+      getAllEvaluations().catch(() => []),
+      getAllCreditTransactions().catch(() => [])
     ]);
     globalNoticeMessage = String(globalNotice?.message || "").trim();
+    adminMetricsData = {
+      evaluations: Array.isArray(allEvaluations) ? allEvaluations : [],
+      transactions: Array.isArray(allTransactions) ? allTransactions : []
+    };
     const userDetails = await Promise.all(
       users.map(async (u) => {
         const targetId = u.uid || u.id;
@@ -1338,6 +1419,12 @@ async function renderAdmin() {
       adminUsersCache.length === 0
         ? "Nenhum usuário retornado. Verifique se há usuários cadastrados."
         : "";
+    const metrics = computeAdminMetrics({
+      users: adminUsersCache,
+      evaluations: adminMetricsData.evaluations,
+      transactions: adminMetricsData.transactions,
+      range: adminMetricsRange
+    });
     app.innerHTML = adminView({
       users: adminUsersCache,
       loading: false,
@@ -1345,7 +1432,9 @@ async function renderAdmin() {
       userLabel: getUserLabel(),
       credits: getCreditsLabel(),
       notice,
-      globalNotice: globalNoticeMessage
+      globalNotice: globalNoticeMessage,
+      metrics,
+      metricsRange: adminMetricsRange
     });
     setupGlobalMenu();
     setupLogout();
@@ -1361,13 +1450,46 @@ async function renderAdmin() {
       userLabel: getUserLabel(),
       credits: getCreditsLabel(),
       notice: "Erro ao carregar usuários. Verifique as regras do Firestore.",
-      globalNotice: globalNoticeMessage
+      globalNotice: globalNoticeMessage,
+      metrics: computeAdminMetrics({
+        users: [],
+        evaluations: adminMetricsData.evaluations,
+        transactions: adminMetricsData.transactions,
+        range: adminMetricsRange
+      }),
+      metricsRange: adminMetricsRange
     });
     setupGlobalMenu();
     setupLogout();
     setupContact();
     setupFooterLinks();
   }
+}
+
+function rerenderAdminWithCache(notice = "") {
+  if (!isAdminUser()) return;
+  const metrics = computeAdminMetrics({
+    users: adminUsersCache,
+    evaluations: adminMetricsData.evaluations,
+    transactions: adminMetricsData.transactions,
+    range: adminMetricsRange
+  });
+  app.innerHTML = adminView({
+    users: adminUsersCache,
+    loading: false,
+    isAdmin: true,
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    notice,
+    globalNotice: globalNoticeMessage,
+    metrics,
+    metricsRange: adminMetricsRange
+  });
+  setupGlobalMenu();
+  setupLogout();
+  setupContact();
+  setupFooterLinks();
+  setupAdminActions();
 }
 
 function pickFirstNonEmpty(values) {
@@ -1381,8 +1503,132 @@ function parseDateValue(value) {
     const d = new Date(value);
     return Number.isFinite(d.getTime()) ? d : null;
   }
+  if (typeof value.seconds === "number") return new Date(value.seconds * 1000);
   if (value._seconds) return new Date(value._seconds * 1000);
   return null;
+}
+
+function getMetricsRangeStart(range = "30d") {
+  const now = new Date();
+  if (range === "today") {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  if (range === "7d") {
+    return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  }
+  return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+}
+
+function normalizeQuestionLabel(questionId = "") {
+  const text = String(questionId || "").trim();
+  if (!text) return "Questão";
+  const compact = text.replace(/[_\s]+/g, "-");
+  return compact.length > 24 ? `${compact.slice(0, 24)}...` : compact;
+}
+
+function computeAdminMetrics({
+  users = [],
+  evaluations = [],
+  transactions = [],
+  range = "30d"
+} = {}) {
+  const startAt = getMetricsRangeStart(range);
+  const startMs = startAt.getTime();
+  const safeEvaluations = Array.isArray(evaluations) ? evaluations : [];
+  const safeTransactions = Array.isArray(transactions) ? transactions : [];
+  const activeUserIds = new Set();
+  const currentUserIds = new Set(
+    (Array.isArray(users) ? users : [])
+      .map((u) => String(u?.uid || u?.id || "").trim())
+      .filter(Boolean)
+  );
+  const historicalUserIds = new Set(currentUserIds);
+
+  safeEvaluations.forEach((ev) => {
+    const uid = String(ev?.userId || "").trim();
+    if (uid) historicalUserIds.add(uid);
+  });
+  safeTransactions.forEach((tx) => {
+    const uid = String(tx?.userId || "").trim();
+    if (uid) historicalUserIds.add(uid);
+  });
+
+  const periodEvaluations = safeEvaluations.filter((ev) => {
+    const createdAt = parseDateValue(ev?.createdAt);
+    const inRange = createdAt && createdAt.getTime() >= startMs;
+    if (inRange && ev?.userId) {
+      activeUserIds.add(String(ev.userId));
+    }
+    return inRange;
+  });
+
+  const periodTransactions = safeTransactions.filter((tx) => {
+    const createdAt = parseDateValue(tx?.createdAt);
+    const inRange = createdAt && createdAt.getTime() >= startMs;
+    if (inRange && tx?.userId) {
+      activeUserIds.add(String(tx.userId));
+    }
+    return inRange;
+  });
+
+  let trainingStarted = 0;
+  let creditsConsumed = 0;
+  let creditsPurchased = 0;
+
+  periodTransactions.forEach((tx) => {
+    const type = String(tx?.type || "").toLowerCase();
+    const mode = String(tx?.mode || "").toLowerCase();
+    const amount = Number(tx?.amount);
+    const safeAmount = Number.isFinite(amount) ? Math.trunc(amount) : 0;
+
+    if (type === "consume" || safeAmount < 0) {
+      creditsConsumed += Math.abs(safeAmount || 1);
+      if (mode === "training") trainingStarted += 1;
+    }
+    if (type === "purchase" || type === "reprocess" || safeAmount > 0) {
+      creditsPurchased += Math.max(0, safeAmount);
+    }
+  });
+
+  const evaluationsCompleted = periodEvaluations.length;
+  const approved = periodEvaluations.filter((ev) => String(ev?.status || "").toLowerCase() === "aprovado").length;
+  const approvalRate = evaluationsCompleted ? Math.round((approved / evaluationsCompleted) * 100) : 0;
+
+  const questionErrors = new Map();
+  periodEvaluations.forEach((ev) => {
+    const answers = Array.isArray(ev?.answers) ? ev.answers : [];
+    answers.forEach((answer) => {
+      const selectedIndex = Number(answer?.selectedIndex);
+      const options = Array.isArray(answer?.options) ? answer.options : [];
+      if (!Number.isFinite(selectedIndex) || selectedIndex < 0) return;
+      const selected = options[selectedIndex];
+      if (!selected || selected.isCorrect) return;
+      const qid = normalizeQuestionLabel(answer?.questionId || "questao");
+      questionErrors.set(qid, (questionErrors.get(qid) || 0) + 1);
+    });
+  });
+
+  const topErrors = Array.from(questionErrors.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([qid, count]) => `${qid} (${count})`);
+
+  let activeCurrentUsers = 0;
+  activeUserIds.forEach((uid) => {
+    if (currentUserIds.has(uid)) activeCurrentUsers += 1;
+  });
+
+  return {
+    totalUsersCurrent: currentUserIds.size,
+    totalUsersHistorical: historicalUserIds.size,
+    activeUsers: activeCurrentUsers,
+    trainingStarted,
+    evaluationsCompleted,
+    approvalRate,
+    creditsConsumed,
+    creditsPurchased,
+    topErrors
+  };
 }
 
 async function normalizeDuplicateUsers(users, creditsList) {
@@ -1761,6 +2007,7 @@ function setupAdminActions() {
   const refreshBtn = document.getElementById("adminRefresh");
   const noticeInput = document.getElementById("adminGlobalNotice");
   const noticeSaveBtn = document.getElementById("adminGlobalNoticeSave");
+  const rangeButtons = document.querySelectorAll("[data-metrics-range]");
 
   const applyFilters = () => {
     const term = (searchInput?.value || "").toLowerCase().trim();
@@ -1782,6 +2029,15 @@ function setupAdminActions() {
 
   searchInput?.addEventListener("input", applyFilters);
   roleSelect?.addEventListener("change", applyFilters);
+
+  rangeButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const nextRange = String(btn.getAttribute("data-metrics-range") || "").trim();
+      if (!nextRange || nextRange === adminMetricsRange) return;
+      adminMetricsRange = nextRange;
+      rerenderAdminWithCache();
+    });
+  });
 
   exportBtn?.addEventListener("click", () => {
     const rows = adminUsersCache.map((u) => ({
@@ -1915,6 +2171,7 @@ function setupAdminActions() {
 
       adminUsersCache = adminUsersCache.filter((u) => (u.id || u.uid) !== userId);
       card?.remove();
+      rerenderAdminWithCache();
       showToast("Usuário removido do site.", "success");
     } catch (error) {
       console.error("Erro ao remover usuário do site:", error);
@@ -2163,6 +2420,11 @@ function renderEvaluationHistory(evaluation) {
 // CONTROLE DE SESSÃO
 // ===============================
 observeAuthState((user) => {
+  const previousUser = currentUser;
+  if (previousUser?.uid && (!user || previousUser.uid !== user.uid)) {
+    stopPresenceTracking({ setOffline: true, userId: previousUser.uid });
+  }
+
   currentUser = user;
   currentProfile = null;
   currentCredits = null;
@@ -2177,6 +2439,8 @@ observeAuthState((user) => {
     renderHomePublic();
     return;
   }
+
+  startPresenceTracking();
 
   getUserProfile(currentUser.uid)
     .then(async (profile) => {
