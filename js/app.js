@@ -14,6 +14,7 @@ import {
   profileEvaluationView,
   adminView,
   creditsView,
+  packagesView,
   contactView,
   privacyView,
   cookiesView
@@ -753,7 +754,10 @@ function renderHomePublic() {
   setupLogout();
   setupHeaderLogin();
   setupAccessButton();
+  setupHomePackagesButton();
+  setupHomeModeCarousels();
   setupHomeSimuladosCards();
+  setupHomeSimuladosCarousel();
   setupContact();
   setupFooterLinks();
 }
@@ -1503,6 +1507,31 @@ function renderCredits() {
     section?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
+
+function renderPackages() {
+  if (!currentUser) {
+    renderLogin();
+    return;
+  }
+
+  app.innerHTML = packagesView({
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel()
+  });
+  setupGlobalMenu();
+  setupLogout();
+  setupContact();
+  setupFooterLinks();
+  setupPackagesActions();
+}
+
+function setupPackagesActions() {
+  const backBtn = document.getElementById("packagesBackBtn");
+  backBtn?.addEventListener("click", () => {
+    renderProfile();
+  });
+}
 function setupProfileActions(evaluations) {
   const links = document.querySelectorAll(".profile-link[data-eval-id]");
   links.forEach((btn) => {
@@ -1814,6 +1843,7 @@ function setupAdminActions() {
 
 function setupCreditsActions() {
   const btn = document.getElementById("buyCreditsBtn");
+  const packagesBtn = document.getElementById("creditsPackagesBtn");
   const modal = document.getElementById("creditsCheckoutModal");
   const confirmBtn = document.getElementById("creditsCheckoutConfirm");
   const cancelBtn = document.getElementById("creditsCheckoutCancel");
@@ -1824,6 +1854,10 @@ function setupCreditsActions() {
       modal.classList.remove("hidden");
     });
   }
+
+  packagesBtn?.addEventListener("click", () => {
+    renderPackages();
+  });
 
   if (cancelBtn && modal) {
     cancelBtn.addEventListener("click", () => {
@@ -2345,6 +2379,91 @@ function setupLoginForm() {
   });
 }
 
+function setupHomePackagesButton() {
+  const packageButtons = document.querySelectorAll("[data-open-packages]");
+  if (!packageButtons.length) return;
+
+  packageButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      renderPackages();
+    });
+  });
+}
+
+function setupHomeModeCarousels() {
+  const carousels = document.querySelectorAll(".mode-carousel");
+  if (!carousels.length) return;
+
+  carousels.forEach((root) => {
+    const images = String(root.dataset.images || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (!images.length) return;
+
+    const altBase = String(root.dataset.alt || "Imagem do simulador");
+    root.innerHTML = `
+      <button type="button" class="mode-carousel-btn prev" aria-label="Imagem anterior">&#8249;</button>
+      <div class="mode-carousel-viewport">
+        <div class="mode-carousel-track"></div>
+      </div>
+      <button type="button" class="mode-carousel-btn next" aria-label="Próxima imagem">&#8250;</button>
+      <div class="mode-carousel-dots"></div>
+    `;
+
+    const track = root.querySelector(".mode-carousel-track");
+    const dots = root.querySelector(".mode-carousel-dots");
+    const prevBtn = root.querySelector(".mode-carousel-btn.prev");
+    const nextBtn = root.querySelector(".mode-carousel-btn.next");
+    if (!track || !dots || !prevBtn || !nextBtn) return;
+
+    images.forEach((src, index) => {
+      const slide = document.createElement("div");
+      slide.className = "mode-carousel-slide";
+      const img = document.createElement("img");
+      img.src = src;
+      img.alt = images.length > 1 ? `${altBase} (${index + 1})` : altBase;
+      img.loading = "lazy";
+      slide.appendChild(img);
+      track.appendChild(slide);
+
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "mode-carousel-dot";
+      dot.setAttribute("aria-label", `Ir para imagem ${index + 1}`);
+      dot.addEventListener("click", () => {
+        setIndex(index);
+      });
+      dots.appendChild(dot);
+    });
+
+    let currentIndex = 0;
+    const dotButtons = Array.from(dots.querySelectorAll(".mode-carousel-dot"));
+
+    const sync = () => {
+      track.style.transform = `translateX(-${currentIndex * 100}%)`;
+      dotButtons.forEach((dot, idx) => {
+        dot.classList.toggle("is-active", idx === currentIndex);
+      });
+      prevBtn.disabled = images.length <= 1;
+      nextBtn.disabled = images.length <= 1;
+      dots.classList.toggle("is-hidden", images.length <= 1);
+    };
+
+    function setIndex(nextIndex) {
+      const total = images.length;
+      currentIndex = ((nextIndex % total) + total) % total;
+      sync();
+    }
+
+    prevBtn.addEventListener("click", () => setIndex(currentIndex - 1));
+    nextBtn.addEventListener("click", () => setIndex(currentIndex + 1));
+
+    sync();
+  });
+}
+
 // ===============================
 // DASHBOARD
 // ===============================
@@ -2465,6 +2584,36 @@ function setupHomeSimuladosCards() {
       }
     });
   });
+}
+
+function setupHomeSimuladosCarousel() {
+  const viewport = document.querySelector(".simulados-viewport");
+  const track = document.querySelector(".simulados-cards-track");
+  const prevBtn = document.querySelector(".simulados-carousel-btn.prev");
+  const nextBtn = document.querySelector(".simulados-carousel-btn.next");
+  if (!viewport || !track || !prevBtn || !nextBtn) return;
+
+  const firstCard = track.querySelector(".card");
+  const gap = 24;
+  const step = () => (firstCard ? firstCard.getBoundingClientRect().width + gap : viewport.clientWidth * 0.8);
+
+  const updateButtons = () => {
+    const maxScroll = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    prevBtn.disabled = viewport.scrollLeft <= 4;
+    nextBtn.disabled = viewport.scrollLeft >= maxScroll - 4;
+  };
+
+  prevBtn.addEventListener("click", () => {
+    viewport.scrollBy({ left: -step(), behavior: "smooth" });
+  });
+
+  nextBtn.addEventListener("click", () => {
+    viewport.scrollBy({ left: step(), behavior: "smooth" });
+  });
+
+  viewport.addEventListener("scroll", updateButtons, { passive: true });
+  window.addEventListener("resize", updateButtons);
+  updateButtons();
 }
 
 // ===============================

@@ -118,11 +118,14 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
     ${headerView({ logged, isAdmin, userLabel, credits: logged ? credits : null })}
 
     <section class="hero">
-      <h1>Simulados para Formação Aeronáutica</h1>
-      <p>Ambiente de treinamento e avaliação para estudo técnico na aviação.</p>
+      <h1>Treine para provas da aviação com simulados práticos</h1>
+      <p>Estude com foco, acompanhe evolução e use créditos conforme sua rotina.</p>
 
-      <button id="accessBtn" class="cta-button">Acessar simulados</button>
-      <small>Cadastro rápido &bull; Sem pagamento &bull; Acesso imediato após login</small>
+      <div class="hero-actions">
+        <button id="accessBtn" class="cta-button">Começar agora</button>
+        <button type="button" class="hero-secondary-btn" data-open-packages>Ver pacotes</button>
+      </div>
+      <small>Cadastro rápido &bull; Sem assinatura &bull; Acesso imediato após login</small>
     </section>
 
     <section class="about">
@@ -137,43 +140,100 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
 
     <section class="simulados">
       <h2>Simulados disponíveis</h2>
-      <div class="cards">
-        <div class="card" data-action="sigwx">
-          <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-plus-icon lucide-map-plus"><path d="m11 19-1.106-.552a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0l4.212 2.106a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619V12"/><path d="M15 5.764V12"/><path d="M18 15v6"/><path d="M21 18h-6"/><path d="M9 3.236v15"/></svg></span>
-          <h3>SIGWX</h3>
-          <p>Simbologia e Nomenclaturas</p>
+      <p class="simulados-subtitle">Comece por SIGWX. Os próximos módulos serão liberados em etapas.</p>
+      <div class="simulados-carousel">
+        <button type="button" class="simulados-carousel-btn prev" aria-label="Simulado anterior">&#8249;</button>
+        <div class="simulados-viewport">
+          <div class="cards simulados-cards-track">
+            <div class="card" data-action="sigwx">
+              <span class="status-chip status-chip--live">Disponível agora</span>
+              <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-plus-icon lucide-map-plus"><path d="m11 19-1.106-.552a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0l4.212 2.106a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619V12"/><path d="M15 5.764V12"/><path d="M18 15v6"/><path d="M21 18h-6"/><path d="M9 3.236v15"/></svg></span>
+              <h3>SIGWX</h3>
+              <p>Simbologia e Nomenclaturas</p>
+            </div>
+            <div class="card card-disabled" aria-disabled="true">
+              <span class="status-chip status-chip--soon">Em breve</span>
+              <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-sun-rain-icon lucide-cloud-sun-rain"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M3 20a5 5 0 1 1 8.9-4H13a3 3 0 0 1 2 5.24"/><path d="M11 20v2"/><path d="M7 19v2"/></svg></span>
+              <h3>METAR / TAF</h3>
+              <p>Em desenvolvimento</p>
+            </div>
+            <div class="card card-disabled" aria-disabled="true">
+              <span class="status-chip status-chip--soon">Em breve</span>
+              <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list-icon lucide-clipboard-list"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>
+              <h3>NOTAM</h3>
+              <p>Em desenvolvimento</p>
+            </div>
+            <div class="card card-disabled" aria-disabled="true">
+              <span class="status-chip status-chip--soon">Em breve</span>
+              <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tower-control-icon lucide-tower-control"><path d="M18.2 12.27 20 6H4l1.8 6.27a1 1 0 0 0 .95.73h10.5a1 1 0 0 0 .96-.73Z"/><path d="M8 13v9"/><path d="M16 22v-9"/><path d="m9 6 1 7"/><path d="m15 6-1 7"/><path d="M12 6V2"/><path d="M13 2h-2"/></svg></span>
+              <h3>ROTAER</h3>
+              <p>Em desenvolvimento</p>
+            </div>
+            <div class="card card-disabled" aria-disabled="true">
+              <span class="status-chip status-chip--soon">Em breve</span>
+              <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloudy-icon lucide-cloudy"><path d="M17.5 12a1 1 0 1 1 0 9H9.006a7 7 0 1 1 6.702-9z"/><path d="M21.832 9A3 3 0 0 0 19 7h-2.207a5.5 5.5 0 0 0-10.72.61"/></svg></span>
+              <h3>Nuvens</h3>
+              <p>Em desenvolvimento</p>
+            </div>
+          </div>
         </div>
-        <div class="card card-disabled" aria-disabled="true">
-          <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-sun-rain-icon lucide-cloud-sun-rain"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M3 20a5 5 0 1 1 8.9-4H13a3 3 0 0 1 2 5.24"/><path d="M11 20v2"/><path d="M7 19v2"/></svg></span>
-          <h3>METAR / TAF</h3>
-          <p>Em desenvolvimento</p>
-        </div>
-        <div class="card card-disabled" aria-disabled="true">
-          <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list-icon lucide-clipboard-list"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>
-          <h3>NOTAM</h3>
-          <p>Em desenvolvimento</p>
-        </div>
-        <div class="card card-disabled" aria-disabled="true">
-          <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tower-control-icon lucide-tower-control"><path d="M18.2 12.27 20 6H4l1.8 6.27a1 1 0 0 0 .95.73h10.5a1 1 0 0 0 .96-.73Z"/><path d="M8 13v9"/><path d="M16 22v-9"/><path d="m9 6 1 7"/><path d="m15 6-1 7"/><path d="M12 6V2"/><path d="M13 2h-2"/></svg></span>
-          <h3>ROTAER</h3>
-          <p>Em desenvolvimento</p>
-        </div>
-        <div class="card card-disabled" aria-disabled="true">
-          <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloudy-icon lucide-cloudy"><path d="M17.5 12a1 1 0 1 1 0 9H9.006a7 7 0 1 1 6.702-9z"/><path d="M21.832 9A3 3 0 0 0 19 7h-2.207a5.5 5.5 0 0 0-10.72.61"/></svg></span>
-          <h3>Nuvens</h3>
-          <p>Em desenvolvimento</p>
-        </div>
+        <button type="button" class="simulados-carousel-btn next" aria-label="Próximo simulado">&#8250;</button>
       </div>
     </section>
 
     <section class="modes">
-      <div class="mode-card">
-        <h3>Modo Treinamento</h3>
-        <p>Pratique leitura e interpretação de informações aeronáuticas.</p>
+      <div class="mode-card mode-card-compact">
+        <div class="mode-card-copy">
+          <h3>Treinamento</h3>
+          <p>Prática livre com correção imediata para ganhar ritmo.</p>
+        </div>
+        <div
+          class="mode-carousel"
+          data-images="assets/img/mode-treinamento.png, assets/img/mode-treinamento.png, assets/img/mode-treinamento.png"
+          data-alt="Tela do simulador em modo treinamento"
+        ></div>
       </div>
-      <div class="mode-card">
-        <h3>Modo Avaliação</h3>
-        <p>Teste seu conhecimento em ambiente controlado.</p>
+      <div class="mode-card mode-card-compact">
+        <div class="mode-card-copy">
+          <h3>Avaliação</h3>
+          <p>Simulação de prova com resultado final para medir evolução.</p>
+        </div>
+        <div
+          class="mode-carousel"
+          data-images="assets/img/mode-avaliacao.png, assets/img/mode-avaliacao.png, assets/img/mode-avaliacao.png"
+          data-alt="Tela do simulador em modo avaliação"
+        ></div>
+      </div>
+    </section>
+
+    <section class="home-packages">
+      <div class="home-packages-panel">
+        <div class="home-packages-head">
+          <h2>Pacotes de créditos</h2>
+          <p>Escolha o pacote ideal para sua rotina de estudo.</p>
+        </div>
+
+        <div class="home-packages-inline">
+          <button type="button" class="home-package-pill" data-open-packages>
+            <h3>Bronze</h3>
+            <p>10 créditos</p>
+            <strong>R$ 9,90</strong>
+          </button>
+
+          <button type="button" class="home-package-pill home-package-pill--popular" data-open-packages>
+            <small>Mais popular</small>
+            <h3>Silver</h3>
+            <p>30 créditos</p>
+            <strong>R$ 19,90</strong>
+          </button>
+
+          <button type="button" class="home-package-pill" data-open-packages>
+            <h3>Gold</h3>
+            <p>50 créditos</p>
+            <strong>R$ 29,90</strong>
+          </button>
+        </div>
+        <p class="home-packages-note">1 crédito = 1 treino ou 1 avaliação &bull; Compra única, sem assinatura.</p>
       </div>
     </section>
 
@@ -844,6 +904,7 @@ function profileView({
               <div class="credits-card-actions">
                 <button type="button" id="buyCreditsBtn">Comprar créditos</button>
                 <button type="button" id="creditsCheckBtn" class="credits-check-btn credits-check-btn--inline">Já paguei, atualizar créditos</button>
+                <button type="button" id="creditsPackagesBtn" class="credits-check-btn credits-check-btn--inline">Ver pacotes</button>
               </div>
             </div>
             <div class="credits-note">
@@ -1127,6 +1188,97 @@ function creditsView({
   `;
 }
 
+function packagesView({ isAdmin = false, userLabel = "Conta", credits = null } = {}) {
+  return `
+    ${headerView({ logged: true, isAdmin, userLabel, credits })}
+    <section class="packages-page">
+      <div class="packages-header">
+        <h1>Pacotes de créditos</h1>
+        <p>Escolha o plano ideal para treinar e evoluir no PreFlight.</p>
+      </div>
+
+      <div class="packages-grid">
+        <article class="package-card">
+          <div class="package-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 3h6l-1 5h-4L9 3Z"/>
+              <path d="M10 8 7 12"/>
+              <path d="M14 8 17 12"/>
+              <circle cx="12" cy="16" r="5"/>
+              <path d="m12 13 1.2 2.2 2.5.4-1.8 1.8.4 2.6-2.3-1.2-2.3 1.2.4-2.6-1.8-1.8 2.5-.4L12 13Z"/>
+            </svg>
+          </div>
+          <h3>Bronze - 10 Créditos</h3>
+          <p class="package-old-price">De R$ 12 por:</p>
+          <div class="package-price">R$ 9,90</div>
+          <ul class="package-list">
+            <li>10 créditos para treino/avaliação</li>
+            <li>Sem vencimento de sessão ativa</li>
+            <li>Histórico completo no perfil</li>
+            <li>Acesso às próximas atualizações</li>
+          </ul>
+          <button type="button" class="package-buy-btn">Entrar para comprar</button>
+        </article>
+
+        <article class="package-card package-card--popular">
+          <span class="package-badge">Mais popular</span>
+          <div class="package-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/>
+              <path d="M7 6H4a2 2 0 0 0 2 2h1"/>
+              <path d="M17 6h3a2 2 0 0 1-2 2h-1"/>
+              <path d="M12 13v3"/>
+              <path d="M9 20h6"/>
+              <path d="M8 17h8"/>
+            </svg>
+          </div>
+          <h3>Silver - 30 Créditos</h3>
+          <p class="package-old-price">De R$ 30 por:</p>
+          <div class="package-price">R$ 19,90</div>
+          <ul class="package-list">
+            <li>Economia de 33%</li>
+            <li>30 créditos para usar como quiser</li>
+            <li>Sem vencimento de sessão ativa</li>
+            <li>Ideal para rotina semanal</li>
+          </ul>
+          <button type="button" class="package-buy-btn">Entrar para comprar</button>
+        </article>
+
+        <article class="package-card">
+          <div class="package-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3c3.2 1.6 5.5 4.9 5.5 8.8L21 14l-3.5 2.2L16 20l-4-2-4 2-1.5-3.8L3 14l3.5-2.2C6.5 7.9 8.8 4.6 12 3Z"/>
+              <circle cx="12" cy="10" r="2"/>
+              <path d="M10 14h4"/>
+              <path d="M9 20h6"/>
+            </svg>
+          </div>
+          <h3>Gold - 50 Créditos</h3>
+          <p class="package-old-price">De R$ 50 por:</p>
+          <div class="package-price">R$ 29,90</div>
+          <ul class="package-list">
+            <li>Melhor custo por crédito</li>
+            <li>50 créditos para alto volume</li>
+            <li>Sem vencimento de sessão ativa</li>
+            <li>Perfeito para reta final</li>
+          </ul>
+          <button type="button" class="package-buy-btn">Entrar para comprar</button>
+        </article>
+      </div>
+
+      <div class="packages-note">
+        1 crédito = 1 treino ou 1 avaliação. Nesta etapa os botões são demonstrativos.
+      </div>
+
+      <div class="packages-actions">
+        <button type="button" id="packagesBackBtn">Voltar</button>
+      </div>
+    </section>
+    ${footerView()}
+    ${contactWidgetView()}
+  `;
+}
+
 // ===============================
 // EXPORTS
 // ===============================
@@ -1143,6 +1295,7 @@ export {
   profileEvaluationView,
   adminView,
   creditsView,
+  packagesView,
   privacyView,
   cookiesView
 };
