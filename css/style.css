@@ -1893,6 +1893,93 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   color: #6b7280;
 }
 
+.credits-history {
+  margin-top: 26px;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+}
+
+.credits-history-header h2 {
+  color: #0f2f5a;
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.credits-history-header p {
+  color: #6b7280;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.credits-history-error {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+}
+
+.credits-history-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.credits-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.credits-history-table th,
+.credits-history-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.credits-history-table th {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.credits-history-table td {
+  color: #1f2937;
+}
+
+.credits-amount.is-positive {
+  color: #166534;
+}
+
+.credits-amount.is-negative {
+  color: #b91c1c;
+}
+
+.credits-amount.is-neutral {
+  color: #475569;
+}
+
+.credits-history-more {
+  margin-top: 14px;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #1f4f8f;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.credits-history-more:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .admin-filters {
     grid-template-columns: 1fr;

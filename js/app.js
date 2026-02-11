@@ -41,7 +41,8 @@ import {
   deleteUserProfile,
   getUserCredits,
   setUserCredits,
-  consumeUserCredit
+  consumeUserCredit,
+  getUserCreditTransactionsPage
 } from "./modules/users.js";
 import { startSigwxSimulado } from "./simulados/sigwx/simulado.js";
 import { sigwxQuestions } from "./simulados/sigwx/data.js";
@@ -58,6 +59,7 @@ const IS_LOCAL_DEV_HOST =
   window.location.hostname === "127.0.0.1" ||
   window.location.hostname === "localhost";
 const LOCAL_CREDITS_KEY_PREFIX = "preflight_local_credits_";
+const CREDITS_HISTORY_PAGE_SIZE = 8;
 
 // ===============================
 // EMAILJS (CONFIG)
@@ -77,12 +79,19 @@ let evaluationRemainingSeconds = 15 * 60;
 let adminUsersCache = [];
 let adminNormalizedOnce = false;
 let currentCredits = null;
+let creditHistoryItems = [];
+let creditHistoryCursor = null;
+let creditHistoryHasMore = false;
+let creditHistoryLoading = false;
+let creditHistoryLoadingMore = false;
+let creditHistoryError = "";
 let creditsPolling = null;
 let creditsPollingStart = null;
 let startingSessionLock = false;
 const INSUFFICIENT_CREDITS_MESSAGE = "Você não possui créditos suficientes.";
 let userMenuDocumentClickHandler = null;
 let userMenuDocumentKeydownHandler = null;
+let apiWarmupDone = false;
 
 function normalizeApiBase(baseUrl) {
   return String(baseUrl || "").replace(/\/+$/, "");
@@ -107,6 +116,14 @@ async function fetchApiWithPathFallback(path, options = {}) {
   if (response.status !== 404) return response;
   response = await fetch(buildApiUrl(path, true), options);
   return response;
+}
+
+function warmupApi() {
+  if (apiWarmupDone) return;
+  apiWarmupDone = true;
+  fetchApiWithPathFallback("/health", { method: "GET", cache: "no-store" }).catch(() => {
+    // no-op: warmup is best-effort
+  });
 }
 
 function showToast(message, type = "info") {
@@ -182,6 +199,50 @@ function parseCreditsBalance(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return null;
   return Math.max(0, Math.floor(parsed));
+}
+
+function parseCreditHistoryDate(value) {
+  if (!value) return null;
+  if (typeof value?.toDate === "function") {
+    const dt = value.toDate();
+    return Number.isNaN(dt?.getTime?.()) ? null : dt;
+  }
+  const dt = new Date(value);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function formatCreditHistoryItem(item) {
+  const amount = Number(item?.amount);
+  const safeAmount = Number.isFinite(amount) ? Math.trunc(amount) : 0;
+  const type = String(item?.type || "").toLowerCase();
+  const mode = String(item?.mode || "").toLowerCase();
+  const date = parseCreditHistoryDate(item?.createdAt);
+
+  let description = "Movimentação de créditos";
+  let statusLabel = "Concluído";
+  if (type === "purchase") {
+    description = "Compra de pacote";
+    statusLabel = "Aprovado";
+  } else if (type === "reprocess") {
+    description = "Compra reprocessada";
+    statusLabel = "Aprovado";
+  } else if (type === "consume") {
+    description = mode === "evaluation" ? "Uso em avaliação" : "Uso em treinamento";
+    statusLabel = "Consumido";
+  }
+
+  let amountClass = "is-neutral";
+  if (safeAmount > 0) amountClass = "is-positive";
+  if (safeAmount < 0) amountClass = "is-negative";
+
+  return {
+    id: item?.id || "",
+    dateLabel: date ? date.toLocaleString("pt-BR") : "&mdash;",
+    description,
+    amountLabel: safeAmount > 0 ? `+${safeAmount}` : `${safeAmount}`,
+    amountClass,
+    statusLabel
+  };
 }
 
 function getLocalCreditsKey(userId) {
@@ -435,6 +496,7 @@ function setupTrainingStartModal({ onStart } = {}) {
   const startBtn = document.getElementById("trainingOk");
   const cancelBtn = document.getElementById("trainingCancel");
   if (!modalEl || !startBtn) return;
+  const defaultStartText = startBtn.innerText;
 
   modalEl.classList.remove("hidden");
 
@@ -457,6 +519,8 @@ function setupTrainingStartModal({ onStart } = {}) {
 
     startingSessionLock = true;
     startBtn.disabled = true;
+    startBtn.innerText = "Iniciando...";
+    if (cancelBtn) cancelBtn.disabled = true;
 
     try {
       await consumeStartCredit("training");
@@ -503,6 +567,8 @@ function setupTrainingStartModal({ onStart } = {}) {
     } finally {
       startingSessionLock = false;
       startBtn.disabled = false;
+      startBtn.innerText = defaultStartText;
+      if (cancelBtn) cancelBtn.disabled = false;
     }
   };
 }
@@ -555,6 +621,7 @@ function renderDashboard() {
   setupGlobalMenu();
   setupContact();
   setupFooterLinks();
+  warmupApi();
 }
 
 function renderSigwx() {
@@ -786,6 +853,7 @@ function setupEvaluationTimer() {
   evaluationRemainingSeconds = remainingSeconds;
   let intervalId = null;
   let startingEvaluation = false;
+  const defaultOkText = okBtn.innerText;
 
   const renderTimer = () => {
     const minutes = String(Math.floor(remainingSeconds / 60)).padStart(2, "0");
@@ -829,6 +897,8 @@ function setupEvaluationTimer() {
     startingEvaluation = true;
     startingSessionLock = true;
     okBtn.disabled = true;
+    okBtn.innerText = "Iniciando...";
+    if (cancelBtn) cancelBtn.disabled = true;
 
     try {
       await consumeStartCredit("evaluation");
@@ -878,6 +948,8 @@ function setupEvaluationTimer() {
       startingEvaluation = false;
       startingSessionLock = false;
       okBtn.disabled = false;
+      okBtn.innerText = defaultOkText;
+      if (cancelBtn) cancelBtn.disabled = false;
     }
   });
 
@@ -1095,51 +1167,96 @@ async function normalizeDuplicateUsers(users, creditsList) {
   }
 }
 
-function renderCredits() {
-  if (!currentUser) {
-    renderLogin();
-    return;
-  }
+function renderCreditsScreen() {
   app.innerHTML = creditsView({
     user: currentUser,
     credits: getCreditsLabel(),
     userLabel: getUserLabel(),
-    isAdmin: isAdminUser()
+    isAdmin: isAdminUser(),
+    historyItems: creditHistoryItems.map(formatCreditHistoryItem),
+    historyLoading: creditHistoryLoading,
+    historyLoadingMore: creditHistoryLoadingMore,
+    historyHasMore: creditHistoryHasMore,
+    historyError: creditHistoryError
   });
   setupGlobalMenu();
   setupLogout();
   setupContact();
   setupFooterLinks();
   setupCreditsActions();
+  setupCreditsHistoryActions();
   restoreCreditsStatus();
+}
 
-  getUserCredits(currentUser.uid)
-    .then((credits) => {
-      currentCredits = applyLocalCreditsBalance(credits || { balance: 0 }, true);
-      console.log("PreFlight credits fetched:", {
-        uid: currentUser.uid,
-        credits: currentCredits
-      });
-      window.__preflight = {
-        uid: currentUser.uid,
-        credits: currentCredits
-      };
-      app.innerHTML = creditsView({
-        user: currentUser,
-        credits: getCreditsLabel(),
-        userLabel: getUserLabel(),
-        isAdmin: isAdminUser()
-      });
-      setupGlobalMenu();
-      setupLogout();
-      setupContact();
-      setupFooterLinks();
-      setupCreditsActions();
-      restoreCreditsStatus();
+function appendCreditHistoryItems(newItems = []) {
+  const mergedById = new Map();
+  [...creditHistoryItems, ...newItems].forEach((item) => {
+    if (!item?.id) return;
+    mergedById.set(item.id, item);
+  });
+  creditHistoryItems = Array.from(mergedById.values());
+}
+
+async function loadCreditHistoryPage({ append = false } = {}) {
+  if (!currentUser) return;
+
+  const page = await getUserCreditTransactionsPage(currentUser.uid, {
+    pageSize: CREDITS_HISTORY_PAGE_SIZE,
+    cursor: append ? creditHistoryCursor : null
+  });
+
+  if (append) {
+    appendCreditHistoryItems(page.items);
+  } else {
+    creditHistoryItems = page.items;
+  }
+  creditHistoryCursor = page.nextCursor;
+  creditHistoryHasMore = !!page.hasMore;
+  creditHistoryError = "";
+}
+
+function renderCredits() {
+  if (!currentUser) {
+    renderLogin();
+    return;
+  }
+
+  creditHistoryLoading = true;
+  creditHistoryLoadingMore = false;
+  creditHistoryHasMore = false;
+  creditHistoryItems = [];
+  creditHistoryCursor = null;
+  creditHistoryError = "";
+  renderCreditsScreen();
+
+  Promise.allSettled([
+    getUserCredits(currentUser.uid),
+    loadCreditHistoryPage({ append: false })
+  ])
+    .then(([creditsResult, historyResult]) => {
+      if (creditsResult.status === "fulfilled") {
+        currentCredits = applyLocalCreditsBalance(creditsResult.value || { balance: 0 }, true);
+        console.log("PreFlight credits fetched:", {
+          uid: currentUser.uid,
+          credits: currentCredits
+        });
+        window.__preflight = {
+          uid: currentUser.uid,
+          credits: currentCredits
+        };
+      } else {
+        currentCredits = applyLocalCreditsBalance(currentCredits || { balance: 0 }, false);
+        console.warn("PreFlight credits fetch failed for uid:", currentUser.uid);
+      }
+
+      if (historyResult.status === "rejected") {
+        console.warn("PreFlight credits history fetch failed:", historyResult.reason);
+        creditHistoryError = "Não foi possível carregar o histórico agora.";
+      }
     })
-    .catch(() => {
-      currentCredits = applyLocalCreditsBalance(currentCredits || { balance: 0 }, false);
-      console.warn("PreFlight credits fetch failed for uid:", currentUser.uid);
+    .finally(() => {
+      creditHistoryLoading = false;
+      renderCreditsScreen();
     });
 }
 function setupProfileActions(evaluations) {
@@ -1386,6 +1503,28 @@ function setupCreditsActions() {
   });
 }
 
+function setupCreditsHistoryActions() {
+  const moreBtn = document.getElementById("creditsHistoryMoreBtn");
+  if (!moreBtn) return;
+
+  moreBtn.addEventListener("click", async () => {
+    if (!currentUser || creditHistoryLoadingMore || !creditHistoryHasMore) return;
+
+    creditHistoryLoadingMore = true;
+    renderCreditsScreen();
+
+    try {
+      await loadCreditHistoryPage({ append: true });
+    } catch (error) {
+      console.warn("PreFlight credits history pagination failed:", error);
+      showToast("Não foi possível carregar mais itens do histórico.", "error");
+    } finally {
+      creditHistoryLoadingMore = false;
+      renderCreditsScreen();
+    }
+  });
+}
+
 function showCreditsStatus() {
   const status = document.getElementById("creditsStatus");
   if (status) status.hidden = false;
@@ -1495,6 +1634,12 @@ observeAuthState((user) => {
   currentUser = user;
   currentProfile = null;
   currentCredits = null;
+  creditHistoryItems = [];
+  creditHistoryCursor = null;
+  creditHistoryHasMore = false;
+  creditHistoryLoading = false;
+  creditHistoryLoadingMore = false;
+  creditHistoryError = "";
   startingSessionLock = false;
   renderHomePublic();
   if (currentUser) {

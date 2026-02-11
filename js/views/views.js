@@ -854,7 +854,53 @@ function adminView({ users = [], loading = false, isAdmin = false, userLabel = "
 // ===============================
 // CRÃ‰DITOS
 // ===============================
-function creditsView({ user, credits = null, userLabel = "Conta", isAdmin = false }) {
+function creditsView({
+  user,
+  credits = null,
+  userLabel = "Conta",
+  isAdmin = false,
+  historyItems = [],
+  historyLoading = false,
+  historyLoadingMore = false,
+  historyHasMore = false,
+  historyError = ""
+}) {
+  const safeItems = Array.isArray(historyItems) ? historyItems : [];
+  const historyRows = safeItems
+    .map((item) => `
+      <tr>
+        <td>${item.dateLabel || "&mdash;"}</td>
+        <td>${item.description || "&mdash;"}</td>
+        <td><strong class="credits-amount ${item.amountClass || ""}">${item.amountLabel || "&mdash;"}</strong></td>
+        <td>${item.statusLabel || "&mdash;"}</td>
+      </tr>
+    `)
+    .join("");
+
+  const historyContent = historyLoading
+    ? `<div class="profile-loading">Carregando histórico...</div>`
+    : historyError
+      ? `<div class="credits-history-error">${historyError}</div>`
+      : !safeItems.length
+        ? `<div class="profile-empty">Nenhuma movimentação encontrada ainda.</div>`
+        : `
+          <div class="credits-history-table-wrap">
+            <table class="credits-history-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Movimentação</th>
+                  <th>Créditos</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${historyRows}
+              </tbody>
+            </table>
+          </div>
+        `;
+
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
 
@@ -884,6 +930,17 @@ function creditsView({ user, credits = null, userLabel = "Conta", isAdmin = fals
       <div class="credits-note">
         Treino e avaliação consomem 1 crédito cada.
       </div>
+
+      <section class="credits-history">
+        <div class="credits-history-header">
+          <h2>Histórico de créditos</h2>
+          <p>Compras e consumos mais recentes da sua conta.</p>
+        </div>
+        ${historyContent}
+        ${historyHasMore && !historyLoading
+          ? `<button type="button" class="credits-history-more" id="creditsHistoryMoreBtn"${historyLoadingMore ? " disabled" : ""}>${historyLoadingMore ? "Carregando..." : "Carregar mais"}</button>`
+          : ""}
+      </section>
     </section>
 
     ${footerView()}

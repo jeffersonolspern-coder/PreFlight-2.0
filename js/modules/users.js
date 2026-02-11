@@ -7,9 +7,15 @@ import {
   setDoc,
   getDoc,
   getDocFromServer,
+  getDocsFromServer,
   deleteDoc,
   collection,
   getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+  startAfter,
   serverTimestamp,
   runTransaction
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -177,6 +183,40 @@ async function consumeUserCredit(userId, mode = "training", requestId = "") {
   return result;
 }
 
+async function getUserCreditTransactionsPage(userId, { pageSize = 8, cursor = null } = {}) {
+  const safePageSize = Number.isFinite(Number(pageSize))
+    ? Math.max(1, Math.min(20, Math.floor(Number(pageSize))))
+    : 8;
+
+  const constraints = [
+    where("userId", "==", userId),
+    orderBy("createdAt", "desc"),
+    limit(safePageSize)
+  ];
+
+  if (cursor) {
+    constraints.push(startAfter(cursor));
+  }
+
+  const txQuery = query(collection(db, "credit_transactions"), ...constraints);
+
+  let snap;
+  try {
+    snap = await getDocsFromServer(txQuery);
+  } catch (error) {
+    snap = await getDocs(txQuery);
+  }
+
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const nextCursor = snap.docs.length ? snap.docs[snap.docs.length - 1] : cursor;
+
+  return {
+    items,
+    nextCursor,
+    hasMore: snap.docs.length === safePageSize
+  };
+}
+
 export {
   saveUserProfile,
   getUserProfile,
@@ -185,5 +225,6 @@ export {
   deleteUserProfile,
   getUserCredits,
   setUserCredits,
-  consumeUserCredit
+  consumeUserCredit,
+  getUserCreditTransactionsPage
 };
