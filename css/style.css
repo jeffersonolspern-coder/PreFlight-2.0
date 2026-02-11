@@ -2538,35 +2538,6 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   font-size: 13px;
 }
 
-.admin-presence {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.admin-presence i {
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  background: #9ca3af;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
-}
-
-.admin-presence.is-online {
-  color: #166534;
-}
-
-.admin-presence.is-online i {
-  background: #22c55e;
-}
-
-.admin-presence.is-offline {
-  color: #64748b;
-}
-
 .admin-credits {
   margin-top: 6px;
   padding-top: 8px;

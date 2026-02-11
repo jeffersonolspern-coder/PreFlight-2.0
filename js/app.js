@@ -94,6 +94,7 @@ let evaluationRemainingSeconds = 15 * 60;
 let adminUsersCache = [];
 let adminMetricsRange = "30d";
 let adminMetricsData = { evaluations: [], transactions: [] };
+let adminMetricsSummary = null;
 let profileEvaluationsCache = [];
 let profileShowAllEvaluations = false;
 let profileVisibleSpentCredits = 7;
@@ -180,6 +181,36 @@ async function fetchCreditHistoryPageFromApi({ pageSize = 8, cursor = null } = {
     nextCursor: data?.nextCursor ?? null,
     hasMore: !!data?.hasMore
   };
+}
+
+async function fetchAdminMetricsFromApi({ range = "30d" } = {}) {
+  if (!currentUser) {
+    throw new Error("auth_required");
+  }
+  const safeRange = ["today", "7d", "30d"].includes(String(range || "").trim().toLowerCase())
+    ? String(range).trim().toLowerCase()
+    : "30d";
+  const token = await currentUser.getIdToken();
+  const response = await fetchApiWithPathFallback(
+    `/admin/metrics?range=${encodeURIComponent(safeRange)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    const error = new Error(`admin_metrics_http_${response.status}`);
+    error.code = `admin_metrics_http_${response.status}`;
+    error.details = text;
+    throw error;
+  }
+
+  const data = await response.json();
+  return data?.metrics || null;
 }
 
 function warmupApi() {
@@ -1369,17 +1400,25 @@ async function renderAdmin() {
   setupFooterLinks();
 
   try {
-    const [users, globalNotice, allEvaluations, allTransactions] = await Promise.all([
+    const [users, globalNotice] = await Promise.all([
       getAllUsers(),
-      getGlobalNotice().catch(() => null),
-      getAllEvaluations().catch(() => []),
-      getAllCreditTransactions().catch(() => [])
+      getGlobalNotice().catch(() => null)
     ]);
     globalNoticeMessage = String(globalNotice?.message || "").trim();
-    adminMetricsData = {
-      evaluations: Array.isArray(allEvaluations) ? allEvaluations : [],
-      transactions: Array.isArray(allTransactions) ? allTransactions : []
-    };
+    let metricsFromApi = null;
+    try {
+      metricsFromApi = await fetchAdminMetricsFromApi({ range: adminMetricsRange });
+    } catch (metricsError) {
+      console.warn("Admin metrics API failed, falling back to client compute:", metricsError);
+      const [allEvaluations, allTransactions] = await Promise.all([
+        getAllEvaluations().catch(() => []),
+        getAllCreditTransactions().catch(() => [])
+      ]);
+      adminMetricsData = {
+        evaluations: Array.isArray(allEvaluations) ? allEvaluations : [],
+        transactions: Array.isArray(allTransactions) ? allTransactions : []
+      };
+    }
     const userDetails = await Promise.all(
       users.map(async (u) => {
         const targetId = u.uid || u.id;
@@ -1419,12 +1458,13 @@ async function renderAdmin() {
       adminUsersCache.length === 0
         ? "Nenhum usuário retornado. Verifique se há usuários cadastrados."
         : "";
-    const metrics = computeAdminMetrics({
+    const metrics = metricsFromApi || computeAdminMetrics({
       users: adminUsersCache,
       evaluations: adminMetricsData.evaluations,
       transactions: adminMetricsData.transactions,
       range: adminMetricsRange
     });
+    adminMetricsSummary = metrics;
     app.innerHTML = adminView({
       users: adminUsersCache,
       loading: false,
@@ -1443,6 +1483,7 @@ async function renderAdmin() {
     setupAdminActions();
   } catch (error) {
     console.error("Erro ao carregar usuários:", error);
+    adminMetricsSummary = null;
     app.innerHTML = adminView({
       users: [],
       loading: false,
@@ -1468,7 +1509,7 @@ async function renderAdmin() {
 
 function rerenderAdminWithCache(notice = "") {
   if (!isAdminUser()) return;
-  const metrics = computeAdminMetrics({
+  const metrics = adminMetricsSummary || computeAdminMetrics({
     users: adminUsersCache,
     evaluations: adminMetricsData.evaluations,
     transactions: adminMetricsData.transactions,
@@ -1617,11 +1658,20 @@ function computeAdminMetrics({
   activeUserIds.forEach((uid) => {
     if (currentUserIds.has(uid)) activeCurrentUsers += 1;
   });
+  const onlineWindowMs = 2 * 60 * 1000;
+  const nowMs = Date.now();
+  const onlineNow = (Array.isArray(users) ? users : []).reduce((acc, u) => {
+    if (!u?.isOnline) return acc;
+    const seen = parseDateValue(u?.lastSeenAt);
+    if (!seen) return acc;
+    return nowMs - seen.getTime() <= onlineWindowMs ? acc + 1 : acc;
+  }, 0);
 
   return {
     totalUsersCurrent: currentUserIds.size,
     totalUsersHistorical: historicalUserIds.size,
     activeUsers: activeCurrentUsers,
+    onlineNow,
     trainingStarted,
     evaluationsCompleted,
     approvalRate,
@@ -2031,10 +2081,30 @@ function setupAdminActions() {
   roleSelect?.addEventListener("change", applyFilters);
 
   rangeButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const nextRange = String(btn.getAttribute("data-metrics-range") || "").trim();
       if (!nextRange || nextRange === adminMetricsRange) return;
+      rangeButtons.forEach((b) => (b.disabled = true));
       adminMetricsRange = nextRange;
+      try {
+        const metrics = await fetchAdminMetricsFromApi({ range: adminMetricsRange });
+        if (metrics) {
+          adminMetricsSummary = metrics;
+          rerenderAdminWithCache();
+          return;
+        }
+      } catch (error) {
+        console.warn("Admin metrics refresh failed:", error);
+      } finally {
+        rangeButtons.forEach((b) => (b.disabled = false));
+      }
+
+      adminMetricsSummary = computeAdminMetrics({
+        users: adminUsersCache,
+        evaluations: adminMetricsData.evaluations,
+        transactions: adminMetricsData.transactions,
+        range: adminMetricsRange
+      });
       rerenderAdminWithCache();
     });
   });
@@ -2171,6 +2241,7 @@ function setupAdminActions() {
 
       adminUsersCache = adminUsersCache.filter((u) => (u.id || u.uid) !== userId);
       card?.remove();
+      adminMetricsSummary = null;
       rerenderAdminWithCache();
       showToast("Usuário removido do site.", "success");
     } catch (error) {

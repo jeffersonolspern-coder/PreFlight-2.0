@@ -1035,43 +1035,19 @@ function adminView({
   const list = users.length
     ? `<div class="admin-grid">` +
         users.map((u) => {
-          const parseDate = (value) => {
-            if (!value) return null;
-            if (typeof value?.toDate === "function") {
-              const dt = value.toDate();
-              return Number.isNaN(dt.getTime()) ? null : dt;
-            }
-            if (typeof value?.seconds === "number") {
-              const dt = new Date(value.seconds * 1000);
-              return Number.isNaN(dt.getTime()) ? null : dt;
-            }
-            if (typeof value?._seconds === "number") {
-              const dt = new Date(value._seconds * 1000);
-              return Number.isNaN(dt.getTime()) ? null : dt;
-            }
-            const dt = new Date(value);
-            return Number.isNaN(dt.getTime()) ? null : dt;
-          };
-
           const createdAt = u.createdAt && u.createdAt.toDate
             ? u.createdAt.toDate()
             : u.createdAt
               ? new Date(u.createdAt)
               : null;
           const createdText = createdAt ? createdAt.toLocaleString("pt-BR") : "&mdash;";
-          const lastSeenAt = parseDate(u.lastSeenAt);
-          const onlineFreshMs = 2 * 60 * 1000;
-          const isOnline = !!u.isOnline && !!lastSeenAt && (Date.now() - lastSeenAt.getTime() <= onlineFreshMs);
-          const seenText = lastSeenAt ? lastSeenAt.toLocaleString("pt-BR") : "&mdash;";
           return `
             <div class="admin-card" data-name="${(u.name || "").toLowerCase()}" data-email="${(u.email || "").toLowerCase()}" data-role="${(u.role || "").toLowerCase().trim()}" data-user-id="${u.id || ""}">
               <strong>${u.name || "Sem nome"}</strong>
-              <span class="admin-presence ${isOnline ? "is-online" : "is-offline"}"><i></i>${isOnline ? "Online" : "Offline"}</span>
               <span>${u.email || "&mdash;"}</span>
               <span>${u.role || "&mdash;"}</span>
               <span>${u.whatsapp || "&mdash;"}</span>
               <span>${createdText}</span>
-              <span>Última atividade: ${seenText}</span>
               <span>Treinos: ${Number.isFinite(Number(u.trainingCount)) ? Number(u.trainingCount) : 0} &bull; Avaliações: ${Number.isFinite(Number(u.evaluationCount)) ? Number(u.evaluationCount) : 0}</span>
               <div class="admin-credits">
                 <span class="admin-credits-label">Créditos</span>
@@ -1121,6 +1097,10 @@ function adminView({
             <article class="admin-metric-card">
               <span>Usuários com atividade</span>
               <strong>${Number.isFinite(Number(metrics?.activeUsers)) ? Number(metrics.activeUsers) : 0}</strong>
+            </article>
+            <article class="admin-metric-card">
+              <span>Online agora</span>
+              <strong>${Number.isFinite(Number(metrics?.onlineNow)) ? Number(metrics.onlineNow) : 0}</strong>
             </article>
             <article class="admin-metric-card">
               <span>Treinos iniciados</span>

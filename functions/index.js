@@ -23,10 +23,12 @@ const CREDIT_PACKS = {
 };
 const DEFAULT_CREDIT_PACK_ID = "bronze";
 const BUILD_ID = process.env.RENDER_GIT_COMMIT || process.env.SOURCE_VERSION || "local";
+const ADMIN_METRICS_CACHE_TTL_MS = Number(process.env.ADMIN_METRICS_CACHE_TTL_MS || 60_000);
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || (functions.config()?.admin?.emails ?? "") || "jeffersonolspern@gmail.com")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
+const adminMetricsCache = new Map();
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -109,6 +111,29 @@ function resolvePackFromPayment(paymentData = {}) {
   if (matched) return matched;
 
   return CREDIT_PACKS[DEFAULT_CREDIT_PACK_ID];
+}
+
+function parseTimestampMs(value) {
+  if (!value) return 0;
+  if (typeof value.toDate === "function") {
+    const dt = value.toDate();
+    return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
+  }
+  if (typeof value._seconds === "number") return value._seconds * 1000;
+  if (typeof value.seconds === "number") return value.seconds * 1000;
+  const dt = new Date(value);
+  return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
+}
+
+function getRangeStartMs(range = "30d") {
+  const now = new Date();
+  if (range === "today") {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  }
+  if (range === "7d") {
+    return now.getTime() - 7 * 24 * 60 * 60 * 1000;
+  }
+  return now.getTime() - 30 * 24 * 60 * 60 * 1000;
 }
 
 // ===============================
@@ -392,6 +417,135 @@ app.post("/admin/credits", async (req, res) => {
   } catch (error) {
     console.error("admin credits error:", error);
     return res.status(500).json({ error: "admin_credits_error" });
+  }
+});
+
+// ===============================
+// ADMIN - METRICS
+// ===============================
+app.get("/admin/metrics", async (req, res) => {
+  const adminUser = await requireAdmin(req, res);
+  if (!adminUser) return;
+
+  try {
+    const rawRange = String(req.query?.range || "30d").trim().toLowerCase();
+    const range = ["today", "7d", "30d"].includes(rawRange) ? rawRange : "30d";
+    const cacheKey = range;
+    const nowMs = Date.now();
+    const cached = adminMetricsCache.get(cacheKey);
+    if (cached && cached.expiresAt > nowMs) {
+      return res.json({ metrics: cached.data, cached: true, range });
+    }
+
+    const startMs = getRangeStartMs(range);
+    const startTs = admin.firestore.Timestamp.fromDate(new Date(startMs));
+
+    const [usersSnap, evalPeriodSnap, txPeriodSnap, evalAllSnap, txAllSnap] = await Promise.all([
+      db.collection("users").get(),
+      db.collection("evaluations").where("createdAt", ">=", startTs).get(),
+      db.collection("credit_transactions").where("createdAt", ">=", startTs).get(),
+      db.collection("evaluations").get(),
+      db.collection("credit_transactions").get()
+    ]);
+
+    const currentUserIds = new Set(usersSnap.docs.map((d) => d.id));
+    const historicalUserIds = new Set(currentUserIds);
+    evalAllSnap.docs.forEach((d) => {
+      const uid = String(d.data()?.userId || "").trim();
+      if (uid) historicalUserIds.add(uid);
+    });
+    txAllSnap.docs.forEach((d) => {
+      const uid = String(d.data()?.userId || "").trim();
+      if (uid) historicalUserIds.add(uid);
+    });
+
+    const periodActiveIds = new Set();
+    let trainingStarted = 0;
+    let creditsConsumed = 0;
+    let creditsPurchased = 0;
+
+    txPeriodSnap.docs.forEach((doc) => {
+      const data = doc.data() || {};
+      const uid = String(data.userId || "").trim();
+      if (uid) periodActiveIds.add(uid);
+      const type = String(data.type || "").toLowerCase();
+      const mode = String(data.mode || "").toLowerCase();
+      const amount = Number.isFinite(Number(data.amount)) ? Math.trunc(Number(data.amount)) : 0;
+
+      if (type === "consume" || amount < 0) {
+        creditsConsumed += Math.abs(amount || 1);
+        if (mode === "training") trainingStarted += 1;
+      }
+      if (type === "purchase" || type === "reprocess" || amount > 0) {
+        creditsPurchased += Math.max(0, amount);
+      }
+    });
+
+    const evalDocs = evalPeriodSnap.docs.map((d) => d.data() || {});
+    evalDocs.forEach((data) => {
+      const uid = String(data.userId || "").trim();
+      if (uid) periodActiveIds.add(uid);
+    });
+
+    const evaluationsCompleted = evalDocs.length;
+    const approvedCount = evalDocs.filter((d) => String(d.status || "").toLowerCase() === "aprovado").length;
+    const approvalRate = evaluationsCompleted ? Math.round((approvedCount / evaluationsCompleted) * 100) : 0;
+
+    const questionErrors = new Map();
+    evalDocs.forEach((ev) => {
+      const answers = Array.isArray(ev.answers) ? ev.answers : [];
+      answers.forEach((answer) => {
+        const selectedIndex = Number(answer?.selectedIndex);
+        const options = Array.isArray(answer?.options) ? answer.options : [];
+        if (!Number.isFinite(selectedIndex) || selectedIndex < 0) return;
+        const selected = options[selectedIndex];
+        if (!selected || selected.isCorrect) return;
+        const qidRaw = String(answer?.questionId || "questao").trim();
+        const qid = qidRaw.length > 24 ? `${qidRaw.slice(0, 24)}...` : qidRaw;
+        questionErrors.set(qid, (questionErrors.get(qid) || 0) + 1);
+      });
+    });
+    const topErrors = Array.from(questionErrors.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([qid, count]) => `${qid} (${count})`);
+
+    let activeUsers = 0;
+    periodActiveIds.forEach((uid) => {
+      if (currentUserIds.has(uid)) activeUsers += 1;
+    });
+
+    const onlineWindowMs = 2 * 60 * 1000;
+    const onlineNow = usersSnap.docs.reduce((acc, d) => {
+      const data = d.data() || {};
+      if (!data.isOnline) return acc;
+      const lastSeenMs = parseTimestampMs(data.lastSeenAt);
+      if (!lastSeenMs) return acc;
+      return nowMs - lastSeenMs <= onlineWindowMs ? acc + 1 : acc;
+    }, 0);
+
+    const metrics = {
+      totalUsersCurrent: currentUserIds.size,
+      totalUsersHistorical: historicalUserIds.size,
+      activeUsers,
+      onlineNow,
+      trainingStarted,
+      evaluationsCompleted,
+      approvalRate,
+      creditsConsumed,
+      creditsPurchased,
+      topErrors
+    };
+
+    adminMetricsCache.set(cacheKey, {
+      data: metrics,
+      expiresAt: nowMs + ADMIN_METRICS_CACHE_TTL_MS
+    });
+
+    return res.json({ metrics, cached: false, range });
+  } catch (error) {
+    console.error("admin metrics error:", error);
+    return res.status(500).json({ error: "admin_metrics_error" });
   }
 });
 
