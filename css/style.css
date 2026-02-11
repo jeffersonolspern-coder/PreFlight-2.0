@@ -3168,6 +3168,43 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   border: 1px solid #e5e7eb;
 }
 
+#profileCreditsSection .credits-history-table-wrap {
+  overflow-x: hidden;
+}
+
+#profileCreditsSection .credits-history-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+#profileCreditsSection .credits-history-table th,
+#profileCreditsSection .credits-history-table td {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+#profileCreditsSection .credits-history-table th:nth-child(1),
+#profileCreditsSection .credits-history-table td:nth-child(1) {
+  width: 31%;
+}
+
+#profileCreditsSection .credits-history-table th:nth-child(2),
+#profileCreditsSection .credits-history-table td:nth-child(2) {
+  width: 40%;
+}
+
+#profileCreditsSection .credits-history-table th:nth-child(3),
+#profileCreditsSection .credits-history-table td:nth-child(3) {
+  width: 12%;
+  text-align: center;
+}
+
+#profileCreditsSection .credits-history-table th:nth-child(4),
+#profileCreditsSection .credits-history-table td:nth-child(4) {
+  width: 17%;
+}
+
 #profileCreditsSection .credits-history-more {
   display: block;
   margin-left: auto;
@@ -3621,22 +3658,6 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
     padding: 10px 12px;
   }
 
-  #profileCreditsSection .credits-history-table-wrap {
-    overflow-x: visible;
-  }
-
-  #profileCreditsSection .credits-history-table {
-    min-width: 0;
-    width: 100%;
-    table-layout: fixed;
-  }
-
-  #profileCreditsSection .credits-history-table th,
-  #profileCreditsSection .credits-history-table td {
-    white-space: normal;
-    word-break: break-word;
-  }
-
   #profileCreditsSection .credits-history-table th:nth-child(4),
   #profileCreditsSection .credits-history-table td:nth-child(4) {
     display: none;
@@ -3644,17 +3665,17 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
 
   #profileCreditsSection .credits-history-table th:nth-child(1),
   #profileCreditsSection .credits-history-table td:nth-child(1) {
-    width: 30%;
+    width: 36%;
   }
 
   #profileCreditsSection .credits-history-table th:nth-child(2),
   #profileCreditsSection .credits-history-table td:nth-child(2) {
-    width: 48%;
+    width: 47%;
   }
 
   #profileCreditsSection .credits-history-table th:nth-child(3),
   #profileCreditsSection .credits-history-table td:nth-child(3) {
-    width: 22%;
+    width: 17%;
   }
 }
 

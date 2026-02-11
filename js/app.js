@@ -281,17 +281,21 @@ function formatCreditHistoryItem(item) {
   const type = String(item?.type || "").toLowerCase();
   const mode = String(item?.mode || "").toLowerCase();
   const date = parseCreditHistoryDate(item?.createdAt);
+  const packageId = String(item?.packageId || "").trim().toLowerCase();
+  const packageLabel = packageId
+    ? `${packageId.charAt(0).toUpperCase()}${packageId.slice(1)}`
+    : "";
 
   let description = "Movimentação de créditos";
   let statusLabel = "Concluído";
   if (type === "purchase") {
-    description = item?.packageTitle ? `Compra: ${item.packageTitle}` : "Compra de pacote";
+    description = packageLabel ? `Entrada: pacote ${packageLabel}` : "Entrada: compra de pacote";
     statusLabel = "Aprovado";
   } else if (type === "reprocess") {
-    description = item?.packageTitle ? `Compra reprocessada: ${item.packageTitle}` : "Compra reprocessada";
+    description = packageLabel ? `Entrada: pacote ${packageLabel} (reprocessado)` : "Entrada: compra reprocessada";
     statusLabel = "Aprovado";
   } else if (type === "consume") {
-    description = mode === "evaluation" ? "Uso em avaliação" : "Uso em treinamento";
+    description = mode === "evaluation" ? "Saída: uso em avaliação" : "Saída: uso em treinamento";
     statusLabel = "Consumido";
   }
 
