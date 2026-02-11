@@ -1692,6 +1692,9 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   max-width: 1100px;
   margin: 40px auto 80px;
   padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .profile-header h1 {
@@ -1711,15 +1714,54 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   margin-bottom: 12px;
 }
 
-.profile-form {
+.profile-section {
   background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.profile-stats div {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+  padding: 14px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+  text-align: center;
+}
+
+.profile-stats div.is-percent {
+  background: #eaf1ff;
+  border-color: #bcd0f5;
+}
+
+.profile-stats span {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.profile-stats strong {
+  font-size: 20px;
+  color: #111827;
+}
+
+.profile-form {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   align-items: start;
 }
 
@@ -1759,8 +1801,8 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
 }
 
 .profile-danger {
-  margin-top: 12px;
-  margin-bottom: 14px;
+  margin-top: 10px;
+  margin-bottom: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2113,6 +2155,21 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   }
 }
 
+@media (max-width: 640px) {
+  .profile-page {
+    padding: 0 14px;
+  }
+
+  .profile-section {
+    padding: 14px;
+  }
+
+  .profile-danger {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -2219,6 +2276,30 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   padding: 16px;
   box-shadow: 0 10px 24px rgba(0,0,0,0.06);
   color: #6b7280;
+}
+
+#profileCreditsSection .credits-status {
+  margin: 0 0 14px;
+}
+
+#profileCreditsSection .credits-card {
+  box-shadow: none;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+#profileCreditsSection .credits-card button {
+  justify-self: start;
+}
+
+#profileCreditsSection .credits-note {
+  margin-top: 10px;
+}
+
+#profileCreditsSection .credits-history {
+  margin-top: 14px;
+  box-shadow: none;
+  border: 1px solid #e5e7eb;
 }
 
 /* ===============================

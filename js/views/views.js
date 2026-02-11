@@ -762,7 +762,7 @@ function profileView({
         <p>${user?.displayName ? user.displayName + " &middot; " : ""}${user?.email || ""}</p>
       </div>
 
-      <div class="eval-stats">
+      <div class="profile-stats">
         <div><span>Créditos</span><strong>${credits ?? 0}</strong></div>
         <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
         <div><span>Aprovadas</span><strong>${approvedCount}</strong></div>
