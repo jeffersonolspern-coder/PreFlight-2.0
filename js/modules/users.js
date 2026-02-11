@@ -149,6 +149,17 @@ async function consumeUserCredit(userId, mode = "training", requestId = "") {
     }
 
     await runTransaction(db, async (tx) => {
+      const existingTx = await tx.get(txRef);
+      if (existingTx.exists()) {
+        const existingData = existingTx.data() || {};
+        const parsedBalance = Number(existingData.balanceAfter);
+        result = {
+          balance: Number.isFinite(parsedBalance) ? Math.max(0, Math.floor(parsedBalance)) : 0,
+          alreadyProcessed: true
+        };
+        return;
+      }
+
       const creditsSnap = await tx.get(creditsRef);
       const creditsData = creditsSnap.exists() ? creditsSnap.data() : {};
       const parsedBalance = Number(creditsData.balance ?? 0);
@@ -169,6 +180,17 @@ async function consumeUserCredit(userId, mode = "training", requestId = "") {
         },
         { merge: true }
       );
+
+      tx.set(txRef, {
+        userId,
+        type: "consume",
+        mode: normalizedMode,
+        amount: -1,
+        requestId: normalizedRequestId,
+        balanceBefore: currentBalance,
+        balanceAfter,
+        createdAt: serverTimestamp()
+      });
 
       result = {
         balance: balanceAfter,
