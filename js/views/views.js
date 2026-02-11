@@ -1030,7 +1030,8 @@ function adminView({
   notice = "",
   globalNotice = "",
   metrics = null,
-  metricsRange = "30d"
+  metricsRange = "30d",
+  lightMode = false
 } = {}) {
   const list = users.length
     ? `<div class="admin-grid">` +
@@ -1041,6 +1042,11 @@ function adminView({
               ? new Date(u.createdAt)
               : null;
           const createdText = createdAt ? createdAt.toLocaleString("pt-BR") : "&mdash;";
+          const trainingCount = Number.isFinite(Number(u.trainingCount)) ? Number(u.trainingCount) : null;
+          const evaluationCount = Number.isFinite(Number(u.evaluationCount)) ? Number(u.evaluationCount) : null;
+          const sessionText = trainingCount === null || evaluationCount === null
+            ? "Treinos: -- • Avaliações: --"
+            : `Treinos: ${trainingCount} • Avaliações: ${evaluationCount}`;
           return `
             <div class="admin-card" data-name="${(u.name || "").toLowerCase()}" data-email="${(u.email || "").toLowerCase()}" data-role="${(u.role || "").toLowerCase().trim()}" data-user-id="${u.id || ""}">
               <strong>${u.name || "Sem nome"}</strong>
@@ -1048,7 +1054,7 @@ function adminView({
               <span>${u.role || "&mdash;"}</span>
               <span>${u.whatsapp || "&mdash;"}</span>
               <span>${createdText}</span>
-              <span>Treinos: ${Number.isFinite(Number(u.trainingCount)) ? Number(u.trainingCount) : 0} &bull; Avaliações: ${Number.isFinite(Number(u.evaluationCount)) ? Number(u.evaluationCount) : 0}</span>
+              <span>${sessionText}</span>
               <div class="admin-credits">
                 <span class="admin-credits-label">Créditos</span>
                 <div class="admin-credits-row">
@@ -1079,10 +1085,15 @@ function adminView({
         <div class="admin-metrics">
           <div class="admin-metrics-head">
             <h2>Métricas</h2>
-            <div class="admin-metrics-range" role="group" aria-label="Período das métricas">
-              <button type="button" class="${metricsRange === "today" ? "active" : ""}" data-metrics-range="today">Hoje</button>
-              <button type="button" class="${metricsRange === "7d" ? "active" : ""}" data-metrics-range="7d">7 dias</button>
-              <button type="button" class="${metricsRange === "30d" ? "active" : ""}" data-metrics-range="30d">30 dias</button>
+            <div class="admin-metrics-controls">
+              <button type="button" class="admin-light-mode-btn ${lightMode ? "active" : ""}" id="adminLightModeToggle">
+                Modo leve: ${lightMode ? "ON" : "OFF"}
+              </button>
+              <div class="admin-metrics-range" role="group" aria-label="Período das métricas">
+                <button type="button" class="${metricsRange === "today" ? "active" : ""}" data-metrics-range="today">Hoje</button>
+                <button type="button" class="${metricsRange === "7d" ? "active" : ""}" data-metrics-range="7d">7 dias</button>
+                <button type="button" class="${metricsRange === "30d" ? "active" : ""}" data-metrics-range="30d">30 dias</button>
+              </div>
             </div>
           </div>
           <div class="admin-metrics-grid">

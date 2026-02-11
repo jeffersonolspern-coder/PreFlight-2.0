@@ -39,6 +39,7 @@ import {
   saveUserProfile,
   getUserProfile,
   getAllUsers,
+  getAllCredits,
   getUserCredits,
   setUserCredits,
   deleteUserProfile,
@@ -70,6 +71,7 @@ const LOCAL_CREDITS_KEY_PREFIX = "preflight_local_credits_";
 const CREDITS_HISTORY_PAGE_SIZE = 30;
 const WELCOME_BONUS_CREDITS = 5;
 const PRESENCE_HEARTBEAT_MS = 45 * 1000;
+const ADMIN_LIGHT_MODE_KEY = "preflight_admin_light_mode";
 const CREDIT_PACKS = {
   bronze: { id: "bronze", name: "Bronze", credits: 10, price: 9.9 },
   silver: { id: "silver", name: "Silver", credits: 30, price: 19.9 },
@@ -95,6 +97,7 @@ let adminUsersCache = [];
 let adminMetricsRange = "30d";
 let adminMetricsData = { evaluations: [], transactions: [] };
 let adminMetricsSummary = null;
+let adminLightMode = localStorage.getItem(ADMIN_LIGHT_MODE_KEY) !== "0";
 let profileEvaluationsCache = [];
 let profileShowAllEvaluations = false;
 let profileVisibleSpentCredits = 7;
@@ -1392,7 +1395,8 @@ async function renderAdmin() {
     userLabel: getUserLabel(),
     credits: getCreditsLabel(),
     metrics: computeAdminMetrics({ users: [], evaluations: [], transactions: [], range: adminMetricsRange }),
-    metricsRange: adminMetricsRange
+    metricsRange: adminMetricsRange,
+    lightMode: adminLightMode
   });
   setupGlobalMenu();
   setupLogout();
@@ -1400,9 +1404,10 @@ async function renderAdmin() {
   setupFooterLinks();
 
   try {
-    const [users, globalNotice] = await Promise.all([
+    const [users, globalNotice, allCredits] = await Promise.all([
       getAllUsers(),
-      getGlobalNotice().catch(() => null)
+      getGlobalNotice().catch(() => null),
+      getAllCredits().catch(() => [])
     ]);
     globalNoticeMessage = String(globalNotice?.message || "").trim();
     let metricsFromApi = null;
@@ -1419,17 +1424,23 @@ async function renderAdmin() {
         transactions: Array.isArray(allTransactions) ? allTransactions : []
       };
     }
+    const creditsMap = new Map(
+      (Array.isArray(allCredits) ? allCredits : []).map((item) => {
+        const id = String(item?.id || "").trim();
+        return [id, item];
+      })
+    );
     const userDetails = await Promise.all(
       users.map(async (u) => {
         const targetId = u.uid || u.id;
-        const [credit, sessions] = await Promise.all([
-          getUserCredits(targetId).catch(() => null),
-          getUserSessionCounts(targetId).catch(() => ({ trainingCount: 0, evaluationCount: 0 }))
-        ]);
+        const credit = creditsMap.get(targetId) || null;
+        const sessions = adminLightMode
+          ? { trainingCount: null, evaluationCount: null }
+          : await getUserSessionCounts(targetId).catch(() => ({ trainingCount: 0, evaluationCount: 0 }));
         return { targetId, credit, sessions };
       })
     );
-    const creditsList = userDetails.map((item) => item.credit);
+    const creditsList = userDetails.map((item) => item.credit || creditsMap.get(item.targetId) || null);
 
     if (!adminNormalizedOnce) {
       const normalized = await normalizeDuplicateUsers(users, creditsList);
@@ -1474,7 +1485,8 @@ async function renderAdmin() {
       notice,
       globalNotice: globalNoticeMessage,
       metrics,
-      metricsRange: adminMetricsRange
+      metricsRange: adminMetricsRange,
+      lightMode: adminLightMode
     });
     setupGlobalMenu();
     setupLogout();
@@ -1498,7 +1510,8 @@ async function renderAdmin() {
         transactions: adminMetricsData.transactions,
         range: adminMetricsRange
       }),
-      metricsRange: adminMetricsRange
+      metricsRange: adminMetricsRange,
+      lightMode: adminLightMode
     });
     setupGlobalMenu();
     setupLogout();
@@ -1524,7 +1537,8 @@ function rerenderAdminWithCache(notice = "") {
     notice,
     globalNotice: globalNoticeMessage,
     metrics,
-    metricsRange: adminMetricsRange
+    metricsRange: adminMetricsRange,
+    lightMode: adminLightMode
   });
   setupGlobalMenu();
   setupLogout();
@@ -2058,6 +2072,7 @@ function setupAdminActions() {
   const noticeInput = document.getElementById("adminGlobalNotice");
   const noticeSaveBtn = document.getElementById("adminGlobalNoticeSave");
   const rangeButtons = document.querySelectorAll("[data-metrics-range]");
+  const lightModeBtn = document.getElementById("adminLightModeToggle");
 
   const applyFilters = () => {
     const term = (searchInput?.value || "").toLowerCase().trim();
@@ -2107,6 +2122,13 @@ function setupAdminActions() {
       });
       rerenderAdminWithCache();
     });
+  });
+
+  lightModeBtn?.addEventListener("click", () => {
+    adminLightMode = !adminLightMode;
+    localStorage.setItem(ADMIN_LIGHT_MODE_KEY, adminLightMode ? "1" : "0");
+    adminMetricsSummary = null;
+    renderAdmin();
   });
 
   exportBtn?.addEventListener("click", () => {
