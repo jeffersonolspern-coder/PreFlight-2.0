@@ -41,7 +41,7 @@ service cloud.firestore {
     match /credits/{userId} {
       allow read: if isOwner(userId) || isAdmin();
 
-      allow create: if isOwner(userId) &&
+      allow create: if (isOwner(userId) || isAdmin()) &&
         request.resource.data.balance is number &&
         request.resource.data.balance >= 0;
 
