@@ -440,6 +440,34 @@ textarea:focus-visible {
   cursor: pointer;
   display: inline-block;
 }
+
+.google-login-btn {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 10px 14px;
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 12px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}
 .cta-button {
   background: #fbbf24;
   color: #111827;

@@ -182,6 +182,8 @@ function loginView({ isAdmin = false, userLabel = "Conta" } = {}) {
 
     <div class="box">
       <h1>Login</h1>
+      <button id="loginGoogleBtn" class="google-login-btn" type="button">Entrar com Google</button>
+      <div class="auth-divider"><span>ou</span></div>
       <label class="sr-only" for="email">Email</label>
       <input type="email" id="email" placeholder="Email" autocomplete="email" />
       <label class="sr-only" for="password">Senha</label>

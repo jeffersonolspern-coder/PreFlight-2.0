@@ -21,6 +21,7 @@ import {
 
 import {
   login,
+  loginWithGoogle,
   register,
   logout,
   deleteAccount,
@@ -2058,6 +2059,7 @@ function setupAccessButton() {
 // ===============================
 function setupLoginForm() {
   const loginBtn = document.getElementById("loginBtn");
+  const googleBtn = document.getElementById("loginGoogleBtn");
   const emailInput = document.getElementById("email");
   const passwordInput = document.getElementById("password");
 
@@ -2092,6 +2094,28 @@ function setupLoginForm() {
       e.preventDefault();
       submitLogin();
     });
+  });
+
+  googleBtn?.addEventListener("click", async () => {
+    googleBtn.disabled = true;
+    const prevText = googleBtn.innerText;
+    googleBtn.innerText = "Abrindo Google...";
+
+    try {
+      await loginWithGoogle();
+    } catch (error) {
+      const code = String(error?.code || "").toLowerCase();
+      if (code.includes("popup-closed-by-user")) {
+        showToast("Login com Google cancelado.", "info");
+      } else if (code.includes("popup-blocked")) {
+        showToast("Popup bloqueado. Libere popups e tente novamente.", "error");
+      } else {
+        showToast("Não foi possível entrar com Google.", "error");
+      }
+    } finally {
+      googleBtn.disabled = false;
+      googleBtn.innerText = prevText;
+    }
   });
 }
 

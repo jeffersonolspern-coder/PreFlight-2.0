@@ -6,6 +6,8 @@ import { auth } from "./firebase.js";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
   updateProfile,
   deleteUser,
   signOut,
@@ -22,6 +24,12 @@ let currentUser = null;
 // ===============================
 function login(email, password) {
   return signInWithEmailAndPassword(auth, email, password);
+}
+
+function loginWithGoogle() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  return signInWithPopup(auth, provider);
 }
 
 // ===============================
@@ -65,6 +73,7 @@ function observeAuthState(callback) {
 // ===============================
 export {
   login,
+  loginWithGoogle,
   register,
   logout,
   deleteAccount,
