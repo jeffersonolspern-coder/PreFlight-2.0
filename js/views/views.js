@@ -912,7 +912,8 @@ function creditsView({
 
       <div class="credits-status" id="creditsStatus" hidden>
         <strong>Pagamento recente?</strong>
-        <span>Se você acabou de pagar, aguarde alguns instantes e seus créditos serão atualizados aqui.</span>
+        <span>Após pagar, volte para esta página e clique em confirmar para atualizar seus créditos.</span>
+        <button type="button" id="creditsCheckBtn" class="credits-check-btn">Já paguei, atualizar créditos</button>
       </div>
 
       <div class="credits-card">
@@ -941,6 +942,18 @@ function creditsView({
           ? `<button type="button" class="credits-history-more" id="creditsHistoryMoreBtn"${historyLoadingMore ? " disabled" : ""}>${historyLoadingMore ? "Carregando..." : "Carregar mais"}</button>`
           : ""}
       </section>
+
+      <div class="evaluation-modal hidden" id="creditsCheckoutModal" role="dialog" aria-modal="true" aria-labelledby="creditsCheckoutTitle">
+        <div class="evaluation-box credits-checkout-box">
+          <h3 id="creditsCheckoutTitle">Comprar créditos</h3>
+          <p>Você será redirecionado para uma plataforma de pagamento segura (Mercado Pago).</p>
+          <p>Após concluir o pagamento, retorne para esta página e confirme a atualização dos créditos.</p>
+          <div class="evaluation-actions">
+            <button type="button" id="creditsCheckoutCancel" style="background:#6b7280;color:#ffffff;">Cancelar</button>
+            <button type="button" id="creditsCheckoutConfirm">Confirmar pagamento</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     ${footerView()}

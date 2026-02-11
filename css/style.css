@@ -1837,6 +1837,24 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   color: #0f2a4d;
 }
 
+.credits-check-btn {
+  margin-top: 8px;
+  width: fit-content;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #1f4f8f;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.credits-check-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
 .credits-header h1 {
   font-size: 28px;
   color: #0f2f5a;
@@ -1978,6 +1996,13 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
 .credits-history-more:disabled {
   opacity: 0.75;
   cursor: not-allowed;
+}
+
+.credits-checkout-box .evaluation-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 @media (max-width: 900px) {

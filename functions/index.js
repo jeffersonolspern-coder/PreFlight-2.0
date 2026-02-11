@@ -454,6 +454,76 @@ app.post("/consumeCredit", async (req, res) => {
     return res.status(500).json({ error: "consume_credit_error" });
   }
 });
+
+// ===============================
+// CREDIT HISTORY (USER)
+// ===============================
+app.get("/credits/history", async (req, res) => {
+  const authUser = await requireAuth(req, res);
+  if (!authUser) return;
+
+  try {
+    const rawPageSize = Number(req.query?.pageSize ?? 8);
+    const rawOffset = Number(req.query?.offset ?? 0);
+    const pageSize = Number.isFinite(rawPageSize)
+      ? Math.max(1, Math.min(20, Math.floor(rawPageSize)))
+      : 8;
+    const offset = Number.isFinite(rawOffset)
+      ? Math.max(0, Math.floor(rawOffset))
+      : 0;
+
+    const snap = await db
+      .collection("credit_transactions")
+      .where("userId", "==", authUser.uid)
+      .get();
+
+    const getTimestampMs = (value) => {
+      if (!value) return 0;
+      if (typeof value.toDate === "function") {
+        const dt = value.toDate();
+        return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
+      }
+      if (typeof value === "string" || typeof value === "number") {
+        const dt = new Date(value);
+        return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
+      }
+      if (value._seconds) return value._seconds * 1000;
+      return 0;
+    };
+
+    const allItems = snap.docs
+      .map((doc) => {
+        const data = doc.data() || {};
+        return {
+          id: doc.id,
+          userId: data.userId || "",
+          type: data.type || "",
+          mode: data.mode || "",
+          amount: Number.isFinite(Number(data.amount)) ? Number(data.amount) : 0,
+          paymentId: data.paymentId || "",
+          requestId: data.requestId || "",
+          balanceBefore: Number.isFinite(Number(data.balanceBefore)) ? Number(data.balanceBefore) : null,
+          balanceAfter: Number.isFinite(Number(data.balanceAfter)) ? Number(data.balanceAfter) : null,
+          createdAt: toIso(data.createdAt),
+          expiresAt: toIso(data.expiresAt)
+        };
+      })
+      .sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
+
+    const items = allItems.slice(offset, offset + pageSize);
+    const nextOffset = offset + items.length;
+    const hasMore = nextOffset < allItems.length;
+
+    return res.json({
+      items,
+      nextCursor: hasMore ? nextOffset : null,
+      hasMore
+    });
+  } catch (error) {
+    console.error("credit history error:", error);
+    return res.status(500).json({ error: "credit_history_error" });
+  }
+});
 exports.api = functions.https.onRequest(app);
 
 app.get("/health", (req, res) => {

@@ -118,6 +118,45 @@ async function fetchApiWithPathFallback(path, options = {}) {
   return response;
 }
 
+async function fetchCreditHistoryPageFromApi({ pageSize = 8, cursor = null } = {}) {
+  if (!currentUser) {
+    throw new Error("auth_required");
+  }
+
+  const safePageSize = Number.isFinite(Number(pageSize))
+    ? Math.max(1, Math.min(20, Math.floor(Number(pageSize))))
+    : 8;
+  const safeOffset = Number.isFinite(Number(cursor))
+    ? Math.max(0, Math.floor(Number(cursor)))
+    : 0;
+
+  const token = await currentUser.getIdToken();
+  const response = await fetchApiWithPathFallback(
+    `/credits/history?pageSize=${safePageSize}&offset=${safeOffset}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    const error = new Error(`credits_history_http_${response.status}`);
+    error.code = `credits_history_http_${response.status}`;
+    error.details = text;
+    throw error;
+  }
+
+  const data = await response.json();
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    nextCursor: data?.nextCursor ?? null,
+    hasMore: !!data?.hasMore
+  };
+}
+
 function warmupApi() {
   if (apiWarmupDone) return;
   apiWarmupDone = true;
@@ -1200,10 +1239,18 @@ function appendCreditHistoryItems(newItems = []) {
 async function loadCreditHistoryPage({ append = false } = {}) {
   if (!currentUser) return;
 
-  const page = await getUserCreditTransactionsPage(currentUser.uid, {
-    pageSize: CREDITS_HISTORY_PAGE_SIZE,
-    cursor: append ? creditHistoryCursor : null
-  });
+  let page;
+  try {
+    page = await fetchCreditHistoryPageFromApi({
+      pageSize: CREDITS_HISTORY_PAGE_SIZE,
+      cursor: append ? creditHistoryCursor : null
+    });
+  } catch (apiError) {
+    page = await getUserCreditTransactionsPage(currentUser.uid, {
+      pageSize: CREDITS_HISTORY_PAGE_SIZE,
+      cursor: append ? creditHistoryCursor : null
+    });
+  }
 
   if (append) {
     appendCreditHistoryItems(page.items);
@@ -1497,10 +1544,63 @@ function setupAdminActions() {
 
 function setupCreditsActions() {
   const btn = document.getElementById("buyCreditsBtn");
-  if (!btn) return;
-  btn.addEventListener("click", () => {
-    startCreditsCheckout();
-  });
+  const modal = document.getElementById("creditsCheckoutModal");
+  const confirmBtn = document.getElementById("creditsCheckoutConfirm");
+  const cancelBtn = document.getElementById("creditsCheckoutCancel");
+  const checkBtn = document.getElementById("creditsCheckBtn");
+
+  if (btn && modal) {
+    btn.addEventListener("click", () => {
+      modal.classList.remove("hidden");
+    });
+  }
+
+  if (cancelBtn && modal) {
+    cancelBtn.addEventListener("click", () => {
+      modal.classList.add("hidden");
+    });
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        modal.classList.add("hidden");
+      }
+    });
+  }
+
+  if (confirmBtn) {
+    const defaultText = confirmBtn.innerText;
+    confirmBtn.addEventListener("click", async () => {
+      confirmBtn.disabled = true;
+      confirmBtn.innerText = "Abrindo pagamento...";
+      if (cancelBtn) cancelBtn.disabled = true;
+
+      try {
+        const opened = await startCreditsCheckout();
+        if (opened && modal) {
+          modal.classList.add("hidden");
+          showToast("Pagamento aberto. Após pagar, volte aqui e confirme os créditos.", "info");
+        }
+      } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.innerText = defaultText;
+        if (cancelBtn) cancelBtn.disabled = false;
+      }
+    });
+  }
+
+  if (checkBtn) {
+    const defaultText = checkBtn.innerText;
+    checkBtn.addEventListener("click", async () => {
+      checkBtn.disabled = true;
+      checkBtn.innerText = "Verificando...";
+      try {
+        await checkCreditsPaymentStatus({ showNoChangeToast: true });
+      } finally {
+        checkBtn.disabled = false;
+        checkBtn.innerText = defaultText;
+      }
+    });
+  }
 }
 
 function setupCreditsHistoryActions() {
@@ -1541,6 +1641,36 @@ function restoreCreditsStatus() {
   }
 }
 
+async function checkCreditsPaymentStatus({ showNoChangeToast = false } = {}) {
+  if (!currentUser) return false;
+
+  const before = getCreditsBalanceValue(currentCredits) ?? 0;
+
+  try {
+    const credits = await getUserCredits(currentUser.uid);
+    currentCredits = applyLocalCreditsBalance(credits || { balance: before }, true);
+    const after = getCreditsBalanceValue(currentCredits) ?? 0;
+
+    if (after > before) {
+      stopCreditsPolling();
+      showToast("Créditos atualizados com sucesso.", "success");
+      renderCredits();
+      return true;
+    }
+
+    if (showNoChangeToast) {
+      showToast("Pagamento ainda em processamento. Tente novamente em instantes.", "info");
+    }
+    return false;
+  } catch (error) {
+    console.warn("Credits status check failed:", error);
+    if (showNoChangeToast) {
+      showToast("Não foi possível verificar agora. Tente novamente.", "error");
+    }
+    return false;
+  }
+}
+
 function startCreditsPolling(initialBalance) {
   if (!currentUser) return;
   if (creditsPolling) return;
@@ -1554,8 +1684,9 @@ function startCreditsPolling(initialBalance) {
       const balance = credits?.balance ?? 0;
       if (balance > initialBalance) {
         currentCredits = applyLocalCreditsBalance(credits || { balance: balance }, true);
-        renderCredits();
         stopCreditsPolling();
+        showToast("Pagamento confirmado. Créditos liberados.", "success");
+        renderCredits();
         return;
       }
     } catch (error) {
@@ -2157,7 +2288,7 @@ function setupContact() {
 async function startCreditsCheckout() {
   if (!currentUser) {
     renderLogin();
-    return;
+    return false;
   }
   try {
     const baseBalance = currentCredits?.balance ?? 0;
@@ -2169,19 +2300,29 @@ async function startCreditsCheckout() {
         email: currentUser.email || ""
       })
     });
+    if (!res.ok) {
+      showToast("Não foi possível iniciar o pagamento.", "error");
+      return false;
+    }
     const data = await res.json();
     const url = USE_MP_SANDBOX
       ? (data.sandbox_init_point || data.init_point)
       : (data.init_point || data.sandbox_init_point);
     if (!url) {
       showToast("Não foi possível iniciar o pagamento.", "error");
-      return;
+      return false;
     }
-    window.open(url, "_blank");
+    const openedWindow = window.open(url, "_blank");
+    if (!openedWindow) {
+      showToast("Pop-up bloqueado. Permita pop-ups e tente novamente.", "error");
+      return false;
+    }
     startCreditsPolling(baseBalance);
+    return true;
   } catch (error) {
     console.error("Checkout error:", error);
     showToast("Erro ao iniciar pagamento.", "error");
+    return false;
   }
 }
 
