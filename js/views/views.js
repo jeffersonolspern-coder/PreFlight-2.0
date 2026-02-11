@@ -816,7 +816,7 @@ function profileView({
           </div>
         </div>
         <div class="profile-danger">
-          <small>Exclusão via solicitação para análise da equipe.</small>
+          <small>Exclusão de conta via solicitação pelo contato.</small>
           <button type="button" id="profileDelete">Solicitar exclusão</button>
         </div>
       </div>
