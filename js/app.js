@@ -82,6 +82,7 @@ let evaluationTotalSeconds = 15 * 60;
 let evaluationRemainingSeconds = 15 * 60;
 let adminUsersCache = [];
 let profileEvaluationsCache = [];
+let profileShowAllEvaluations = false;
 let adminNormalizedOnce = false;
 let currentCredits = null;
 let creditHistoryItems = [];
@@ -1061,7 +1062,8 @@ function renderProfileScreen({ profile = null, evaluations = [], loading = false
     creditHistoryLoading: creditHistoryLoading,
     creditHistoryLoadingMore: creditHistoryLoadingMore,
     creditHistoryHasMore: creditHistoryHasMore,
-    creditHistoryError: creditHistoryError
+    creditHistoryError: creditHistoryError,
+    showAllEvaluations: profileShowAllEvaluations
   });
 }
 
@@ -1094,6 +1096,7 @@ async function renderProfile() {
   creditHistoryItems = [];
   creditHistoryCursor = null;
   creditHistoryError = "";
+  profileShowAllEvaluations = false;
 
   renderProfileScreen({ profile: currentProfile, evaluations: [], loading: true });
   setupGlobalMenu();
@@ -1393,6 +1396,14 @@ function setupProfileActions(evaluations) {
       alert("Este gabarito não está disponível porque essa avaliação foi feita antes desta atualização.");
     });
   });
+
+  const showAllBtn = document.getElementById("profileShowAllEvals");
+  if (showAllBtn) {
+    showAllBtn.addEventListener("click", () => {
+      profileShowAllEvaluations = true;
+      rerenderProfileFromCache();
+    });
+  }
 }
 
 function setupProfileFilters() {
@@ -1403,7 +1414,9 @@ function setupProfileFilters() {
   const applyFilter = (filter) => {
     cards.forEach((card) => {
       const status = card.getAttribute("data-profile-status");
-      const show = filter === "all" || status === filter;
+      const isExtra = card.getAttribute("data-profile-extra") === "true";
+      const matchesFilter = filter === "all" || status === filter;
+      const show = matchesFilter && (profileShowAllEvaluations || !isExtra);
       card.style.display = show ? "" : "none";
     });
   };

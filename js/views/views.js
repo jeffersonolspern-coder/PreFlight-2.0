@@ -656,7 +656,8 @@ function profileView({
   creditHistoryLoading = false,
   creditHistoryLoadingMore = false,
   creditHistoryHasMore = false,
-  creditHistoryError = ""
+  creditHistoryError = "",
+  showAllEvaluations = false
 }) {
   const formatDuration = (secs) => {
     if (secs === null || secs === undefined) return "";
@@ -675,7 +676,7 @@ function profileView({
 
   const list = evaluations.length
     ? `<div class="profile-grid">` +
-        evaluations.map((e) => {
+        evaluations.map((e, index) => {
           const date =
             e.createdAt && e.createdAt.toDate
               ? e.createdAt.toDate()
@@ -684,13 +685,15 @@ function profileView({
                 : null;
           const dateText = date ? date.toLocaleString("pt-BR") : "&mdash;";
           const statusClass = e.status === "Aprovado" ? "approved" : "reproved";
+          const isExtra = index >= 6;
+          const hiddenStyle = isExtra && !showAllEvaluations ? ` style="display:none;"` : "";
 
           const timeText = formatDuration(
             e.durationSeconds ?? e.duration_seconds ?? e.durationseconds ?? e.duration
           );
 
           return `
-            <div class="profile-card" data-profile-status="${e.status}">
+            <div class="profile-card" data-profile-status="${e.status}" data-profile-extra="${isExtra ? "true" : "false"}"${hiddenStyle}>
               <div>
                 <strong>${e.simulado}</strong>
                 <span>${dateText}</span>
@@ -707,7 +710,12 @@ function profileView({
             </div>
           `;
         }).join("") +
-      `</div>`
+      `</div>` +
+      (
+        evaluations.length > 6 && !showAllEvaluations
+          ? `<div class="profile-evals-more"><button type="button" id="profileShowAllEvals">Ver todas</button></div>`
+          : ""
+      )
     : `<div class="profile-empty">Nenhuma avaliação registrada ainda.</div>`;
 
   const approvedCount = evaluations.filter((e) => e.status === "Aprovado").length;
