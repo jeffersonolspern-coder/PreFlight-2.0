@@ -2485,6 +2485,17 @@ function setupAdminActions() {
   const questionOptionInputs = [0, 1, 2, 3].map((idx) =>
     document.getElementById(`adminQuestionOption${idx}`)
   );
+  const questionListEl = document.querySelector(".admin-question-list");
+  const activeQuestionEl = questionListEl?.querySelector(".admin-question-item.active");
+
+  if (questionListEl && activeQuestionEl) {
+    requestAnimationFrame(() => {
+      activeQuestionEl.scrollIntoView({
+        block: "nearest",
+        inline: "nearest"
+      });
+    });
+  }
 
   const readQuestionForm = () => {
     const parsedId = Number(questionIdInput?.value);
