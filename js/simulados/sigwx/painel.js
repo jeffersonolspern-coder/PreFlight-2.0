@@ -115,7 +115,8 @@
   // ESCUTA FINAL DO SIMULADO
   // ===============================
   document.addEventListener("sigwx:finish", (e) => {
-    if (document.body.dataset.simuladoMode === "evaluation") {
+    const isTrainingFinish = e?.detail?.questionBank === "training";
+    if (!isTrainingFinish || document.body.dataset.simuladoMode === "evaluation") {
       return;
     }
 

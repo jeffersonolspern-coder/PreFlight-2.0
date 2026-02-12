@@ -1,4 +1,4 @@
-﻿import { sigwxQuestions } from "./data.js";
+import { sigwxQuestions } from "./data.js";
 
 let currentQuestionIndex = 0;
 let isFinished = false;
@@ -6,6 +6,7 @@ let sigwxResetHandler = null;
 let sigwxAutoNextHandler = null;
 const QUESTIONS_PER_SESSION = 20;
 
+let currentQuestionBank = sigwxQuestions;
 let activeQuestions = [];
 let state = [];
 
@@ -19,8 +20,11 @@ function shuffleArray(items) {
 }
 
 function resetSessionState() {
-  const sessionSize = Math.min(QUESTIONS_PER_SESSION, sigwxQuestions.length);
-  activeQuestions = shuffleArray(sigwxQuestions).slice(0, sessionSize);
+  const sourceQuestions = Array.isArray(currentQuestionBank) && currentQuestionBank.length
+    ? currentQuestionBank
+    : sigwxQuestions;
+  const sessionSize = Math.min(QUESTIONS_PER_SESSION, sourceQuestions.length);
+  activeQuestions = shuffleArray(sourceQuestions).slice(0, sessionSize);
   state = activeQuestions.map(() => ({
     selected: null,
     isCorrect: null,
@@ -28,15 +32,10 @@ function resetSessionState() {
   }));
 }
 
-// ===============================
-// ESTADO DO SIMULADOR
-// ===============================
 resetSessionState();
 
-// ===============================
-// INICIALIZA SIMULADO
-// ===============================
-export function startSigwxSimulado() {
+export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = "training" } = {}) {
+  currentQuestionBank = Array.isArray(questions) && questions.length ? questions : sigwxQuestions;
   const progress = document.getElementById("sigwxProgress");
   const questionEl = document.getElementById("sigwxQuestion");
   const optionsEl = document.getElementById("sigwxOptions");
@@ -46,11 +45,9 @@ export function startSigwxSimulado() {
   const btnNext = document.getElementById("sigwxNext");
   const btnFinalizar = document.getElementById("sigwxFinish");
 
-  // ?? BARRA DE PROGRESSO
   const progressBar = document.getElementById("sigwxProgressBar");
   const progressText = document.getElementById("sigwxProgressText");
 
-  // Reinicia estado ao entrar no simulado
   currentQuestionIndex = 0;
   isFinished = false;
   resetSessionState();
@@ -65,9 +62,6 @@ export function startSigwxSimulado() {
 
   render();
 
-  // ===============================
-  // NAVEGAÇÃO
-  // ===============================
   btnPrev?.addEventListener("click", () => {
     if (currentQuestionIndex > 0) {
       currentQuestionIndex--;
@@ -82,9 +76,6 @@ export function startSigwxSimulado() {
     }
   });
 
-  // ===============================
-  // RESET EXTERNO (EVENTO)
-  // ===============================
   if (sigwxResetHandler) {
     document.removeEventListener("sigwx:reset", sigwxResetHandler);
   }
@@ -94,14 +85,10 @@ export function startSigwxSimulado() {
     resetSessionState();
 
     btnFinalizar && (btnFinalizar.disabled = false);
-
     render();
   };
   document.addEventListener("sigwx:reset", sigwxResetHandler);
 
-  // ===============================
-  // AUTO-NEXT (ATIVAÇÃO DINÂMICA)
-  // ===============================
   if (sigwxAutoNextHandler) {
     document.removeEventListener("sigwx:auto-next-change", sigwxAutoNextHandler);
   }
@@ -109,7 +96,6 @@ export function startSigwxSimulado() {
     if (!e?.detail?.enabled) return;
     if (isFinished) return;
 
-    // Se a questão atual já foi respondida, pula para a próxima não respondida
     if (state[currentQuestionIndex]?.selected !== null) {
       const nextIndex = state.findIndex(
         (q, idx) => idx > currentQuestionIndex && q.selected === null
@@ -122,9 +108,6 @@ export function startSigwxSimulado() {
   };
   document.addEventListener("sigwx:auto-next-change", sigwxAutoNextHandler);
 
-  // ===============================
-  // RENDER
-  // ===============================
   function render() {
     renderProgress();
     renderImage();
@@ -135,18 +118,14 @@ export function startSigwxSimulado() {
 
   function renderProgress() {
     const total = activeQuestions.length;
-    const answered = state.filter(q => q.selected !== null).length;
+    const answered = state.filter((q) => q.selected !== null).length;
     const percent = Math.round((answered / total) * 100);
 
-    // Texto original
     progress.innerText = `Questão ${currentQuestionIndex + 1} de ${total} . Respondidas ${answered}/${total}`;
 
-    // Barra visual
     if (progressBar) {
       progressBar.style.width = `${percent}%`;
     }
-
-    // Texto da barra
     if (progressText) {
       progressText.innerText = `${answered} de ${total} respondidas (${percent}%)`;
     }
@@ -166,7 +145,6 @@ export function startSigwxSimulado() {
     }
 
     const isEvaluation = document.body.dataset.simuladoMode === "evaluation";
-
     optionsEl.innerHTML = `<h2>${q.question}</h2>`;
 
     qState.shuffledOptions.forEach((opt, index) => {
@@ -175,7 +153,6 @@ export function startSigwxSimulado() {
       btn.className = "option";
       btn.innerText = opt.text;
 
-      const isEvaluation = document.body.dataset.simuladoMode === "evaluation";
       if (isFinished) {
         btn.disabled = true;
       }
@@ -257,9 +234,6 @@ export function startSigwxSimulado() {
     });
   }
 
-  // ===============================
-  // FINALIZA SIMULADO
-  // ===============================
   function finalizarSimulado() {
     if (isFinished) return;
     if (document.body.dataset.simuladoMode === "evaluation") {
@@ -270,7 +244,7 @@ export function startSigwxSimulado() {
     btnFinalizar && (btnFinalizar.disabled = true);
 
     const total = state.length;
-    const correct = state.filter(q => q.isCorrect).length;
+    const correct = state.filter((q) => q.isCorrect).length;
     const wrong = total - correct;
     const percentage = Math.round((correct / total) * 100);
 
@@ -287,7 +261,8 @@ export function startSigwxSimulado() {
             image: question.image,
             question: question.question,
             explanation: question.explanation || ""
-          }))
+          })),
+          questionBank: questionBank === "evaluation" ? "evaluation" : "training"
         }
       })
     );
@@ -309,9 +284,6 @@ export function startSigwxSimulado() {
     }
   }
 
-  // ===============================
-  // SHUFFLE OPÇÕES
-  // ===============================
   function shuffleOptions(question) {
     const options = question.options.map((text, index) => ({
       text,
@@ -326,7 +298,4 @@ export function startSigwxSimulado() {
     return options;
   }
 }
-
-
-
 

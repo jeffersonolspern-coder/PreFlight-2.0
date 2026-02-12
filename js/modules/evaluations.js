@@ -28,7 +28,9 @@ async function saveEvaluation({
   status,
   answers,
   hasAnswers,
-  answersCount
+  answersCount,
+  durationSeconds = 0,
+  questionBank = "evaluation"
 }) {
   return addDoc(collection(db, COLLECTION), {
     userId,
@@ -40,6 +42,8 @@ async function saveEvaluation({
     answers: answers || [],
     hasAnswers: !!hasAnswers,
     answersCount: answersCount || 0,
+    durationSeconds: Number.isFinite(Number(durationSeconds)) ? Math.max(0, Math.floor(Number(durationSeconds))) : 0,
+    questionBank: String(questionBank || "evaluation"),
     createdAt: serverTimestamp()
   });
 }

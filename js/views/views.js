@@ -199,7 +199,7 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
         <div
           class="mode-carousel"
           data-images="assets/img/mode-treinamento.png, assets/img/mode-treinamento-1.png, assets/img/mode-treinamento-2.png, assets/img/mode-treinamento-3.png, assets/img/mode-treinamento-4.png"
-          data-captions="Visão geral da tela de treino||Navegação rápida por questões||Correção visual por questão (certa/errada)||Explicação imediata após responder||Painel final com resumo do desempenho"
+          data-slides="Visão geral::Tela completa do treino com fluxo simples e objetivo.||Navegação por questões::Grade numerada para pular direto entre as perguntas.||Correção visual::Questões certas e erradas ficam destacadas por cor.||Explicação imediata::Após responder, você vê a explicação da alternativa correta.||Painel de resultado::Resumo de desempenho para revisar sua evolução."
           data-alt="Tela do simulador em modo treinamento"
         ></div>
       </div>
@@ -211,7 +211,7 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
         <div
           class="mode-carousel"
           data-images="assets/img/mode-avaliacao.png, assets/img/mode-avaliacao.png, assets/img/mode-avaliacao.png"
-          data-captions="Modo prova com foco e tempo controlado||Registro de respostas sem mostrar gabarito na hora||Resultado consolidado ao finalizar"
+          data-slides="Modo prova::Experiência de avaliação com foco e cronômetro.||Respostas registradas::As respostas ficam salvas sem mostrar o gabarito na hora.||Resultado final::Ao finalizar, você vê acertos, erros e porcentagem."
           data-alt="Tela do simulador em modo avaliação"
         ></div>
       </div>

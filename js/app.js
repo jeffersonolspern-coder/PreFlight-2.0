@@ -54,6 +54,7 @@ import {
 } from "./modules/users.js";
 import { startSigwxSimulado } from "./simulados/sigwx/simulado.js";
 import { sigwxQuestions } from "./simulados/sigwx/data.js";
+import { sigwxEvaluationQuestions } from "./simulados/sigwx/data-evaluation.js";
 
 import "./simulados/sigwx/painel.js";
 
@@ -117,10 +118,48 @@ let startingSessionLock = false;
 let presenceHeartbeat = null;
 let presenceVisibilityHandler = null;
 let presencePageHideHandler = null;
+let evaluationFinishHandler = null;
+let stopEvaluationTimerFn = null;
+let mobileHeaderResizeHandler = null;
+let homeSimuladosResizeHandler = null;
+let simuladoNavResizeHandler = null;
 const INSUFFICIENT_CREDITS_MESSAGE = "Você não possui créditos suficientes.";
 let userMenuDocumentClickHandler = null;
 let userMenuDocumentKeydownHandler = null;
 let apiWarmupDone = false;
+
+function cleanupEvaluationFlow() {
+  if (typeof stopEvaluationTimerFn === "function") {
+    stopEvaluationTimerFn();
+    stopEvaluationTimerFn = null;
+  }
+
+  if (typeof evaluationFinishHandler === "function") {
+    document.removeEventListener("sigwx:finish", evaluationFinishHandler);
+    evaluationFinishHandler = null;
+  }
+
+  evaluationStartAtMs = null;
+  evaluationRemainingSeconds = evaluationTotalSeconds;
+  cleanupResizeHandlers();
+}
+
+function cleanupResizeHandlers() {
+  if (mobileHeaderResizeHandler) {
+    window.removeEventListener("resize", mobileHeaderResizeHandler);
+    mobileHeaderResizeHandler = null;
+  }
+
+  if (homeSimuladosResizeHandler) {
+    window.removeEventListener("resize", homeSimuladosResizeHandler);
+    homeSimuladosResizeHandler = null;
+  }
+
+  if (simuladoNavResizeHandler) {
+    window.removeEventListener("resize", simuladoNavResizeHandler);
+    simuladoNavResizeHandler = null;
+  }
+}
 
 function normalizeApiBase(baseUrl) {
   return String(baseUrl || "").replace(/\/+$/, "");
@@ -861,6 +900,7 @@ function setupTrainingStartModal({ onStart } = {}) {
 // RENDERIZAÇÕES
 // ===============================
 function renderHomePublic() {
+  cleanupEvaluationFlow();
   app.innerHTML = homePublicView({
     logged: !!currentUser,
     isAdmin: isAdminUser(),
@@ -880,6 +920,7 @@ function renderHomePublic() {
 }
 
 function renderLogin() {
+  cleanupEvaluationFlow();
   app.innerHTML = loginView({ isAdmin: isAdminUser(), userLabel: getUserLabel() });
   setupGlobalMenu();
   setupHeaderLogin();
@@ -890,6 +931,7 @@ function renderLogin() {
 }
 
 function renderRegister() {
+  cleanupEvaluationFlow();
   app.innerHTML = registerView({ isAdmin: isAdminUser(), userLabel: getUserLabel() });
   setupGlobalMenu();
   setupHeaderLogin();
@@ -900,6 +942,7 @@ function renderRegister() {
 }
 
 function renderDashboard() {
+  cleanupEvaluationFlow();
   app.innerHTML = dashboardView(currentUser, {
     isAdmin: isAdminUser(),
     userLabel: getUserLabel(),
@@ -915,11 +958,12 @@ function renderDashboard() {
 }
 
 function renderSigwx() {
+  cleanupEvaluationFlow();
   setSimuladoMode("training");
   app.innerHTML = sigwxView({ isAdmin: isAdminUser(), userLabel: getUserLabel(), credits: getCreditsLabel() });
 
   requestAnimationFrame(() => {
-    startSigwxSimulado();
+    startSigwxSimulado({ questions: sigwxQuestions, questionBank: "training" });
     setupTrainingStartModal();
   });
 
@@ -931,16 +975,26 @@ function renderSigwx() {
 }
 
 function renderSigwxEvaluation() {
+  cleanupEvaluationFlow();
   setSimuladoMode("evaluation");
   app.innerHTML = sigwxEvaluationView({ isAdmin: isAdminUser(), userLabel: getUserLabel(), credits: getCreditsLabel() });
 
   requestAnimationFrame(() => {
-    startSigwxSimulado();
+    startSigwxSimulado({ questions: sigwxEvaluationQuestions, questionBank: "evaluation" });
   });
 
-  document.addEventListener("sigwx:finish", (e) => {
+  evaluationFinishHandler = (e) => {
+    const isEvaluationMode = document.body.dataset.simuladoMode === "evaluation";
+    const isEvaluationFinish = e?.detail?.questionBank === "evaluation";
+    if (!isEvaluationMode || !isEvaluationFinish) return;
+
+    if (typeof evaluationFinishHandler === "function") {
+      document.removeEventListener("sigwx:finish", evaluationFinishHandler);
+      evaluationFinishHandler = null;
+    }
     renderSigwxEvaluationResults(e.detail);
-  }, { once: true });
+  };
+  document.addEventListener("sigwx:finish", evaluationFinishHandler);
 
   setupEvaluationAutoNext();
   setupEvaluationTimer();
@@ -974,7 +1028,7 @@ function renderSigwxEvaluationResults(detail) {
   const sessionQuestions =
     Array.isArray(detail?.questions) && detail.questions.length
       ? detail.questions
-      : sigwxQuestions.slice(0, detail?.state?.length || 0);
+      : (detail?.questionBank === "evaluation" ? sigwxEvaluationQuestions : sigwxQuestions).slice(0, detail?.state?.length || 0);
 
   const answers = sessionQuestions.map((q, index) => {
     const st = detail.state[index];
@@ -1024,7 +1078,8 @@ function renderSigwxEvaluationResults(detail) {
     total,
     status,
     answers,
-    durationSeconds
+    durationSeconds,
+    questionBank: detail?.questionBank === "evaluation" ? "evaluation" : "training"
   });
 
   setupEvaluationResultsActions(items);
@@ -1034,7 +1089,7 @@ function renderSigwxEvaluationResults(detail) {
   setupFooterLinks();
 }
 
-async function saveEvaluationResult({ simulado, percentage, correct, total, status, answers, durationSeconds }) {
+async function saveEvaluationResult({ simulado, percentage, correct, total, status, answers, durationSeconds, questionBank = "evaluation" }) {
   if (!currentUser) return;
   try {
     const safeDuration = Number.isFinite(durationSeconds) ? durationSeconds : 0;
@@ -1048,7 +1103,8 @@ async function saveEvaluationResult({ simulado, percentage, correct, total, stat
       answers,
       hasAnswers: true,
       answersCount: answers.length,
-      durationSeconds: safeDuration
+      durationSeconds: safeDuration,
+      questionBank
     });
   } catch (error) {
     console.error("Falha ao salvar avaliação:", error);
@@ -1246,12 +1302,29 @@ function setupEvaluationTimer() {
     }
   });
 
-  document.addEventListener("sigwx:finish", () => {
+  const handleEvaluationFinish = (e) => {
+    if (e?.detail?.questionBank !== "evaluation") return;
     stopTimer();
-  }, { once: true });
+    document.removeEventListener("sigwx:finish", handleEvaluationFinish);
+    if (stopEvaluationTimerFn === cleanupTimer) {
+      stopEvaluationTimerFn = null;
+    }
+  };
+
+  const cleanupTimer = () => {
+    stopTimer();
+    document.removeEventListener("sigwx:finish", handleEvaluationFinish);
+    if (stopEvaluationTimerFn === cleanupTimer) {
+      stopEvaluationTimerFn = null;
+    }
+  };
+
+  stopEvaluationTimerFn = cleanupTimer;
+  document.addEventListener("sigwx:finish", handleEvaluationFinish);
 }
 
 function renderPrivacy() {
+  cleanupEvaluationFlow();
   app.innerHTML = privacyView({ logged: !!currentUser, isAdmin: isAdminUser(), userLabel: getUserLabel(), credits: getCreditsLabel() });
   setupGlobalMenu();
   setupContact();
@@ -1259,6 +1332,7 @@ function renderPrivacy() {
 }
 
 function renderCookies() {
+  cleanupEvaluationFlow();
   app.innerHTML = cookiesView({ logged: !!currentUser, isAdmin: isAdminUser(), userLabel: getUserLabel(), credits: getCreditsLabel() });
   setupGlobalMenu();
   setupContact();
@@ -1266,6 +1340,7 @@ function renderCookies() {
 }
 
 function renderContact() {
+  cleanupEvaluationFlow();
   app.innerHTML = contactView({ logged: !!currentUser, isAdmin: isAdminUser(), userLabel: getUserLabel(), credits: getCreditsLabel() });
   setupGlobalMenu();
   setupContact();
@@ -1273,6 +1348,7 @@ function renderContact() {
 }
 
 function renderProfileScreen({ profile = null, evaluations = [], loading = false } = {}) {
+  cleanupEvaluationFlow();
   app.innerHTML = profileView({
     user: currentUser,
     profile,
@@ -1389,6 +1465,7 @@ async function renderProfile() {
 }
 
 async function renderAdmin() {
+  cleanupEvaluationFlow();
   if (!isAdminUser()) {
     renderHomePublic();
     return;
@@ -1764,6 +1841,7 @@ async function normalizeDuplicateUsers(users, creditsList) {
 }
 
 function renderCreditsScreen() {
+  cleanupEvaluationFlow();
   app.innerHTML = creditsView({
     user: currentUser,
     credits: getCreditsLabel(),
@@ -1838,6 +1916,7 @@ function renderCredits() {
 }
 
 function renderPackages() {
+  cleanupEvaluationFlow();
   if (!currentUser) {
     renderLogin();
     return;
@@ -2475,7 +2554,8 @@ function renderEvaluationHistory(evaluation) {
   const percentage = evaluation.percentage;
   const status = percentage >= 75 ? "Aprovado" : "Reprovado";
 
-  const questionById = new Map(sigwxQuestions.map((q) => [q.id, q]));
+  const questionSource = evaluation?.questionBank === "evaluation" ? sigwxEvaluationQuestions : sigwxQuestions;
+  const questionById = new Map(questionSource.map((q) => [q.id, q]));
   const items = (evaluation.answers || []).map((ans, index) => {
     const q = questionById.get(ans?.questionId) || {};
     const selectedIndex = ans?.selectedIndex;
@@ -2676,6 +2756,11 @@ function setupGlobalMenu() {
 }
 
 function setupMobileHeaderMenu() {
+  if (mobileHeaderResizeHandler) {
+    window.removeEventListener("resize", mobileHeaderResizeHandler);
+    mobileHeaderResizeHandler = null;
+  }
+
   const toggleBtn = document.getElementById("mobileMenuToggle");
   const menu = document.getElementById("primaryMenu");
   if (!toggleBtn || !menu) return;
@@ -2698,9 +2783,10 @@ function setupMobileHeaderMenu() {
     });
   });
 
-  window.addEventListener("resize", () => {
+  mobileHeaderResizeHandler = () => {
     if (window.innerWidth > 900) closeMenu();
-  });
+  };
+  window.addEventListener("resize", mobileHeaderResizeHandler);
 }
 
 function setupUserMenu() {
@@ -2902,7 +2988,7 @@ function setupHomeModeCarousels() {
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
-    const captions = String(root.dataset.captions || "")
+    const slides = String(root.dataset.slides || "")
       .split("||")
       .map((item) => item.trim())
       .filter(Boolean);
@@ -2916,16 +3002,17 @@ function setupHomeModeCarousels() {
         <div class="mode-carousel-track"></div>
       </div>
       <button type="button" class="mode-carousel-btn next" aria-label="Próxima imagem">&#8250;</button>
-      <p class="mode-carousel-caption"></p>
       <div class="mode-carousel-dots"></div>
     `;
 
     const track = root.querySelector(".mode-carousel-track");
     const dots = root.querySelector(".mode-carousel-dots");
-    const caption = root.querySelector(".mode-carousel-caption");
     const prevBtn = root.querySelector(".mode-carousel-btn.prev");
     const nextBtn = root.querySelector(".mode-carousel-btn.next");
-    if (!track || !dots || !prevBtn || !nextBtn || !caption) return;
+    if (!track || !dots || !prevBtn || !nextBtn) return;
+
+    const card = root.closest(".mode-card");
+    const copyParagraph = card?.querySelector(".mode-card-copy p");
 
     images.forEach((src, index) => {
       const slide = document.createElement("div");
@@ -2961,7 +3048,13 @@ function setupHomeModeCarousels() {
       dotButtons.forEach((dot, idx) => {
         dot.classList.toggle("is-active", idx === currentIndex);
       });
-      caption.textContent = captions[currentIndex] || captions[0] || "";
+      const slideText = slides[currentIndex] || slides[0] || "";
+      const [, slideCaption] = slideText.includes("::")
+        ? slideText.split("::")
+        : ["", slideText];
+      if (copyParagraph && slideCaption) {
+        copyParagraph.textContent = slideCaption;
+      }
       prevBtn.disabled = images.length <= 1;
       nextBtn.disabled = images.length <= 1;
       dots.classList.toggle("is-hidden", images.length <= 1);
@@ -3103,6 +3196,11 @@ function setupHomeSimuladosCards() {
 }
 
 function setupHomeSimuladosCarousel() {
+  if (homeSimuladosResizeHandler) {
+    window.removeEventListener("resize", homeSimuladosResizeHandler);
+    homeSimuladosResizeHandler = null;
+  }
+
   const viewport = document.querySelector(".simulados-viewport");
   const track = document.querySelector(".simulados-cards-track");
   const prevBtn = document.querySelector(".simulados-carousel-btn.prev");
@@ -3128,11 +3226,17 @@ function setupHomeSimuladosCarousel() {
   });
 
   viewport.addEventListener("scroll", updateButtons, { passive: true });
-  window.addEventListener("resize", updateButtons);
+  homeSimuladosResizeHandler = updateButtons;
+  window.addEventListener("resize", homeSimuladosResizeHandler);
   updateButtons();
 }
 
 function setupSimuladoNavToggle() {
+  if (simuladoNavResizeHandler) {
+    window.removeEventListener("resize", simuladoNavResizeHandler);
+    simuladoNavResizeHandler = null;
+  }
+
   const toggleBtn = document.querySelector("[data-sim-nav-toggle]");
   const panel = document.querySelector("[data-sim-nav-panel]");
   if (!toggleBtn || !panel) return;
@@ -3163,7 +3267,7 @@ function setupSimuladoNavToggle() {
     else openPanel();
   });
 
-  window.addEventListener("resize", () => {
+  simuladoNavResizeHandler = () => {
     if (window.innerWidth > 900) {
       panel.classList.add("is-open");
       toggleBtn.setAttribute("aria-expanded", "true");
@@ -3173,7 +3277,8 @@ function setupSimuladoNavToggle() {
     panel.classList.remove("is-open");
     toggleBtn.setAttribute("aria-expanded", "false");
     if (labelSpan) labelSpan.textContent = "▾";
-  });
+  };
+  window.addEventListener("resize", simuladoNavResizeHandler);
 }
 
 // ===============================
