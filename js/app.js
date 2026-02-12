@@ -2669,7 +2669,11 @@ observeAuthState((user) => {
     })
     .finally(() => {
       if (document.body.dataset.simuladoMode !== "training" && document.body.dataset.simuladoMode !== "evaluation") {
-        renderProfile();
+        if (isAdminUser()) {
+          renderAdmin();
+        } else {
+          renderProfile();
+        }
       }
     });
 });
@@ -2971,8 +2975,10 @@ function setupLoginForm() {
         showToast("Login com Google cancelado.", "info");
       } else if (code.includes("popup-blocked")) {
         showToast("Popup bloqueado. Libere popups e tente novamente.", "error");
+      } else if (code.includes("unauthorized-domain")) {
+        showToast(`Domínio não autorizado no Firebase Auth: ${window.location.hostname}`, "error");
       } else {
-        showToast("Não foi possível entrar com Google.", "error");
+        showToast(`Não foi possível entrar com Google (${error?.code || "erro_desconhecido"}).`, "error");
       }
     } finally {
       googleBtn.disabled = false;
