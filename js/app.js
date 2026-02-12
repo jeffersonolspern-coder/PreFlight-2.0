@@ -3012,7 +3012,10 @@ function setupHomeModeCarousels() {
     if (!track || !dots || !prevBtn || !nextBtn) return;
 
     const card = root.closest(".mode-card");
+    const copyTitle = card?.querySelector(".mode-card-copy h3");
     const copyParagraph = card?.querySelector(".mode-card-copy p");
+    const defaultTitle = copyTitle?.textContent || "";
+    const defaultCaption = copyParagraph?.textContent || "";
 
     images.forEach((src, index) => {
       const slide = document.createElement("div");
@@ -3049,11 +3052,14 @@ function setupHomeModeCarousels() {
         dot.classList.toggle("is-active", idx === currentIndex);
       });
       const slideText = slides[currentIndex] || slides[0] || "";
-      const [, slideCaption] = slideText.includes("::")
+      const [slideTitle, slideCaption] = slideText.includes("::")
         ? slideText.split("::")
-        : ["", slideText];
-      if (copyParagraph && slideCaption) {
-        copyParagraph.textContent = slideCaption;
+        : [defaultTitle, slideText];
+      if (copyTitle) {
+        copyTitle.textContent = slideTitle || defaultTitle;
+      }
+      if (copyParagraph) {
+        copyParagraph.textContent = slideCaption || defaultCaption;
       }
       prevBtn.disabled = images.length <= 1;
       nextBtn.disabled = images.length <= 1;

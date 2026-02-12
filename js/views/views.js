@@ -199,7 +199,7 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
         <div
           class="mode-carousel"
           data-images="assets/img/mode-treinamento.png, assets/img/mode-treinamento-1.png, assets/img/mode-treinamento-2.png, assets/img/mode-treinamento-3.png, assets/img/mode-treinamento-4.png"
-          data-slides="Visão geral::Tela completa do treino com fluxo simples e objetivo.||Navegação por questões::Grade numerada para pular direto entre as perguntas.||Correção visual::Questões certas e erradas ficam destacadas por cor.||Explicação imediata::Após responder, você vê a explicação da alternativa correta.||Painel de resultado::Resumo de desempenho para revisar sua evolução."
+          data-slides="Treino completo em uma tela::Visual limpo e objetivo para você focar no que importa: interpretar o símbolo e responder com confiança.||Leitura prática de símbolos::Cada questão destaca a área certa da SIGWX e apresenta alternativas claras para acelerar seu raciocínio.||Correção imediata com clareza::Receba feedback visual na hora, veja o que acertou, onde errou e aprenda com a explicação de cada questão.||Estatísticas que mostram evolução::Ao finalizar, acompanhe desempenho, taxa de acerto e progresso de forma rápida e fácil de entender.||Navegação inteligente por questões::Revise com agilidade usando a grade colorida, com acertos em verde e erros em vermelho."
           data-alt="Tela do simulador em modo treinamento"
         ></div>
       </div>
@@ -210,8 +210,8 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
         </div>
         <div
           class="mode-carousel"
-          data-images="assets/img/mode-avaliacao.png, assets/img/mode-avaliacao.png, assets/img/mode-avaliacao.png"
-          data-slides="Modo prova::Experiência de avaliação com foco e cronômetro.||Respostas registradas::As respostas ficam salvas sem mostrar o gabarito na hora.||Resultado final::Ao finalizar, você vê acertos, erros e porcentagem."
+          data-images="assets/img/mode-avaliacao.png, assets/img/mode-avaliacao-1.png, assets/img/mode-avaliacao-2.png, assets/img/mode-avaliacao-3.png, assets/img/mode-avaliacao-4.png"
+          data-slides="Experiência real de avaliação::Visual completo da prova para você treinar foco, ritmo e tomada de decisão em ambiente de exame.||Controle de navegação inteligente::Use os botões de avançar e o modo automático para manter fluidez e ganhar tempo em cada questão.||Treino com gestão de tempo::Simule a pressão do relógio e desenvolva consistência para performar bem dentro do tempo limite.||Cartas reais do dia a dia::Questões baseadas em situações meteorológicas reais para aproximar o estudo da rotina operacional.||Gabarito claro e objetivo::No final, revise acertos e erros com clareza para corrigir pontos fracos e evoluir com direção."
           data-alt="Tela do simulador em modo avaliação"
         ></div>
       </div>

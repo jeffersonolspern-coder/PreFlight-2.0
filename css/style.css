@@ -571,6 +571,7 @@ textarea:focus-visible {
 
 .mode-card-copy {
   min-width: 0;
+  text-align: center;
 }
 
 .mode-carousel {
