@@ -52,6 +52,11 @@ import {
   setGlobalNotice,
   getAllCreditTransactions
 } from "./modules/users.js";
+import {
+  getQuestionsByBank,
+  saveQuestion as saveQuestionDefinition,
+  deleteQuestion as deleteQuestionDefinition
+} from "./modules/questions.js";
 import { startSigwxSimulado } from "./simulados/sigwx/simulado.js";
 import { sigwxQuestions } from "./simulados/sigwx/data.js";
 import { sigwxEvaluationQuestions } from "./simulados/sigwx/data-evaluation.js";
@@ -73,6 +78,19 @@ const CREDITS_HISTORY_PAGE_SIZE = 30;
 const WELCOME_BONUS_CREDITS = 5;
 const PRESENCE_HEARTBEAT_MS = 45 * 1000;
 const ADMIN_LIGHT_MODE_KEY = "preflight_admin_light_mode";
+const QUESTION_BANKS = [
+  { id: "sigwx_training", label: "SIGWX • Treinamento", imageBasePath: "assets/questions/sigwx" },
+  { id: "sigwx_evaluation", label: "SIGWX • Avaliação", imageBasePath: "assets/questions/sigwx-evaluation" }
+];
+const QUESTION_BANK_BY_ID = new Map(QUESTION_BANKS.map((bank) => [bank.id, bank]));
+const QUESTION_BANK_FROM_SESSION = {
+  training: "sigwx_training",
+  evaluation: "sigwx_evaluation"
+};
+const DEFAULT_QUESTION_BANKS = {
+  sigwx_training: Array.isArray(sigwxQuestions) ? sigwxQuestions.map((q) => ({ ...q })) : [],
+  sigwx_evaluation: Array.isArray(sigwxEvaluationQuestions) ? sigwxEvaluationQuestions.map((q) => ({ ...q })) : []
+};
 const CREDIT_PACKS = {
   bronze: { id: "bronze", name: "Bronze", credits: 10, price: 9.9 },
   silver: { id: "silver", name: "Silver", credits: 30, price: 19.9 },
@@ -128,6 +146,16 @@ const INSUFFICIENT_CREDITS_MESSAGE = "Você não possui créditos suficientes.";
 let userMenuDocumentClickHandler = null;
 let userMenuDocumentKeydownHandler = null;
 let apiWarmupDone = false;
+let questionBanksCache = {
+  sigwx_training: DEFAULT_QUESTION_BANKS.sigwx_training.map((q) => ({ ...q })),
+  sigwx_evaluation: DEFAULT_QUESTION_BANKS.sigwx_evaluation.map((q) => ({ ...q }))
+};
+let questionBankLoadedFlags = {
+  sigwx_training: false,
+  sigwx_evaluation: false
+};
+let adminQuestionBank = "sigwx_training";
+let adminQuestionEditor = null;
 
 function cleanupEvaluationFlow() {
   if (typeof stopEvaluationTimerFn === "function") {
@@ -172,6 +200,142 @@ function cleanupHomeModeCarousels() {
     }
   });
   homeModeCarouselCleanupFns = [];
+}
+
+function getQuestionBankConfig(bankId = "sigwx_training") {
+  return QUESTION_BANK_BY_ID.get(bankId) || QUESTION_BANKS[0];
+}
+
+function normalizeQuestionId(rawId, fallback = 1) {
+  const parsed = Number(rawId);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.floor(parsed));
+}
+
+function normalizeQuestionForBank(bankId, rawQuestion = {}, index = 0) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  const id = normalizeQuestionId(rawQuestion?.id, index + 1);
+  const bankConfig = getQuestionBankConfig(safeBankId);
+  const fallbackImage = `${bankConfig.imageBasePath}/${id}.webp`;
+  const sourceOptions = Array.isArray(rawQuestion?.options) ? rawQuestion.options : [];
+  const options = [0, 1, 2, 3].map((pos) => String(sourceOptions[pos] ?? "").trim());
+  const parsedCorrect = Number(rawQuestion?.correctIndex);
+
+  return {
+    id,
+    image: String(rawQuestion?.image || fallbackImage).trim() || fallbackImage,
+    question: String(rawQuestion?.question || "").trim(),
+    options,
+    correctIndex: Number.isFinite(parsedCorrect) ? Math.min(3, Math.max(0, Math.floor(parsedCorrect))) : 0,
+    explanation: String(rawQuestion?.explanation || "").trim()
+  };
+}
+
+function normalizeQuestionList(bankId, list = []) {
+  const normalized = (Array.isArray(list) ? list : []).map((item, index) =>
+    normalizeQuestionForBank(bankId, item, index)
+  );
+  normalized.sort((a, b) => a.id - b.id);
+  return normalized;
+}
+
+function getQuestionBankCache(bankId) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  return Array.isArray(questionBanksCache[safeBankId]) ? questionBanksCache[safeBankId] : [];
+}
+
+function getNextQuestionIdForBank(bankId) {
+  const list = getQuestionBankCache(bankId);
+  if (!list.length) return 1;
+  return list.reduce((maxId, item) => Math.max(maxId, normalizeQuestionId(item?.id, 1)), 0) + 1;
+}
+
+function createAdminQuestionDraft(bankId, base = {}) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  const normalized = normalizeQuestionForBank(safeBankId, base, 0);
+  return {
+    ...normalized,
+    bankId: safeBankId
+  };
+}
+
+function createNewAdminQuestionDraft(bankId) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  const nextId = getNextQuestionIdForBank(safeBankId);
+  return createAdminQuestionDraft(safeBankId, {
+    id: nextId,
+    image: `${getQuestionBankConfig(safeBankId).imageBasePath}/${nextId}.webp`,
+    options: ["", "", "", ""],
+    correctIndex: 0
+  });
+}
+
+function syncAdminQuestionEditor(bankId) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  const bankList = getQuestionBankCache(safeBankId);
+  const currentId = normalizeQuestionId(adminQuestionEditor?.id, 0);
+  const selected = bankList.find((item) => item.id === currentId);
+
+  if (selected) {
+    adminQuestionEditor = createAdminQuestionDraft(safeBankId, selected);
+    return;
+  }
+
+  if (bankList.length) {
+    adminQuestionEditor = createAdminQuestionDraft(safeBankId, bankList[0]);
+    return;
+  }
+
+  adminQuestionEditor = createNewAdminQuestionDraft(safeBankId);
+}
+
+async function ensureQuestionBankLoaded(bankId, { force = false, silent = false } = {}) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  if (!force && questionBankLoadedFlags[safeBankId]) {
+    return getQuestionBankCache(safeBankId);
+  }
+
+  try {
+    const remoteItems = await getQuestionsByBank(safeBankId);
+    const normalizedRemote = normalizeQuestionList(safeBankId, remoteItems);
+    if (normalizedRemote.length) {
+      questionBanksCache[safeBankId] = normalizedRemote;
+    } else {
+      questionBanksCache[safeBankId] = normalizeQuestionList(
+        safeBankId,
+        DEFAULT_QUESTION_BANKS[safeBankId] || []
+      );
+      if (!silent) {
+        showToast("Banco vazio no Firestore. Exibindo questões locais atuais.", "info");
+      }
+    }
+    questionBankLoadedFlags[safeBankId] = true;
+  } catch (error) {
+    console.warn(`Erro ao carregar banco ${safeBankId}:`, error);
+    questionBanksCache[safeBankId] = normalizeQuestionList(
+      safeBankId,
+      DEFAULT_QUESTION_BANKS[safeBankId] || []
+    );
+    questionBankLoadedFlags[safeBankId] = false;
+    if (!silent) {
+      showToast("Não foi possível carregar questões atualizadas. Usando base local.", "info");
+    }
+  }
+
+  return getQuestionBankCache(safeBankId);
+}
+
+async function preloadQuestionBanks() {
+  await Promise.all(
+    QUESTION_BANKS.map((bank) => ensureQuestionBankLoaded(bank.id, { force: false, silent: true }))
+  );
+}
+
+function getQuestionsForSession(sessionMode = "training") {
+  const bankId = QUESTION_BANK_FROM_SESSION[sessionMode] || "sigwx_training";
+  const cached = getQuestionBankCache(bankId);
+  if (cached.length) return cached;
+  return normalizeQuestionList(bankId, DEFAULT_QUESTION_BANKS[bankId] || []);
 }
 
 function normalizeApiBase(baseUrl) {
@@ -975,8 +1139,9 @@ function renderSigwx() {
   setSimuladoMode("training");
   app.innerHTML = sigwxView({ isAdmin: isAdminUser(), userLabel: getUserLabel(), credits: getCreditsLabel() });
 
-  requestAnimationFrame(() => {
-    startSigwxSimulado({ questions: sigwxQuestions, questionBank: "training" });
+  requestAnimationFrame(async () => {
+    await ensureQuestionBankLoaded("sigwx_training", { force: false, silent: true });
+    startSigwxSimulado({ questions: getQuestionsForSession("training"), questionBank: "training" });
     setupTrainingStartModal();
   });
 
@@ -992,8 +1157,9 @@ function renderSigwxEvaluation() {
   setSimuladoMode("evaluation");
   app.innerHTML = sigwxEvaluationView({ isAdmin: isAdminUser(), userLabel: getUserLabel(), credits: getCreditsLabel() });
 
-  requestAnimationFrame(() => {
-    startSigwxSimulado({ questions: sigwxEvaluationQuestions, questionBank: "evaluation" });
+  requestAnimationFrame(async () => {
+    await ensureQuestionBankLoaded("sigwx_evaluation", { force: false, silent: true });
+    startSigwxSimulado({ questions: getQuestionsForSession("evaluation"), questionBank: "evaluation" });
   });
 
   evaluationFinishHandler = (e) => {
@@ -1041,7 +1207,9 @@ function renderSigwxEvaluationResults(detail) {
   const sessionQuestions =
     Array.isArray(detail?.questions) && detail.questions.length
       ? detail.questions
-      : (detail?.questionBank === "evaluation" ? sigwxEvaluationQuestions : sigwxQuestions).slice(0, detail?.state?.length || 0);
+      : (detail?.questionBank === "evaluation"
+        ? getQuestionsForSession("evaluation")
+        : getQuestionsForSession("training")).slice(0, detail?.state?.length || 0);
 
   const answers = sessionQuestions.map((q, index) => {
     const st = detail.state[index];
@@ -1492,7 +1660,11 @@ async function renderAdmin() {
     credits: getCreditsLabel(),
     metrics: computeAdminMetrics({ users: [], evaluations: [], transactions: [], range: adminMetricsRange }),
     metricsRange: adminMetricsRange,
-    lightMode: adminLightMode
+    lightMode: adminLightMode,
+    questionBanks: QUESTION_BANKS,
+    selectedQuestionBank: adminQuestionBank,
+    questionItems: getQuestionBankCache(adminQuestionBank),
+    questionEditor: adminQuestionEditor || createNewAdminQuestionDraft(adminQuestionBank)
   });
   setupGlobalMenu();
   setupLogout();
@@ -1500,6 +1672,9 @@ async function renderAdmin() {
   setupFooterLinks();
 
   try {
+    await ensureQuestionBankLoaded(adminQuestionBank, { force: true, silent: true });
+    syncAdminQuestionEditor(adminQuestionBank);
+
     const [users, globalNotice, allCredits] = await Promise.all([
       getAllUsers(),
       getGlobalNotice().catch(() => null),
@@ -1582,7 +1757,11 @@ async function renderAdmin() {
       globalNotice: globalNoticeMessage,
       metrics,
       metricsRange: adminMetricsRange,
-      lightMode: adminLightMode
+      lightMode: adminLightMode,
+      questionBanks: QUESTION_BANKS,
+      selectedQuestionBank: adminQuestionBank,
+      questionItems: getQuestionBankCache(adminQuestionBank),
+      questionEditor: adminQuestionEditor
     });
     setupGlobalMenu();
     setupLogout();
@@ -1607,7 +1786,11 @@ async function renderAdmin() {
         range: adminMetricsRange
       }),
       metricsRange: adminMetricsRange,
-      lightMode: adminLightMode
+      lightMode: adminLightMode,
+      questionBanks: QUESTION_BANKS,
+      selectedQuestionBank: adminQuestionBank,
+      questionItems: getQuestionBankCache(adminQuestionBank),
+      questionEditor: adminQuestionEditor || createNewAdminQuestionDraft(adminQuestionBank)
     });
     setupGlobalMenu();
     setupLogout();
@@ -1618,6 +1801,7 @@ async function renderAdmin() {
 
 function rerenderAdminWithCache(notice = "") {
   if (!isAdminUser()) return;
+  syncAdminQuestionEditor(adminQuestionBank);
   const metrics = adminMetricsSummary || computeAdminMetrics({
     users: adminUsersCache,
     evaluations: adminMetricsData.evaluations,
@@ -1634,7 +1818,11 @@ function rerenderAdminWithCache(notice = "") {
     globalNotice: globalNoticeMessage,
     metrics,
     metricsRange: adminMetricsRange,
-    lightMode: adminLightMode
+    lightMode: adminLightMode,
+    questionBanks: QUESTION_BANKS,
+    selectedQuestionBank: adminQuestionBank,
+    questionItems: getQuestionBankCache(adminQuestionBank),
+    questionEditor: adminQuestionEditor
   });
   setupGlobalMenu();
   setupLogout();
@@ -2282,6 +2470,179 @@ function setupAdminActions() {
     }
   });
 
+  const questionBankSelect = document.getElementById("adminQuestionBankSelect");
+  const questionReloadBtn = document.getElementById("adminQuestionReload");
+  const questionNewBtn = document.getElementById("adminQuestionNew");
+  const questionSaveBtn = document.getElementById("adminQuestionSave");
+  const questionDeleteBtn = document.getElementById("adminQuestionDelete");
+  const questionPrevBtn = document.getElementById("adminQuestionPrev");
+  const questionNextBtn = document.getElementById("adminQuestionNext");
+  const questionIdInput = document.getElementById("adminQuestionId");
+  const questionImageInput = document.getElementById("adminQuestionImage");
+  const questionTextInput = document.getElementById("adminQuestionText");
+  const questionCorrectSelect = document.getElementById("adminQuestionCorrect");
+  const questionExplanationInput = document.getElementById("adminQuestionExplanation");
+  const questionOptionInputs = [0, 1, 2, 3].map((idx) =>
+    document.getElementById(`adminQuestionOption${idx}`)
+  );
+
+  const readQuestionForm = () => {
+    const parsedId = Number(questionIdInput?.value);
+    const hasValidId = Number.isFinite(parsedId) && parsedId > 0;
+    const safeId = hasValidId ? Math.floor(parsedId) : 0;
+    const parsedCorrect = Number(questionCorrectSelect?.value);
+    const draft = createAdminQuestionDraft(adminQuestionBank, {
+      id: hasValidId ? safeId : getNextQuestionIdForBank(adminQuestionBank),
+      image: String(questionImageInput?.value || "").trim(),
+      question: String(questionTextInput?.value || "").trim(),
+      options: questionOptionInputs.map((input) => String(input?.value || "").trim()),
+      correctIndex: Number.isFinite(parsedCorrect) ? Math.max(0, Math.min(3, Math.floor(parsedCorrect))) : 0,
+      explanation: String(questionExplanationInput?.value || "").trim()
+    });
+    draft.id = safeId;
+    return draft;
+  };
+
+  const selectQuestionInEditor = (questionId) => {
+    const safeId = normalizeQuestionId(questionId, 0);
+    const bankList = getQuestionBankCache(adminQuestionBank);
+    const target = bankList.find((item) => item.id === safeId);
+    if (!target) {
+      showToast("Questão não encontrada neste banco.", "error");
+      return;
+    }
+    adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, target);
+    rerenderAdminWithCache();
+  };
+
+  const goToRelativeQuestion = (direction = 1) => {
+    const bankList = getQuestionBankCache(adminQuestionBank);
+    if (!bankList.length) return;
+    const currentId = normalizeQuestionId(adminQuestionEditor?.id, 0);
+    const currentIndex = bankList.findIndex((item) => item.id === currentId);
+    if (currentIndex === -1) return;
+
+    const nextIndex = currentIndex + direction;
+    if (nextIndex < 0 || nextIndex >= bankList.length) return;
+    adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, bankList[nextIndex]);
+    rerenderAdminWithCache();
+  };
+
+  questionBankSelect?.addEventListener("change", async () => {
+    adminQuestionBank = getQuestionBankConfig(questionBankSelect.value).id;
+    await ensureQuestionBankLoaded(adminQuestionBank, { force: false, silent: true });
+    syncAdminQuestionEditor(adminQuestionBank);
+    rerenderAdminWithCache();
+  });
+
+  questionReloadBtn?.addEventListener("click", async () => {
+    questionReloadBtn.disabled = true;
+    const prev = questionReloadBtn.innerText;
+    questionReloadBtn.innerText = "Recarregando...";
+    try {
+      await ensureQuestionBankLoaded(adminQuestionBank, { force: true, silent: false });
+      syncAdminQuestionEditor(adminQuestionBank);
+      rerenderAdminWithCache();
+      showToast("Banco de questões atualizado.", "success");
+    } finally {
+      questionReloadBtn.disabled = false;
+      questionReloadBtn.innerText = prev;
+    }
+  });
+
+  questionNewBtn?.addEventListener("click", () => {
+    adminQuestionEditor = createNewAdminQuestionDraft(adminQuestionBank);
+    rerenderAdminWithCache();
+  });
+
+  questionPrevBtn?.addEventListener("click", () => {
+    goToRelativeQuestion(-1);
+  });
+
+  questionNextBtn?.addEventListener("click", () => {
+    goToRelativeQuestion(1);
+  });
+
+  document.querySelectorAll("[data-question-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const questionId = btn.getAttribute("data-question-edit") || "";
+      selectQuestionInEditor(questionId);
+    });
+  });
+
+  questionSaveBtn?.addEventListener("click", async () => {
+    const draft = readQuestionForm();
+    if (!draft.id) {
+      showToast("Informe um ID válido para a questão.", "error");
+      return;
+    }
+    if (!draft.question) {
+      showToast("Informe o enunciado da questão.", "error");
+      return;
+    }
+    if (draft.options.some((opt) => !opt)) {
+      showToast("Preencha as 4 opções de resposta.", "error");
+      return;
+    }
+
+    questionSaveBtn.disabled = true;
+    const prev = questionSaveBtn.innerText;
+    questionSaveBtn.innerText = "Salvando...";
+    try {
+      await saveQuestionDefinition(
+        adminQuestionBank,
+        String(draft.id),
+        {
+          id: draft.id,
+          image: draft.image,
+          question: draft.question,
+          options: draft.options,
+          correctIndex: draft.correctIndex,
+          explanation: draft.explanation
+        },
+        currentUser?.email || ""
+      );
+      await ensureQuestionBankLoaded(adminQuestionBank, { force: true, silent: true });
+      adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, draft);
+      rerenderAdminWithCache();
+      showToast("Questão salva com sucesso.", "success");
+    } catch (error) {
+      console.error("Erro ao salvar questão:", error);
+      showToast("Não foi possível salvar a questão.", "error");
+    } finally {
+      questionSaveBtn.disabled = false;
+      questionSaveBtn.innerText = prev;
+    }
+  });
+
+  questionDeleteBtn?.addEventListener("click", async () => {
+    const draft = readQuestionForm();
+    if (!draft.id) {
+      showToast("Informe um ID válido para excluir.", "error");
+      return;
+    }
+
+    const confirmed = confirm(`Excluir a questão #${draft.id} deste banco?`);
+    if (!confirmed) return;
+
+    questionDeleteBtn.disabled = true;
+    const prev = questionDeleteBtn.innerText;
+    questionDeleteBtn.innerText = "Excluindo...";
+    try {
+      await deleteQuestionDefinition(adminQuestionBank, String(draft.id));
+      await ensureQuestionBankLoaded(adminQuestionBank, { force: true, silent: true });
+      syncAdminQuestionEditor(adminQuestionBank);
+      rerenderAdminWithCache();
+      showToast("Questão excluída.", "success");
+    } catch (error) {
+      console.error("Erro ao excluir questão:", error);
+      showToast("Não foi possível excluir a questão.", "error");
+    } finally {
+      questionDeleteBtn.disabled = false;
+      questionDeleteBtn.innerText = prev;
+    }
+  });
+
   const saveCredits = async (userId) => {
     if (!userId) return;
     const input = document.querySelector(`.admin-credits-input[data-user-id="${userId}"]`);
@@ -2567,7 +2928,9 @@ function renderEvaluationHistory(evaluation) {
   const percentage = evaluation.percentage;
   const status = percentage >= 75 ? "Aprovado" : "Reprovado";
 
-  const questionSource = evaluation?.questionBank === "evaluation" ? sigwxEvaluationQuestions : sigwxQuestions;
+  const questionSource = evaluation?.questionBank === "evaluation"
+    ? getQuestionsForSession("evaluation")
+    : getQuestionsForSession("training");
   const questionById = new Map(questionSource.map((q) => [q.id, q]));
   const items = (evaluation.answers || []).map((ans, index) => {
     const q = questionById.get(ans?.questionId) || {};
@@ -2635,11 +2998,23 @@ observeAuthState((user) => {
   creditHistoryError = "";
   startingSessionLock = false;
   if (!currentUser) {
+    questionBanksCache = {
+      sigwx_training: DEFAULT_QUESTION_BANKS.sigwx_training.map((q) => ({ ...q })),
+      sigwx_evaluation: DEFAULT_QUESTION_BANKS.sigwx_evaluation.map((q) => ({ ...q }))
+    };
+    questionBankLoadedFlags = {
+      sigwx_training: false,
+      sigwx_evaluation: false
+    };
+    adminQuestionEditor = null;
     renderHomePublic();
     return;
   }
 
   startPresenceTracking();
+  preloadQuestionBanks().catch((error) => {
+    console.warn("Falha no preload dos bancos de questões:", error);
+  });
 
   getUserProfile(currentUser.uid)
     .then(async (profile) => {

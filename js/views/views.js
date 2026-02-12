@@ -1033,8 +1033,48 @@ function adminView({
   globalNotice = "",
   metrics = null,
   metricsRange = "30d",
-  lightMode = false
+  lightMode = false,
+  questionBanks = [],
+  selectedQuestionBank = "",
+  questionItems = [],
+  questionEditor = null
 } = {}) {
+  const bankOptions = (Array.isArray(questionBanks) ? questionBanks : [])
+    .map((bank) => {
+      const id = String(bank?.id || "").trim();
+      const label = String(bank?.label || id || "Banco");
+      return `<option value="${escapeHtml(id)}" ${id === selectedQuestionBank ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    })
+    .join("");
+
+  const questionList = (Array.isArray(questionItems) ? questionItems : [])
+    .map((item) => `
+      <button type="button" class="admin-question-item ${Number(item?.id) === Number(questionEditor?.id) ? "active" : ""}" data-question-edit="${Number(item?.id) || 0}">
+        <div class="admin-question-item-head">
+          <strong>#${Number(item?.id) || 0}</strong>
+          ${item?.image
+            ? `<img src="${escapeHtml(String(item.image))}" alt="Questão ${Number(item?.id) || 0}" loading="lazy" />`
+            : `<span class="admin-question-thumb-empty">Sem imagem</span>`}
+        </div>
+        <span>${escapeHtml(String(item?.question || "Sem enunciado"))}</span>
+      </button>
+    `)
+    .join("");
+
+  const editorId = Number(questionEditor?.id) || "";
+  const editorQuestion = escapeHtml(String(questionEditor?.question || ""));
+  const editorImage = escapeHtml(String(questionEditor?.image || ""));
+  const editorOptions = Array.isArray(questionEditor?.options) ? questionEditor.options : [];
+  const editorCorrect = Number.isFinite(Number(questionEditor?.correctIndex))
+    ? Number(questionEditor.correctIndex)
+    : 0;
+  const editorExplanation = escapeHtml(String(questionEditor?.explanation || ""));
+  const currentIndex = (Array.isArray(questionItems) ? questionItems : []).findIndex(
+    (item) => Number(item?.id) === Number(questionEditor?.id)
+  );
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex !== -1 && currentIndex < (Array.isArray(questionItems) ? questionItems.length : 0) - 1;
+
   const list = users.length
     ? `<div class="admin-grid">` +
         users.map((u) => {
@@ -1141,6 +1181,75 @@ function adminView({
           <label for="adminGlobalNotice">Mural de avisos (aparece para todos os usuários no perfil)</label>
           <textarea id="adminGlobalNotice" rows="3" placeholder="Escreva um aviso global...">${escapeHtml(globalNotice || "")}</textarea>
           <button type="button" id="adminGlobalNoticeSave">Salvar aviso</button>
+        </div>
+        <div class="admin-questions">
+          <div class="admin-questions-head">
+            <h2>Banco de questões</h2>
+            <div class="admin-questions-controls">
+              <select id="adminQuestionBankSelect">${bankOptions}</select>
+              <button type="button" id="adminQuestionReload">Recarregar</button>
+              <button type="button" id="adminQuestionNew">Nova questão</button>
+            </div>
+          </div>
+          <div class="admin-questions-grid">
+            <div class="admin-question-list">
+              ${questionList || `<div class="profile-empty">Nenhuma questão cadastrada neste banco.</div>`}
+            </div>
+            <div class="admin-question-editor">
+              <div class="admin-question-row">
+                <label for="adminQuestionId">ID</label>
+                <input type="number" id="adminQuestionId" min="1" step="1" value="${editorId}" />
+              </div>
+              <div class="admin-question-row">
+                <label for="adminQuestionImage">Imagem (caminho)</label>
+                <input type="text" id="adminQuestionImage" value="${editorImage}" placeholder="assets/questions/sigwx/1.webp" />
+                <div class="admin-question-preview ${editorImage ? "" : "is-empty"}">
+                  ${editorImage
+                    ? `<img src="${editorImage}" alt="Prévia da questão" />`
+                    : `<span>Sem imagem definida para esta questão.</span>`}
+                </div>
+              </div>
+              <div class="admin-question-row">
+                <label for="adminQuestionText">Enunciado</label>
+                <textarea id="adminQuestionText" rows="3" placeholder="Digite o enunciado">${editorQuestion}</textarea>
+              </div>
+              <div class="admin-question-row">
+                <label for="adminQuestionOption0">Opção A</label>
+                <input type="text" id="adminQuestionOption0" value="${escapeHtml(String(editorOptions[0] || ""))}" />
+              </div>
+              <div class="admin-question-row">
+                <label for="adminQuestionOption1">Opção B</label>
+                <input type="text" id="adminQuestionOption1" value="${escapeHtml(String(editorOptions[1] || ""))}" />
+              </div>
+              <div class="admin-question-row">
+                <label for="adminQuestionOption2">Opção C</label>
+                <input type="text" id="adminQuestionOption2" value="${escapeHtml(String(editorOptions[2] || ""))}" />
+              </div>
+              <div class="admin-question-row">
+                <label for="adminQuestionOption3">Opção D</label>
+                <input type="text" id="adminQuestionOption3" value="${escapeHtml(String(editorOptions[3] || ""))}" />
+              </div>
+              <div class="admin-question-row">
+                <label for="adminQuestionCorrect">Resposta correta</label>
+                <select id="adminQuestionCorrect">
+                  <option value="0" ${editorCorrect === 0 ? "selected" : ""}>A</option>
+                  <option value="1" ${editorCorrect === 1 ? "selected" : ""}>B</option>
+                  <option value="2" ${editorCorrect === 2 ? "selected" : ""}>C</option>
+                  <option value="3" ${editorCorrect === 3 ? "selected" : ""}>D</option>
+                </select>
+              </div>
+              <div class="admin-question-row">
+                <label for="adminQuestionExplanation">Explicação</label>
+                <textarea id="adminQuestionExplanation" rows="3" placeholder="Explique por que a alternativa correta está certa">${editorExplanation}</textarea>
+              </div>
+              <div class="admin-question-actions">
+                <button type="button" id="adminQuestionSave">Salvar questão</button>
+                <button type="button" id="adminQuestionDelete" class="danger">Excluir questão</button>
+                <button type="button" id="adminQuestionPrev" ${hasPrev ? "" : "disabled"}>Anterior</button>
+                <button type="button" id="adminQuestionNext" ${hasNext ? "" : "disabled"}>Próxima</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="admin-filters">
           <input type="text" id="adminSearch" placeholder="Buscar por nome ou email" />
