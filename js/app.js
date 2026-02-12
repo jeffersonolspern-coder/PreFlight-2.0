@@ -123,6 +123,7 @@ let stopEvaluationTimerFn = null;
 let mobileHeaderResizeHandler = null;
 let homeSimuladosResizeHandler = null;
 let simuladoNavResizeHandler = null;
+let homeModeCarouselCleanupFns = [];
 const INSUFFICIENT_CREDITS_MESSAGE = "Você não possui créditos suficientes.";
 let userMenuDocumentClickHandler = null;
 let userMenuDocumentKeydownHandler = null;
@@ -142,6 +143,7 @@ function cleanupEvaluationFlow() {
   evaluationStartAtMs = null;
   evaluationRemainingSeconds = evaluationTotalSeconds;
   cleanupResizeHandlers();
+  cleanupHomeModeCarousels();
 }
 
 function cleanupResizeHandlers() {
@@ -159,6 +161,17 @@ function cleanupResizeHandlers() {
     window.removeEventListener("resize", simuladoNavResizeHandler);
     simuladoNavResizeHandler = null;
   }
+}
+
+function cleanupHomeModeCarousels() {
+  homeModeCarouselCleanupFns.forEach((dispose) => {
+    try {
+      dispose();
+    } catch (_) {
+      // no-op
+    }
+  });
+  homeModeCarouselCleanupFns = [];
 }
 
 function normalizeApiBase(baseUrl) {
@@ -2980,10 +2993,13 @@ function setupHomePackagesButton() {
 }
 
 function setupHomeModeCarousels() {
+  cleanupHomeModeCarousels();
+
   const carousels = document.querySelectorAll(".mode-carousel");
   if (!carousels.length) return;
 
   carousels.forEach((root) => {
+    const AUTO_ADVANCE_MS = 4000;
     const images = String(root.dataset.images || "")
       .split(",")
       .map((item) => item.trim())
@@ -3039,11 +3055,13 @@ function setupHomeModeCarousels() {
       dot.setAttribute("aria-label", `Ir para imagem ${index + 1}`);
       dot.addEventListener("click", () => {
         setIndex(index);
+        restartAutoplay();
       });
       dots.appendChild(dot);
     });
 
     let currentIndex = 0;
+    let autoplayId = null;
     const dotButtons = Array.from(dots.querySelectorAll(".mode-carousel-dot"));
 
     const sync = () => {
@@ -3066,16 +3084,54 @@ function setupHomeModeCarousels() {
       dots.classList.toggle("is-hidden", images.length <= 1);
     };
 
+    const stopAutoplay = () => {
+      if (autoplayId) {
+        clearInterval(autoplayId);
+        autoplayId = null;
+      }
+    };
+
+    const startAutoplay = () => {
+      if (images.length <= 1) return;
+      stopAutoplay();
+      autoplayId = setInterval(() => {
+        setIndex(currentIndex + 1);
+      }, AUTO_ADVANCE_MS);
+    };
+
+    const restartAutoplay = () => {
+      stopAutoplay();
+      startAutoplay();
+    };
+
     function setIndex(nextIndex) {
       const total = images.length;
       currentIndex = ((nextIndex % total) + total) % total;
       sync();
     }
 
-    prevBtn.addEventListener("click", () => setIndex(currentIndex - 1));
-    nextBtn.addEventListener("click", () => setIndex(currentIndex + 1));
+    prevBtn.addEventListener("click", () => {
+      setIndex(currentIndex - 1);
+      restartAutoplay();
+    });
+    nextBtn.addEventListener("click", () => {
+      setIndex(currentIndex + 1);
+      restartAutoplay();
+    });
+
+    root.addEventListener("mouseenter", stopAutoplay);
+    root.addEventListener("mouseleave", startAutoplay);
+    root.addEventListener("focusin", stopAutoplay);
+    root.addEventListener("focusout", startAutoplay);
+    root.addEventListener("touchstart", stopAutoplay, { passive: true });
+    root.addEventListener("touchend", startAutoplay, { passive: true });
 
     sync();
+    startAutoplay();
+
+    homeModeCarouselCleanupFns.push(() => {
+      stopAutoplay();
+    });
   });
 }
 
