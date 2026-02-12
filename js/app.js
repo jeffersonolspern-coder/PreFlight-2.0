@@ -3275,9 +3275,41 @@ function setupHomeSimuladosCarousel() {
   const nextBtn = document.querySelector(".simulados-carousel-btn.next");
   if (!viewport || !track || !prevBtn || !nextBtn) return;
 
+  const cards = Array.from(track.querySelectorAll(".card"));
+  const availableCards = cards.filter((card) =>
+    card.hasAttribute("data-action") &&
+    !card.classList.contains("card-disabled") &&
+    card.getAttribute("aria-disabled") !== "true"
+  );
+  if (availableCards.length && availableCards.length !== cards.length) {
+    const unavailableCards = cards.filter((card) => !availableCards.includes(card));
+    const beforeCount = Math.floor(unavailableCards.length / 2);
+    const centeredOrder = [
+      ...unavailableCards.slice(0, beforeCount),
+      ...availableCards,
+      ...unavailableCards.slice(beforeCount)
+    ];
+    track.replaceChildren(...centeredOrder);
+  }
+
   const firstCard = track.querySelector(".card");
   const gap = 24;
   const step = () => (firstCard ? firstCard.getBoundingClientRect().width + gap : viewport.clientWidth * 0.8);
+
+  const centerAvailableCards = () => {
+    const currentAvailableCards = Array.from(
+      track.querySelectorAll('.card[data-action]:not(.card-disabled):not([aria-disabled="true"])')
+    );
+    if (!currentAvailableCards.length) return;
+    const firstAvailable = currentAvailableCards[0];
+    const lastAvailable = currentAvailableCards[currentAvailableCards.length - 1];
+    const blockStart = firstAvailable.offsetLeft;
+    const blockEnd = lastAvailable.offsetLeft + lastAvailable.offsetWidth;
+    const blockCenter = (blockStart + blockEnd) / 2;
+    const targetScroll = Math.max(0, blockCenter - viewport.clientWidth / 2);
+    const maxScroll = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    viewport.scrollLeft = Math.min(targetScroll, maxScroll);
+  };
 
   const updateButtons = () => {
     const maxScroll = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
@@ -3294,8 +3326,12 @@ function setupHomeSimuladosCarousel() {
   });
 
   viewport.addEventListener("scroll", updateButtons, { passive: true });
-  homeSimuladosResizeHandler = updateButtons;
+  homeSimuladosResizeHandler = () => {
+    centerAvailableCards();
+    updateButtons();
+  };
   window.addEventListener("resize", homeSimuladosResizeHandler);
+  centerAvailableCards();
   updateButtons();
 }
 
