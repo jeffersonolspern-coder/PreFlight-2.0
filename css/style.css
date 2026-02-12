@@ -640,6 +640,16 @@ textarea:focus-visible {
   margin-top: 8px;
 }
 
+.mode-carousel-caption {
+  margin-top: 8px;
+  margin-bottom: 0;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #475569;
+  min-height: 18px;
+}
+
 .mode-carousel-dots.is-hidden {
   display: none;
 }
@@ -3481,6 +3491,11 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   box-shadow: 0 10px 24px rgba(0,0,0,0.08);
 }
 
+.eval-item.is-wrong {
+  border: 1px solid #fca5a5;
+  background: #feecec;
+}
+
 .eval-item-media {
   background: #f3f4f6;
   border-radius: 12px;
@@ -3521,6 +3536,10 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
 .eval-answers strong {
   color: #111827;
   font-size: 14px;
+}
+
+.eval-answer-selected.is-wrong {
+  color: #b91c1c;
 }
 
 .eval-explanation {

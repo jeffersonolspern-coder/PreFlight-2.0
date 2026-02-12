@@ -1004,7 +1004,8 @@ function renderSigwxEvaluationResults(detail) {
       question: q.question,
       selectedText,
       correctText,
-      explanation: q.explanation || ""
+      explanation: q.explanation || "",
+      isWrong: !st?.isCorrect
     };
   });
 
@@ -2485,6 +2486,11 @@ function renderEvaluationHistory(evaluation) {
 
     const correctOption = ans?.options ? ans.options.find(o => o.isCorrect) : null;
     const correctText = correctOption ? correctOption.text : "";
+    const selectedOption =
+      selectedIndex === null || selectedIndex === undefined || !ans?.options
+        ? null
+        : ans.options[selectedIndex];
+    const isWrong = !selectedOption?.isCorrect;
 
     return {
       index: index + 1,
@@ -2492,7 +2498,8 @@ function renderEvaluationHistory(evaluation) {
       question: q.question,
       selectedText,
       correctText,
-      explanation: q.explanation || ""
+      explanation: q.explanation || "",
+      isWrong
     };
   });
 
@@ -2895,6 +2902,10 @@ function setupHomeModeCarousels() {
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
+    const captions = String(root.dataset.captions || "")
+      .split("||")
+      .map((item) => item.trim())
+      .filter(Boolean);
 
     if (!images.length) return;
 
@@ -2905,14 +2916,16 @@ function setupHomeModeCarousels() {
         <div class="mode-carousel-track"></div>
       </div>
       <button type="button" class="mode-carousel-btn next" aria-label="Próxima imagem">&#8250;</button>
+      <p class="mode-carousel-caption"></p>
       <div class="mode-carousel-dots"></div>
     `;
 
     const track = root.querySelector(".mode-carousel-track");
     const dots = root.querySelector(".mode-carousel-dots");
+    const caption = root.querySelector(".mode-carousel-caption");
     const prevBtn = root.querySelector(".mode-carousel-btn.prev");
     const nextBtn = root.querySelector(".mode-carousel-btn.next");
-    if (!track || !dots || !prevBtn || !nextBtn) return;
+    if (!track || !dots || !prevBtn || !nextBtn || !caption) return;
 
     images.forEach((src, index) => {
       const slide = document.createElement("div");
@@ -2921,6 +2934,12 @@ function setupHomeModeCarousels() {
       img.src = src;
       img.alt = images.length > 1 ? `${altBase} (${index + 1})` : altBase;
       img.loading = "lazy";
+      img.addEventListener("error", () => {
+        const fallback = images[0];
+        if (img.src !== fallback) {
+          img.src = fallback;
+        }
+      });
       slide.appendChild(img);
       track.appendChild(slide);
 
@@ -2942,6 +2961,7 @@ function setupHomeModeCarousels() {
       dotButtons.forEach((dot, idx) => {
         dot.classList.toggle("is-active", idx === currentIndex);
       });
+      caption.textContent = captions[currentIndex] || captions[0] || "";
       prevBtn.disabled = images.length <= 1;
       nextBtn.disabled = images.length <= 1;
       dots.classList.toggle("is-hidden", images.length <= 1);

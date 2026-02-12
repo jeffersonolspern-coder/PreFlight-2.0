@@ -198,7 +198,8 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
         </div>
         <div
           class="mode-carousel"
-          data-images="assets/img/mode-treinamento.png, assets/img/mode-treinamento.png, assets/img/mode-treinamento.png"
+          data-images="assets/img/mode-treinamento.png, assets/img/mode-treinamento-1.png, assets/img/mode-treinamento-2.png, assets/img/mode-treinamento-3.png, assets/img/mode-treinamento-4.png"
+          data-captions="Visão geral da tela de treino||Navegação rápida por questões||Correção visual por questão (certa/errada)||Explicação imediata após responder||Painel final com resumo do desempenho"
           data-alt="Tela do simulador em modo treinamento"
         ></div>
       </div>
@@ -210,6 +211,7 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
         <div
           class="mode-carousel"
           data-images="assets/img/mode-avaliacao.png, assets/img/mode-avaliacao.png, assets/img/mode-avaliacao.png"
+          data-captions="Modo prova com foco e tempo controlado||Registro de respostas sem mostrar gabarito na hora||Resultado consolidado ao finalizar"
           data-alt="Tela do simulador em modo avaliação"
         ></div>
       </div>
@@ -545,7 +547,7 @@ function sigwxEvaluationResultView({ summary, items, isAdmin = false, userLabel 
 
       <div class="eval-list">
         ${items.map((item) => `
-          <article class="eval-item">
+          <article class="eval-item ${item.isWrong ? "is-wrong" : "is-correct"}">
             <div class="eval-item-media">
               <img src="${item.image}" alt="Questão ${item.index}" />
             </div>
@@ -555,7 +557,7 @@ function sigwxEvaluationResultView({ summary, items, isAdmin = false, userLabel 
               <div class="eval-answers">
                 <div>
                   <span>Sua resposta</span>
-                  <strong>${item.selectedText}</strong>
+                  <strong class="eval-answer-selected ${item.isWrong ? "is-wrong" : ""}">${item.selectedText}</strong>
                 </div>
                 <div>
                   <span>Resposta correta</span>
@@ -989,7 +991,7 @@ function profileEvaluationView({ summary, items, isAdmin = false, userLabel = "C
       </div>
       <div class="eval-list">
         ${items.map((item) => `
-          <article class="eval-item">
+          <article class="eval-item ${item.isWrong ? "is-wrong" : "is-correct"}">
             <div class="eval-item-media">
               <img src="${item.image}" alt="Questão ${item.index}" />
             </div>
@@ -999,7 +1001,7 @@ function profileEvaluationView({ summary, items, isAdmin = false, userLabel = "C
               <div class="eval-answers">
                 <div>
                   <span>Sua resposta</span>
-                  <strong>${item.selectedText}</strong>
+                  <strong class="eval-answer-selected ${item.isWrong ? "is-wrong" : ""}">${item.selectedText}</strong>
                 </div>
                 <div>
                   <span>Resposta correta</span>
