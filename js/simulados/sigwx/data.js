@@ -5,49 +5,49 @@
 const rawSigwxQuestions = [
  {
   id: 1,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/1.png",
   opcoes: [
     "Nevoeiro raso localizado",
-    "NÈvoa ˙mida em ·rea extensa",
+    "N√©voa √∫mida em √°rea extensa",
     "Camada extensa de nuvens baixas",
-    "PrecipitaÁ„o contÌnua moderada"
+    "Precipita√ß√£o cont√≠nua moderada"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo representa nÈvoa ˙mida distribuÌda de forma extensa."
+  explicacao: "O s√≠mbolo representa n√©voa √∫mida distribu√≠da de forma extensa."
 },
 {
   id: 2,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/2.png",
   opcoes: [
-    "PrecipitaÁ„o contÌnua moderada",
+    "Precipita√ß√£o cont√≠nua moderada",
     "Granizo",
-    "PrecipitaÁ„o congelante",
-    "Neve fraca em ·rea isolada"
+    "Precipita√ß√£o congelante",
+    "Neve fraca em √°rea isolada"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Indica precipitaÁ„o congelante, que congela ao tocar superfÌcies com temperatura abaixo de zero."
+  explicacao: "Indica precipita√ß√£o congelante, que congela ao tocar superf√≠cies com temperatura abaixo de zero."
 },
 {
   id: 3,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/3.png",
   opcoes: [
     "Tempestade de areia ou poeira",
     "Gelo severo",
-    "ErupÁ„o vulc‚nica",
+    "Erup√ß√£o vulc√¢nica",
     "Pancada"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica presenÁa de cinzas vulc‚nicas na atmosfera, representando risco significativo ‡ aviaÁ„o."
+  explicacao: "O s√≠mbolo indica presen√ßa de cinzas vulc√¢nicas na atmosfera, representando risco significativo √† avia√ß√£o."
 },
 {
   id: 4,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/4.png",
   opcoes: [
     "Frente oclusa",
@@ -57,141 +57,141 @@ const rawSigwxQuestions = [
   ],
   correta: 0,
   assunto: "SIGWX",
-  explicacao: "Representa uma frente oclusa, formada quando uma frente fria alcanÁa uma frente quente."
+  explicacao: "Representa uma frente oclusa, formada quando uma frente fria alcan√ßa uma frente quente."
 },
 {
   id: 5,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/5.png",
   opcoes: [
-    "TurbulÍncia moderada a severa",
+    "Turbul√™ncia moderada a severa",
     "Granizo",
-    "PrecipitaÁ„o congelante",
+    "Precipita√ß√£o congelante",
     "Atividade convectiva isolada"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica ocorrÍncia de granizo, geralmente associado a nuvens convectivas intensas."
+  explicacao: "O s√≠mbolo indica ocorr√™ncia de granizo, geralmente associado a nuvens convectivas intensas."
 },
 {
   id: 6,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/6.png",
   opcoes: [
     "Linha de instabilidade",
-    "Zona de convergÍncia intertropical (ITCZ)",
-    "Frente quase-estacion·ria",
-    "Corrente de jato em baixos nÌveis"
+    "Zona de converg√™ncia intertropical (ITCZ)",
+    "Frente quase-estacion√°ria",
+    "Corrente de jato em baixos n√≠veis"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "Representa a Zona de ConvergÍncia Intertropical (ITCZ), ·rea onde os ventos convergem, favorecendo intensa atividade convectiva."
+  explicacao: "Representa a Zona de Converg√™ncia Intertropical (ITCZ), √°rea onde os ventos convergem, favorecendo intensa atividade convectiva."
 },
 {
   id: 7,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/7.png",
   opcoes: [
-    "¡rea de turbulÍncia severa",
+    "√Årea de turbul√™ncia severa",
     "Linha de instabilidade ativa",
-    "DemarcaÁ„o de ·rea de tempo significativo (Linha de Vieira)",
-    "Zona de convergÍncia em superfÌcie"
+    "Demarca√ß√£o de √°rea de tempo significativo (Linha de Vieira)",
+    "Zona de converg√™ncia em superf√≠cie"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Indica a Linha de Vieira, utilizada para delimitar ·reas de tempo significativo em atividade."
+  explicacao: "Indica a Linha de Vieira, utilizada para delimitar √°reas de tempo significativo em atividade."
 },
 {
   id: 8,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/8.png",
   opcoes: [
-    "Pancadas de precipitaÁ„o",
+    "Pancadas de precipita√ß√£o",
     "Granizo",
-    "Chuva contÌnua",
-    "PrecipitaÁ„o congelante"
+    "Chuva cont√≠nua",
+    "Precipita√ß√£o congelante"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo representa chuva contÌnua, associada a precipitaÁ„o persistente e geralmente estratiforme."
+  explicacao: "O s√≠mbolo representa chuva cont√≠nua, associada a precipita√ß√£o persistente e geralmente estratiforme."
 },
 {
   id: 9,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/9.png",
   opcoes: [
-    "¡rea de tempo significativo",
-    "DelimitaÁ„o de ·rea de turbulÍncia",
-    "Zona de convergÍncia em superfÌcie",
+    "√Årea de tempo significativo",
+    "Delimita√ß√£o de √°rea de turbul√™ncia",
+    "Zona de converg√™ncia em superf√≠cie",
     "Linha de instabilidade"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "Indica uma ·rea onde h· previs„o de turbulÍncia significativa, relevante para o planejamento do voo."
+  explicacao: "Indica uma √°rea onde h√° previs√£o de turbul√™ncia significativa, relevante para o planejamento do voo."
 },
 {
   id: 10,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/10.png",
   opcoes: [
     "Frente fria",
     "Frente oclusa",
-    "Frente semi-estacion·ria",
+    "Frente semi-estacion√°ria",
     "Frente quente"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Representa uma frente semi-estacion·ria, caracterizada por baixo deslocamento do sistema frontal."
+  explicacao: "Representa uma frente semi-estacion√°ria, caracterizada por baixo deslocamento do sistema frontal."
 },
 {
   id: 11,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/11.png",
   opcoes: [
-    "Cinzas vulc‚nicas",
+    "Cinzas vulc√¢nicas",
     "Tempestade de areia ou poeira",
-    "NÈvoa seca em ·rea extensa",
-    "Chuva fraca contÌnua"
+    "N√©voa seca em √°rea extensa",
+    "Chuva fraca cont√≠nua"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica tempestade de areia ou poeira, fenÙmeno que reduz severamente a visibilidade."
+  explicacao: "O s√≠mbolo indica tempestade de areia ou poeira, fen√¥meno que reduz severamente a visibilidade."
 },
 {
   id: 12,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/12.png",
   opcoes: [
-    "Chuva contÌnua",
+    "Chuva cont√≠nua",
     "Granizo",
     "Pancada",
-    "PrecipitaÁ„o congelante"
+    "Precipita√ß√£o congelante"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Representa pancada de precipitaÁ„o, caracterizada por inÌcio e tÈrmino s˙bitos."
+  explicacao: "Representa pancada de precipita√ß√£o, caracterizada por in√≠cio e t√©rmino s√∫bitos."
 },
 {
   id: 13,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/13.png",
   opcoes: [
-    "Centro de alta press„o",
+    "Centro de alta press√£o",
     "Ciclone tropical",
-    "Zona de convergÍncia intertropical",
-    "¡rea de baixa press„o alongada"
+    "Zona de converg√™ncia intertropical",
+    "√Årea de baixa press√£o alongada"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica um ciclone tropical, sistema de baixa press„o com forte circulaÁ„o e potencial severo."
+  explicacao: "O s√≠mbolo indica um ciclone tropical, sistema de baixa press√£o com forte circula√ß√£o e potencial severo."
 },
 {
   id: 14,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/14.png",
   opcoes: [
     "Altura significativa das ondas",
-    "Corrente oce‚nica superficial",
+    "Corrente oce√¢nica superficial",
     "Estado do mar",
     "Zona de ressaca"
   ],
@@ -201,166 +201,166 @@ const rawSigwxQuestions = [
 },
 {
   id: 15,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/15.png",
   opcoes: [
-    "TurbulÍncia leve",
+    "Turbul√™ncia leve",
     "Cisalhamento do vento",
-    "TurbulÍncia moderada",
-    "TurbulÍncia severa"
+    "Turbul√™ncia moderada",
+    "Turbul√™ncia severa"
   ],
   correta: 3,
   assunto: "SIGWX",
-  explicacao: "Indica turbulÍncia severa, oferecendo risco significativo ‡ seguranÁa do voo."
+  explicacao: "Indica turbul√™ncia severa, oferecendo risco significativo √† seguran√ßa do voo."
 },
 {
   id: 16,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/16.png",
   opcoes: [
-    "Centro de baixa press„o",
-    "Centro de alta press„o",
+    "Centro de baixa press√£o",
+    "Centro de alta press√£o",
     "Ciclone tropical",
-    "Cavado em superfÌcie"
+    "Cavado em superf√≠cie"
   ],
   correta: 0,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo representa um centro de baixa press„o, associado ‡ convergÍncia do ar e maior instabilidade atmosfÈrica."
+  explicacao: "O s√≠mbolo representa um centro de baixa press√£o, associado √† converg√™ncia do ar e maior instabilidade atmosf√©rica."
 },
 {
   id: 17,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/17.png",
   opcoes: [
     "Montanhas obscurecidas",
-    "¡rea de turbulÍncia orogr·fica",
-    "Ondas orogr·ficas",
-    "Nevoeiro em ·rea extensa"
+    "√Årea de turbul√™ncia orogr√°fica",
+    "Ondas orogr√°ficas",
+    "Nevoeiro em √°rea extensa"
   ],
   correta: 0,
   assunto: "SIGWX",
-  explicacao: "Indica montanhas obscurecidas por nuvens, nÈvoa ou precipitaÁ„o, afetando a navegaÁ„o visual."
+  explicacao: "Indica montanhas obscurecidas por nuvens, n√©voa ou precipita√ß√£o, afetando a navega√ß√£o visual."
 },
 {
   id: 18,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/18.png",
   opcoes: [
-    "NÈvoa ˙mida em ·rea extensa",
-    "Nevoeiro em ·rea extensa",
+    "N√©voa √∫mida em √°rea extensa",
+    "Nevoeiro em √°rea extensa",
     "Tempestade de areia ou poeira",
     "Neve levantada pelo vento"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo representa nevoeiro em ·rea extensa, caracterizado por visibilidade muito reduzida."
+  explicacao: "O s√≠mbolo representa nevoeiro em √°rea extensa, caracterizado por visibilidade muito reduzida."
 },
 {
   id: 19,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/19.png",
   opcoes: [
     "Tempestade de areia ou poeira",
-    "Cinzas vulc‚nicas",
-    "NÈvoa forte de areia ou poeira",
-    "Nevoeiro em ·rea extensa"
+    "Cinzas vulc√¢nicas",
+    "N√©voa forte de areia ou poeira",
+    "Nevoeiro em √°rea extensa"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Indica nÈvoa forte de areia ou poeira, comum em regiıes ·ridas e com impacto severo na visibilidade."
+  explicacao: "Indica n√©voa forte de areia ou poeira, comum em regi√µes √°ridas e com impacto severo na visibilidade."
 },
 {
   id: 20,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/20.png",
   opcoes: [
-    "Altura mÌnima da tropopausa",
-    "NÌvel de congelamento",
-    "Isoterma de 0∞C em superfÌcie",
+    "Altura m√≠nima da tropopausa",
+    "N√≠vel de congelamento",
+    "Isoterma de 0¬∞C em superf√≠cie",
     "Camada de icing severo"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "Representa o nÌvel de congelamento, altitude onde a temperatura do ar atinge 0∞C."
+  explicacao: "Representa o n√≠vel de congelamento, altitude onde a temperatura do ar atinge 0¬∞C."
 },
 {
   id: 21,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/21.png",
   opcoes: [
-    "Zona de convergÍncia intertropical",
+    "Zona de converg√™ncia intertropical",
     "Linha de instabilidade",
-    "DemarcaÁ„o de ·rea de tempo significativo",
+    "Demarca√ß√£o de √°rea de tempo significativo",
     "Frente fria"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo representa uma linha de instabilidade, associada a intensa atividade convectiva e condiÁıes adversas."
+  explicacao: "O s√≠mbolo representa uma linha de instabilidade, associada a intensa atividade convectiva e condi√ß√µes adversas."
 },
 {
   id: 22,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/22.png",
   opcoes: [
-    "FrontogÍnese de frente quente",
-    "FrontÛlise de frente fria",
-    "FrontÛlise de frente quente",
-    "Frente quase estacion·ria"
+    "Frontog√™nese de frente quente",
+    "Front√≥lise de frente fria",
+    "Front√≥lise de frente quente",
+    "Frente quase estacion√°ria"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Indica frontÛlise de frente quente, caracterizando o enfraquecimento ou dissipaÁ„o do sistema frontal."
+  explicacao: "Indica front√≥lise de frente quente, caracterizando o enfraquecimento ou dissipa√ß√£o do sistema frontal."
 },
 {
   id: 23,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/23.png",
   opcoes: [
-    "TurbulÍncia severa em altitude",
-    "Ondas orogr·ficas",
-    "¡rea de cisalhamento do vento",
+    "Turbul√™ncia severa em altitude",
+    "Ondas orogr√°ficas",
+    "√Årea de cisalhamento do vento",
     "Montanhas obscurecidas"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "Representa ondas orogr·ficas, formadas quando o fluxo de ar interage com cadeias montanhosas."
+  explicacao: "Representa ondas orogr√°ficas, formadas quando o fluxo de ar interage com cadeias montanhosas."
 },
 {
   id: 24,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/24.png",
   opcoes: [
-    "FrontÛlise de frente quente",
-    "Frente quente estacion·ria",
-    "FrontogÍnese de frente quente",
-    "Frente oclusa em formaÁ„o"
+    "Front√≥lise de frente quente",
+    "Frente quente estacion√°ria",
+    "Frontog√™nese de frente quente",
+    "Frente oclusa em forma√ß√£o"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Indica frontogÍnese de frente quente, processo de intensificaÁ„o de uma frente quente."
+  explicacao: "Indica frontog√™nese de frente quente, processo de intensifica√ß√£o de uma frente quente."
 },
 {
   id: 25,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/25.png",
   opcoes: [
-    "Altura m·xima da tropopausa",
-    "NÌvel de congelamento",
-    "Altura mÌnima da tropopausa",
+    "Altura m√°xima da tropopausa",
+    "N√≠vel de congelamento",
+    "Altura m√≠nima da tropopausa",
     "Corrente de jato"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo representa a altura mÌnima da tropopausa, informaÁ„o relevante para planejamento de voo em altitude."
+  explicacao: "O s√≠mbolo representa a altura m√≠nima da tropopausa, informa√ß√£o relevante para planejamento de voo em altitude."
 },
 {
   id: 26,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/26.png",
   opcoes: [
-    "Neve fraca contÌnua",
+    "Neve fraca cont√≠nua",
     "Nevoeiro congelante",
-    "Neve levantada pelo vento em ·rea extensa",
+    "Neve levantada pelo vento em √°rea extensa",
     "Granizo associado a CB"
   ],
   correta: 2,
@@ -369,21 +369,21 @@ const rawSigwxQuestions = [
 },
 {
   id: 27,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/Frotogenese-de-frente-Fria.png",
   opcoes: [
-    "FrontogÍnese de frente fria",
-    "FrontÛlise de frente fria",
-    "Frente fria em superfÌcie",
+    "Frontog√™nese de frente fria",
+    "Front√≥lise de frente fria",
+    "Frente fria em superf√≠cie",
     "Linha de instabilidade"
   ],
   correta: 0,
   assunto: "SIGWX",
-  explicacao: "Representa frontogÍnese de frente fria, processo de formaÁ„o ou intensificaÁ„o de uma frente fria."
+  explicacao: "Representa frontog√™nese de frente fria, processo de forma√ß√£o ou intensifica√ß√£o de uma frente fria."
 },
 {
   id: 28,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/28.png",
   opcoes: [
     "Gelo severo",
@@ -393,193 +393,193 @@ const rawSigwxQuestions = [
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica ocorrÍncia de gelo moderado em aeronaves, exigindo atenÁ„o operacional."
+  explicacao: "O s√≠mbolo indica ocorr√™ncia de gelo moderado em aeronaves, exigindo aten√ß√£o operacional."
 },
 {
   id: 29,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/29.png",
   opcoes: [
     "Nevoeiro",
-    "FumaÁa",
-    "NÈvoa seca",
+    "Fuma√ßa",
+    "N√©voa seca",
     "Tempestade de areia"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "Representa fumaÁa na atmosfera, podendo reduzir a visibilidade e afetar operaÁıes VFR."
+  explicacao: "Representa fuma√ßa na atmosfera, podendo reduzir a visibilidade e afetar opera√ß√µes VFR."
 },
 {
   id: 30,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/30.png",
   opcoes: [
-    "Cinzas vulc‚nicas",
-    "ContaminaÁ„o quÌmica",
+    "Cinzas vulc√¢nicas",
+    "Contamina√ß√£o qu√≠mica",
     "Materiais radioativos na atmosfera",
-    "Nuvem tÛxica industrial"
+    "Nuvem t√≥xica industrial"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Indica presenÁa de materiais radioativos na atmosfera, situaÁ„o de alto risco para a aviaÁ„o."
+  explicacao: "Indica presen√ßa de materiais radioativos na atmosfera, situa√ß√£o de alto risco para a avia√ß√£o."
 },
 {
   id: 31,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/31.png",
   opcoes: [
-    "Frente fria em dissipaÁ„o",
-    "FrontÛlise de frente fria",
-    "Frente semi-estacion·ria",
+    "Frente fria em dissipa√ß√£o",
+    "Front√≥lise de frente fria",
+    "Frente semi-estacion√°ria",
     "Frente oclusa"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "Indica frontÛlise de frente fria, processo de enfraquecimento e dissipaÁ„o do sistema frontal."
+  explicacao: "Indica front√≥lise de frente fria, processo de enfraquecimento e dissipa√ß√£o do sistema frontal."
 },
 {
   id: 32,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/32.png",
   opcoes: [
-    "Centro de baixa press„o",
-    "Centro de alta press„o",
-    "PosiÁ„o dos centros de press„o",
-    "IsÛbaras"
+    "Centro de baixa press√£o",
+    "Centro de alta press√£o",
+    "Posi√ß√£o dos centros de press√£o",
+    "Is√≥baras"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Representa a posiÁ„o dos centros de press„o, normalmente indicada em hPa nas cartas meteorolÛgicas."
+  explicacao: "Representa a posi√ß√£o dos centros de press√£o, normalmente indicada em hPa nas cartas meteorol√≥gicas."
 },
 {
   id: 33,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/33.png",
   opcoes: [
-    "Chuva contÌnua",
+    "Chuva cont√≠nua",
     "Pancada de chuva",
     "Chuvisco",
-    "PrecipitaÁ„o congelante"
+    "Precipita√ß√£o congelante"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica chuvisco, precipitaÁ„o fraca composta por gotÌculas muito pequenas."
+  explicacao: "O s√≠mbolo indica chuvisco, precipita√ß√£o fraca composta por got√≠culas muito pequenas."
 },
 {
   id: 34,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/34.png",
   opcoes: [
-    "FumaÁa",
-    "NÈvoa ˙mida",
+    "Fuma√ßa",
+    "N√©voa √∫mida",
     "Nevoeiro",
-    "NÈvoa seca em ·rea extensa"
+    "N√©voa seca em √°rea extensa"
   ],
   correta: 3,
   assunto: "SIGWX",
-  explicacao: "Representa nÈvoa seca em ·rea extensa, geralmente associada a poeira, fumaÁa ou partÌculas em suspens„o."
+  explicacao: "Representa n√©voa seca em √°rea extensa, geralmente associada a poeira, fuma√ßa ou part√≠culas em suspens√£o."
 },
 {
   id: 35,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/35.png",
   opcoes: [
-    "Frente semi-estacion·ria",
-    "FrontÛlise de frente semi-estacion·ria",
-    "FrontogÍnese de frente semi-estacion·ria",
+    "Frente semi-estacion√°ria",
+    "Front√≥lise de frente semi-estacion√°ria",
+    "Frontog√™nese de frente semi-estacion√°ria",
     "Frente quente"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Indica frontogÍnese de frente semi-estacion·ria, processo de intensificaÁ„o desse tipo de frente."
+  explicacao: "Indica frontog√™nese de frente semi-estacion√°ria, processo de intensifica√ß√£o desse tipo de frente."
 },
 {
   id: 36,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/36.png",
   opcoes: [
-    "TurbulÍncia leve",
-    "TurbulÍncia moderada",
-    "TurbulÍncia severa",
-    "Ondas orogr·ficas"
+    "Turbul√™ncia leve",
+    "Turbul√™ncia moderada",
+    "Turbul√™ncia severa",
+    "Ondas orogr√°ficas"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo representa turbulÍncia moderada, podendo causar desconforto e variaÁıes na atitude da aeronave."
+  explicacao: "O s√≠mbolo representa turbul√™ncia moderada, podendo causar desconforto e varia√ß√µes na atitude da aeronave."
 },
 {
   id: 37,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/37.png",
   opcoes: [
-    "Vento forte ‡ superfÌcie em ·rea extensa",
-    "TurbulÍncia moderada",
+    "Vento forte √† superf√≠cie em √°rea extensa",
+    "Turbul√™ncia moderada",
     "Corrente de jato",
     "Rajadas associadas a CB"
   ],
   correta: 0,
   assunto: "SIGWX",
-  explicacao: "Indica vento forte ‡ superfÌcie em ·rea extensa, relevante para operaÁıes de pouso e decolagem."
+  explicacao: "Indica vento forte √† superf√≠cie em √°rea extensa, relevante para opera√ß√µes de pouso e decolagem."
 },
 {
   id: 38,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/38.png",
   opcoes: [
-    "Altura mÌnima da tropopausa",
-    "NÌvel da tropopausa",
+    "Altura m√≠nima da tropopausa",
+    "N√≠vel da tropopausa",
     "Isoterma de congelamento",
     "Topo de CB"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "Representa o nÌvel da tropopausa, limite entre a troposfera e a estratosfera."
+  explicacao: "Representa o n√≠vel da tropopausa, limite entre a troposfera e a estratosfera."
 },
 {
   id: 39,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/39.png",
   opcoes: [
-    "Temperatura da superfÌcie do mar",
+    "Temperatura da superf√≠cie do mar",
     "Estado do mar",
-    "OndulaÁ„o significativa",
-    "Zona de convergÍncia"
+    "Ondula√ß√£o significativa",
+    "Zona de converg√™ncia"
   ],
   correta: 0,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica a temperatura da superfÌcie do mar, dado importante para previsıes meteorolÛgicas."
+  explicacao: "O s√≠mbolo indica a temperatura da superf√≠cie do mar, dado importante para previs√µes meteorol√≥gicas."
 },
 {
   id: 40,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/40.png",
   opcoes: [
-    "Centro de baixa press„o",
-    "Centro de alta press„o",
+    "Centro de baixa press√£o",
+    "Centro de alta press√£o",
     "Ciclone tropical",
-    "VÛrtice em altos nÌveis"
+    "V√≥rtice em altos n√≠veis"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "Representa um centro de alta press„o, geralmente associado a tempo mais est·vel."
+  explicacao: "Representa um centro de alta press√£o, geralmente associado a tempo mais est√°vel."
 },
 {
   id: 41,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/41.png",
   opcoes: [
     "Linha de instabilidade",
     "Frente fria",
-    "Linha de convergÍncia",
-    "Zona de turbulÍncia"
+    "Linha de converg√™ncia",
+    "Zona de turbul√™ncia"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo representa uma linha de convergÍncia, onde h· encontro de massas de ar favorecendo instabilidade."
+  explicacao: "O s√≠mbolo representa uma linha de converg√™ncia, onde h√° encontro de massas de ar favorecendo instabilidade."
 },
 {
   id: 42,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/42.png",
   opcoes: [
     "Gelo leve",
@@ -589,109 +589,109 @@ const rawSigwxQuestions = [
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Indica ocorrÍncia de gelo severo, condiÁ„o extremamente perigosa para a aeronave."
+  explicacao: "Indica ocorr√™ncia de gelo severo, condi√ß√£o extremamente perigosa para a aeronave."
 },
 {
   id: 43,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/43.png",
   opcoes: [
     "Frente fria",
     "Frente quente",
     "Frente oclusa",
-    "FrontÛlise de frente semi-estacion·ria"
+    "Front√≥lise de frente semi-estacion√°ria"
   ],
   correta: 3,
   assunto: "SIGWX",
-  explicacao: "Representa a frontÛlise de uma frente semi-estacion·ria, indicando o enfraquecimento do sistema."
+  explicacao: "Representa a front√≥lise de uma frente semi-estacion√°ria, indicando o enfraquecimento do sistema."
 },
 {
   id: 44,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/44.png",
   opcoes: [
     "Granizo",
     "Neve",
     "Neve levantada pelo vento",
-    "PrecipitaÁ„o congelante"
+    "Precipita√ß√£o congelante"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica ocorrÍncia de neve, reduzindo visibilidade e afetando a performance da aeronave."
+  explicacao: "O s√≠mbolo indica ocorr√™ncia de neve, reduzindo visibilidade e afetando a performance da aeronave."
 },
 {
     id: 45,
-    pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+    pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
     imagem: "../imagens/sigwx/45.png",
     opcoes: [
-      "Linha de convergÍncia",
+      "Linha de converg√™ncia",
       "Frente quente",
       "Frente fria",
       "Corrente de jato"
     ],
     correta: 2,
     assunto: "SIGWX",
-    explicacao: "O sÌmbolo representa uma frente fria, caracterizada pela passagem de uma massa de ar frio deslocando o ar quente."
+    explicacao: "O s√≠mbolo representa uma frente fria, caracterizada pela passagem de uma massa de ar frio deslocando o ar quente."
   },
   {
     id: 46,
-    pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+    pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
     imagem: "../imagens/sigwx/46.png",
     opcoes: [
-      "Previs„o de longo prazo",
-      "Altura m·xima da tropopausa",
+      "Previs√£o de longo prazo",
+      "Altura m√°xima da tropopausa",
       "Carta de vento",
-      "Imagem de satÈlite"
+      "Imagem de sat√©lite"
     ],
     correta: 1,
     assunto: "SIGWX",
-    explicacao: "Indica a altura m·xima da tropopausa, importante para planejamento de voo em altos nÌveis."
+    explicacao: "Indica a altura m√°xima da tropopausa, importante para planejamento de voo em altos n√≠veis."
   },
   {
     id: 47,
-    pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+    pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
     imagem: "../imagens/sigwx/47.png",
     opcoes: [
       "Frente fria",
       "Linha de instabilidade",
-      "Frente Oclus„o",
+      "Frente Oclus√£o",
       "Frente quente"
     ],
     correta: 3,
     assunto: "SIGWX",
-    explicacao: "O sÌmbolo indica uma frente quente, onde o ar quente avanÁa sobre o ar frio."
+    explicacao: "O s√≠mbolo indica uma frente quente, onde o ar quente avan√ßa sobre o ar frio."
   },
   {
     id: 48,
-    pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+    pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
     imagem: "../imagens/sigwx/48.png",
     opcoes: [
       "Corrente de Jato",
-      "DireÁ„o do vento",
+      "Dire√ß√£o do vento",
       "Corrente de Jato com 65 Kt",
       "Corrente de jato com 155 Kt"
     ],
     correta: 2,
     assunto: "SIGWX",
-    explicacao: "O sÌmbolo indica uma Corrente de Jato de 65Kt, a bandeira representa 50 Kt, o traÁo longo representa 10 Kt e o traÁo curto representa 5 Kt."
+    explicacao: "O s√≠mbolo indica uma Corrente de Jato de 65Kt, a bandeira representa 50 Kt, o tra√ßo longo representa 10 Kt e o tra√ßo curto representa 5 Kt."
   },
   {
   id: 49,
-  pergunta: "Qual sÌmbolo SIGWX est· representado na imagem?",
+  pergunta: "Qual s√≠mbolo SIGWX est√° representado na imagem?",
   imagem: "../imagens/sigwx/49.png",
   opcoes: [
     "Corrente de Jato com 50 Kt",
     "Corrente de Jato com 65 Kt",
     "Corrente de Jato com 100 Kt",
-    "DireÁ„o do vento em altitude"
+    "Dire√ß√£o do vento em altitude"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica uma Corrente de Jato de 100Kt. Cada bandeira representa 50 Kt, o traÁo longo 10 Kt e o traÁo curto 5 Kt."
+  explicacao: "O s√≠mbolo indica uma Corrente de Jato de 100Kt. Cada bandeira representa 50 Kt, o tra√ßo longo 10 Kt e o tra√ßo curto 5 Kt."
 },
 {
   id: 50,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/50.png",
   opcoes: [
     "Altostratus",
@@ -701,11 +701,11 @@ const rawSigwxQuestions = [
   ],
   correta: 1,
   assunto: "Nuvens",
-  explicacao: "Altocumulus s„o nuvens mÈdias, geralmente em forma de blocos ou ondulaÁıes, associadas a instabilidade em nÌveis mÈdios."
+  explicacao: "Altocumulus s√£o nuvens m√©dias, geralmente em forma de blocos ou ondula√ß√µes, associadas a instabilidade em n√≠veis m√©dios."
 },
 {
   id: 51,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/51.png",
   opcoes: [
     "Altostratus",
@@ -715,11 +715,11 @@ const rawSigwxQuestions = [
   ],
   correta: 0,
   assunto: "Nuvens",
-  explicacao: "Altostratus s„o nuvens mÈdias, extensas e em forma de vÈu, frequentemente associadas ‡ aproximaÁ„o de sistemas frontais."
+  explicacao: "Altostratus s√£o nuvens m√©dias, extensas e em forma de v√©u, frequentemente associadas √† aproxima√ß√£o de sistemas frontais."
 },
 {
   id: 52,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/52.png",
   opcoes: [
     "Altocumulus",
@@ -729,11 +729,11 @@ const rawSigwxQuestions = [
   ],
   correta: 2,
   assunto: "Nuvens",
-  explicacao: "Cirrocumulus s„o nuvens altas, formadas por pequenos gr‚nulos, indicando instabilidade em grandes altitudes."
+  explicacao: "Cirrocumulus s√£o nuvens altas, formadas por pequenos gr√¢nulos, indicando instabilidade em grandes altitudes."
 },
 {
   id: 53,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/53.png",
   opcoes: [
     "Cirrus",
@@ -743,11 +743,11 @@ const rawSigwxQuestions = [
   ],
   correta: 2,
   assunto: "Nuvens",
-  explicacao: "Cirrostratus s„o nuvens altas em forma de vÈu, frequentemente associadas a halos solares ou lunares."
+  explicacao: "Cirrostratus s√£o nuvens altas em forma de v√©u, frequentemente associadas a halos solares ou lunares."
 },
 {
   id: 54,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/54.png",
   opcoes: [
     "Cirrus",
@@ -757,11 +757,11 @@ const rawSigwxQuestions = [
   ],
   correta: 0,
   assunto: "Nuvens",
-  explicacao: "Cirrus s„o nuvens altas, finas e fibrosas, normalmente indicando bom tempo ou mudanÁa futura no tempo."
+  explicacao: "Cirrus s√£o nuvens altas, finas e fibrosas, normalmente indicando bom tempo ou mudan√ßa futura no tempo."
 },
 {
   id: 55,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/55.png",
   opcoes: [
     "Cumulus",
@@ -771,11 +771,11 @@ const rawSigwxQuestions = [
   ],
   correta: 2,
   assunto: "Nuvens",
-  explicacao: "Cumulonimbus s„o nuvens de grande desenvolvimento vertical, associadas a tempestades, turbulÍncia severa e gelo."
+  explicacao: "Cumulonimbus s√£o nuvens de grande desenvolvimento vertical, associadas a tempestades, turbul√™ncia severa e gelo."
 },
 {
   id: 56,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/56.png",
   opcoes: [
     "Stratocumulus",
@@ -785,11 +785,11 @@ const rawSigwxQuestions = [
   ],
   correta: 2,
   assunto: "Nuvens",
-  explicacao: "Cumulus s„o nuvens de desenvolvimento vertical limitado, geralmente associadas a bom tempo."
+  explicacao: "Cumulus s√£o nuvens de desenvolvimento vertical limitado, geralmente associadas a bom tempo."
 },
 {
   id: 57,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/57.png",
   opcoes: [
     "Cumulus humilis",
@@ -803,7 +803,7 @@ const rawSigwxQuestions = [
 },
 {
   id: 58,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/58.png",
   opcoes: [
     "Cumulonimbus embutido",
@@ -813,7 +813,7 @@ const rawSigwxQuestions = [
   ],
   correta: 0,
   assunto: "Nuvens",
-  explicacao: "Cumulonimbus embutido ocorre quando a nuvem est· envolta por outras camadas, dificultando sua identificaÁ„o visual e aumentando o risco operacional."
+  explicacao: "Cumulonimbus embutido ocorre quando a nuvem est√° envolta por outras camadas, dificultando sua identifica√ß√£o visual e aumentando o risco operacional."
 },
 {
   id: 59,
@@ -821,20 +821,20 @@ const rawSigwxQuestions = [
   imagem: "../imagens/sigwx/59.png",
   opcoes: [
     "Nuvens isoladas",
-    "CÈu encoberto",
+    "C√©u encoberto",
     "Nuvens dispersas",
     "Cobertura ocasional"
   ],
   correta: 1,
   assunto: "Nuvens",
-  explicacao: "OVC (Overcast) indica cÈu totalmente encoberto, com cobertura de nuvens de 8 oitavos."
+  explicacao: "OVC (Overcast) indica c√©u totalmente encoberto, com cobertura de nuvens de 8 oitavos."
 },
 {
   id: 60,
   pergunta: "O que significa a sigla SCT apresentada na imagem?",
   imagem: "../imagens/sigwx/60.png",
   opcoes: [
-    "CÈu encoberto",
+    "C√©u encoberto",
     "Nuvens frequentes",
     "Nuvens esparsas",
     "Nuvens isoladas"
@@ -849,45 +849,45 @@ const rawSigwxQuestions = [
   imagem: "../imagens/sigwx/61.png",
   opcoes: [
     "Corrente de jato a FL310",
-    "Vento forte em superfÌcie",
-    "TurbulÍncia severa em FL310",
-    "NÌvel m·ximo de nuvens"
+    "Vento forte em superf√≠cie",
+    "Turbul√™ncia severa em FL310",
+    "N√≠vel m√°ximo de nuvens"
   ],
   correta: 0,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica uma Corrente de Jato localizada ao redor do FL310."
+  explicacao: "O s√≠mbolo indica uma Corrente de Jato localizada ao redor do FL310."
 },
 {
   id: 62,
-  pergunta: "O que significa a indicaÁ„o FREQUENTE apresentada na imagem?",
+  pergunta: "O que significa a indica√ß√£o FREQUENTE apresentada na imagem?",
   imagem: "../imagens/sigwx/62.png",
   opcoes: [
-    "FenÙmeno isolado",
-    "FenÙmeno contÌnuo",
-    "FenÙmeno frequente na ·rea",
-    "FenÙmeno ocasional"
+    "Fen√¥meno isolado",
+    "Fen√¥meno cont√≠nuo",
+    "Fen√¥meno frequente na √°rea",
+    "Fen√¥meno ocasional"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Frequente indica que o fenÙmeno ocorre repetidamente em grande parte da ·rea analisada."
+  explicacao: "Frequente indica que o fen√¥meno ocorre repetidamente em grande parte da √°rea analisada."
 },
 {
   id: 63,
-  pergunta: "O que significa a indicaÁ„o ISOLADO apresentada na imagem?",
+  pergunta: "O que significa a indica√ß√£o ISOLADO apresentada na imagem?",
   imagem: "../imagens/sigwx/63.png",
   opcoes: [
-    "FenÙmeno contÌnuo",
-    "FenÙmeno esparso",
-    "FenÙmeno isolado em pontos especÌficos",
-    "FenÙmeno frequente"
+    "Fen√¥meno cont√≠nuo",
+    "Fen√¥meno esparso",
+    "Fen√¥meno isolado em pontos espec√≠ficos",
+    "Fen√¥meno frequente"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Isolado indica que o fenÙmeno ocorre de forma pontual e localizada."
+  explicacao: "Isolado indica que o fen√¥meno ocorre de forma pontual e localizada."
 },
 {
   id: 64,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/64.png",
   opcoes: [
     "Stratus",
@@ -897,53 +897,53 @@ const rawSigwxQuestions = [
   ],
   correta: 2,
   assunto: "Nuvens",
-  explicacao: "Nimbostratus s„o nuvens extensas associadas a precipitaÁ„o contÌnua e baixa visibilidade."
+  explicacao: "Nimbostratus s√£o nuvens extensas associadas a precipita√ß√£o cont√≠nua e baixa visibilidade."
 },
 {
   id: 65,
   pergunta: "O que a simbologia apresentada indica?",
   imagem: "../imagens/sigwx/65.png",
   opcoes: [
-    "Altura m·xima de nuvens",
-    "NÌvel e velocidade da Corrente de Jato",
-    "DireÁ„o do vento em superfÌcie",
-    "Zona de turbulÍncia"
+    "Altura m√°xima de nuvens",
+    "N√≠vel e velocidade da Corrente de Jato",
+    "Dire√ß√£o do vento em superf√≠cie",
+    "Zona de turbul√™ncia"
   ],
   correta: 1,
   assunto: "SIGWX",
-  explicacao: "O sÌmbolo indica o nÌvel de voo e a velocidade associada ‡ Corrente de Jato."
+  explicacao: "O s√≠mbolo indica o n√≠vel de voo e a velocidade associada √† Corrente de Jato."
 },
 {
   id: 66,
   pergunta: "O que significa a sigla BKN apresentada na imagem?",
   imagem: "../imagens/sigwx/66.png",
   opcoes: [
-    "CÈu encoberto",
+    "C√©u encoberto",
     "Nuvens isoladas",
-    "CÈu nublado",
+    "C√©u nublado",
     "Nuvens esparsas"
   ],
   correta: 2,
   assunto: "Nuvens",
-  explicacao: "BKN (Broken) indica cÈu nublado, com cobertura entre 5 e 7 oitavos."
+  explicacao: "BKN (Broken) indica c√©u nublado, com cobertura entre 5 e 7 oitavos."
 },
 {
   id: 67,
-  pergunta: "O que significa a indicaÁ„o OCASIONAL apresentada na imagem?",
+  pergunta: "O que significa a indica√ß√£o OCASIONAL apresentada na imagem?",
   imagem: "../imagens/sigwx/67.png",
   opcoes: [
-    "FenÙmeno frequente",
-    "FenÙmeno contÌnuo",
-    "FenÙmeno isolado",
-    "FenÙmeno que ocorre de forma intermitente"
+    "Fen√¥meno frequente",
+    "Fen√¥meno cont√≠nuo",
+    "Fen√¥meno isolado",
+    "Fen√¥meno que ocorre de forma intermitente"
   ],
   correta: 3,
   assunto: "SIGWX",
-  explicacao: "Ocasional indica que o fenÙmeno ocorre de forma intermitente, n„o contÌnua."
+  explicacao: "Ocasional indica que o fen√¥meno ocorre de forma intermitente, n√£o cont√≠nua."
 },
 {
   id: 68,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/68.png",
   opcoes: [
     "Cumulus",
@@ -953,53 +953,53 @@ const rawSigwxQuestions = [
   ],
   correta: 2,
   assunto: "Nuvens",
-  explicacao: "Stratocumulus s„o nuvens baixas, em camadas com elementos arredondados, geralmente associadas a tempo est·vel."
+  explicacao: "Stratocumulus s√£o nuvens baixas, em camadas com elementos arredondados, geralmente associadas a tempo est√°vel."
 },
 {
   id: 69,
   pergunta: "O que significa a sigla FEW apresentada na imagem?",
   imagem: "../imagens/sigwx/69.png",
   opcoes: [
-    "CÈu encoberto",
+    "C√©u encoberto",
     "Poucas nuvens",
     "Nuvens esparsas",
-    "CÈu nublado"
+    "C√©u nublado"
   ],
   correta: 1,
   assunto: "Nuvens",
-  explicacao: "FEW indica poucas nuvens, com cobertura de 1 a 2 oitavos do cÈu."
+  explicacao: "FEW indica poucas nuvens, com cobertura de 1 a 2 oitavos do c√©u."
 },
 {
   id: 70,
   pergunta: "O que a simbologia apresentada indica na carta SIGWX?",
   imagem: "../imagens/sigwx/70.png",
   opcoes: [
-    "DireÁ„o da Corrente de Jato",
-    "IntensificaÁ„o da Corrente de Jato",
-    "VariaÁ„o na intensidade da Corrente de Jato",
-    "TurbulÍncia associada ‡ Corrente de Jato"
+    "Dire√ß√£o da Corrente de Jato",
+    "Intensifica√ß√£o da Corrente de Jato",
+    "Varia√ß√£o na intensidade da Corrente de Jato",
+    "Turbul√™ncia associada √† Corrente de Jato"
   ],
   correta: 2,
   assunto: "SIGWX",
-  explicacao: "Os traÁos indicam variaÁ„o na intensidade da Corrente de Jato ao longo do seu eixo."
+  explicacao: "Os tra√ßos indicam varia√ß√£o na intensidade da Corrente de Jato ao longo do seu eixo."
 },
 {
   id: 71,
   pergunta: "O que a simbologia apresentada indica?",
   imagem: "../imagens/sigwx/71.png",
   opcoes: [
-    "DireÁ„o do vento em superfÌcie",
-    "DireÁ„o e velocidade do vento",
+    "Dire√ß√£o do vento em superf√≠cie",
+    "Dire√ß√£o e velocidade do vento",
     "Corrente de jato",
     "Zona de cisalhamento"
   ],
   correta: 1,
   assunto: "Meteorologia",
-  explicacao: "O sÌmbolo indica direÁ„o e velocidade do vento, sendo o valor numÈrico expresso em nÛs."
+  explicacao: "O s√≠mbolo indica dire√ß√£o e velocidade do vento, sendo o valor num√©rico expresso em n√≥s."
 },
 {
   id: 72,
-  pergunta: "Qual tipo de nuvem est· representado na imagem?",
+  pergunta: "Qual tipo de nuvem est√° representado na imagem?",
   imagem: "../imagens/sigwx/72.png",
   opcoes: [
     "Stratocumulus",
@@ -1009,7 +1009,7 @@ const rawSigwxQuestions = [
   ],
   correta: 1,
   assunto: "Nuvens",
-  explicacao: "Stratus s„o nuvens baixas, extensas e uniformes, geralmente associadas a tempo fechado."
+  explicacao: "Stratus s√£o nuvens baixas, extensas e uniformes, geralmente associadas a tempo fechado."
 }
 ];
 
@@ -1040,3 +1040,4 @@ function normalizeSigwxQuestion(item, index) {
 }
 
 export const sigwxQuestions = rawSigwxQuestions.map(normalizeSigwxQuestion);
+
