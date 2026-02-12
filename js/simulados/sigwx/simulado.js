@@ -4,15 +4,34 @@ let currentQuestionIndex = 0;
 let isFinished = false;
 let sigwxResetHandler = null;
 let sigwxAutoNextHandler = null;
+const QUESTIONS_PER_SESSION = 20;
+
+let activeQuestions = [];
+let state = [];
+
+function shuffleArray(items) {
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function resetSessionState() {
+  const sessionSize = Math.min(QUESTIONS_PER_SESSION, sigwxQuestions.length);
+  activeQuestions = shuffleArray(sigwxQuestions).slice(0, sessionSize);
+  state = activeQuestions.map(() => ({
+    selected: null,
+    isCorrect: null,
+    shuffledOptions: null
+  }));
+}
 
 // ===============================
 // ESTADO DO SIMULADOR
 // ===============================
-const state = sigwxQuestions.map(() => ({
-  selected: null,
-  isCorrect: null,
-  shuffledOptions: null
-}));
+resetSessionState();
 
 // ===============================
 // INICIALIZA SIMULADO
@@ -34,11 +53,7 @@ export function startSigwxSimulado() {
   // Reinicia estado ao entrar no simulado
   currentQuestionIndex = 0;
   isFinished = false;
-  state.forEach(q => {
-    q.selected = null;
-    q.isCorrect = null;
-    q.shuffledOptions = null;
-  });
+  resetSessionState();
   if (btnFinalizar) btnFinalizar.disabled = false;
 
   btnFinalizar?.addEventListener("click", finalizarSimulado);
@@ -61,7 +76,7 @@ export function startSigwxSimulado() {
   });
 
   btnNext?.addEventListener("click", () => {
-    if (currentQuestionIndex < sigwxQuestions.length - 1) {
+    if (currentQuestionIndex < activeQuestions.length - 1) {
       currentQuestionIndex++;
       render();
     }
@@ -76,12 +91,7 @@ export function startSigwxSimulado() {
   sigwxResetHandler = () => {
     currentQuestionIndex = 0;
     isFinished = false;
-
-    state.forEach(q => {
-      q.selected = null;
-      q.isCorrect = null;
-      q.shuffledOptions = null;
-    });
+    resetSessionState();
 
     btnFinalizar && (btnFinalizar.disabled = false);
 
@@ -124,7 +134,7 @@ export function startSigwxSimulado() {
   }
 
   function renderProgress() {
-    const total = sigwxQuestions.length;
+    const total = activeQuestions.length;
     const answered = state.filter(q => q.selected !== null).length;
     const percent = Math.round((answered / total) * 100);
 
@@ -143,12 +153,12 @@ export function startSigwxSimulado() {
   }
 
   function renderImage() {
-    const q = sigwxQuestions[currentQuestionIndex];
+    const q = activeQuestions[currentQuestionIndex];
     questionEl.innerHTML = `<img src="${q.image}" alt="SIGWX" />`;
   }
 
   function renderOptions() {
-    const q = sigwxQuestions[currentQuestionIndex];
+    const q = activeQuestions[currentQuestionIndex];
     const qState = state[currentQuestionIndex];
 
     if (!qState.shuffledOptions) {
@@ -212,7 +222,7 @@ export function startSigwxSimulado() {
       document.body.dataset.simuladoMode === "evaluation" &&
       (autoNextEl ? autoNextEl.checked : document.body.dataset.sigwxAutoNext === "1");
 
-    if (isAutoNext && currentQuestionIndex < sigwxQuestions.length - 1) {
+    if (isAutoNext && currentQuestionIndex < activeQuestions.length - 1) {
       currentQuestionIndex++;
     }
 
@@ -222,7 +232,7 @@ export function startSigwxSimulado() {
   function renderNav() {
     navEl.innerHTML = "";
 
-    sigwxQuestions.forEach((_, index) => {
+    activeQuestions.forEach((_, index) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "nav-btn";
@@ -271,7 +281,13 @@ export function startSigwxSimulado() {
           correct,
           wrong,
           percentage,
-          state
+          state,
+          questions: activeQuestions.map((question) => ({
+            id: question.id,
+            image: question.image,
+            question: question.question,
+            explanation: question.explanation || ""
+          }))
         }
       })
     );
@@ -287,7 +303,7 @@ export function startSigwxSimulado() {
     }
 
     if (btnNext) {
-      const isLast = currentQuestionIndex === sigwxQuestions.length - 1;
+      const isLast = currentQuestionIndex === activeQuestions.length - 1;
       btnNext.disabled = isLast;
       btnNext.classList.toggle("is-edge", isLast);
     }

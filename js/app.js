@@ -971,7 +971,12 @@ function renderSigwxEvaluationResults(detail) {
   }
   evaluationStartAtMs = null;
 
-  const answers = sigwxQuestions.map((q, index) => {
+  const sessionQuestions =
+    Array.isArray(detail?.questions) && detail.questions.length
+      ? detail.questions
+      : sigwxQuestions.slice(0, detail?.state?.length || 0);
+
+  const answers = sessionQuestions.map((q, index) => {
     const st = detail.state[index];
     return {
       questionId: q.id,
@@ -982,7 +987,7 @@ function renderSigwxEvaluationResults(detail) {
     };
   });
 
-  const items = sigwxQuestions.map((q, index) => {
+  const items = sessionQuestions.map((q, index) => {
     const st = detail.state[index];
     const selectedIndex = st?.selected;
     const selectedText =
@@ -2469,8 +2474,9 @@ function renderEvaluationHistory(evaluation) {
   const percentage = evaluation.percentage;
   const status = percentage >= 75 ? "Aprovado" : "Reprovado";
 
-  const items = sigwxQuestions.map((q) => {
-    const ans = evaluation.answers.find(a => a.questionId === q.id);
+  const questionById = new Map(sigwxQuestions.map((q) => [q.id, q]));
+  const items = (evaluation.answers || []).map((ans, index) => {
+    const q = questionById.get(ans?.questionId) || {};
     const selectedIndex = ans?.selectedIndex;
     const selectedText =
       selectedIndex === null || selectedIndex === undefined || !ans?.options
@@ -2481,7 +2487,7 @@ function renderEvaluationHistory(evaluation) {
     const correctText = correctOption ? correctOption.text : "";
 
     return {
-      index: q.id,
+      index: index + 1,
       image: q.image,
       question: q.question,
       selectedText,
