@@ -1379,6 +1379,38 @@ textarea:focus-visible {
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
 }
 
+#sigwxQuestion {
+  width: 100%;
+}
+
+.simulado-question-media {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.simulado-question-media img {
+  cursor: zoom-in;
+}
+
+.simulado-image-zoom-trigger {
+  align-self: flex-end;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #1f4f8f;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.simulado-image-zoom-trigger:hover {
+  background: #e8f0ff;
+}
+
 /* QUESTION BOX */
 .simulado-question-box {
   background: #fff;
@@ -1799,6 +1831,45 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   gap: 16px;
   margin-bottom: 56px;
 }
+
+/* ===============================
+   METAR/TAF - AVALIACAO (layout dedicado)
+=============================== */
+body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-container {
+  grid-template-columns: 110px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: start;
+}
+
+body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-nav {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-main {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-question-box {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 0;
+  padding: 18px;
+}
+
+body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-image {
+  min-height: 180px;
+  padding: 14px;
+  align-items: center;
+}
+
+body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-image img {
+  width: 100%;
+  max-width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+}
 .sigwx-stats {
   max-width: 1000px;
   margin: 40px auto;
@@ -2014,6 +2085,53 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
 
 .evaluation-modal.hidden {
   display: none;
+}
+
+.simulado-image-zoom-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+  z-index: 5200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.simulado-image-zoom-modal.is-hidden {
+  display: none;
+}
+
+.simulado-image-zoom-box {
+  position: relative;
+  max-width: min(96vw, 1400px);
+  max-height: 92vh;
+  width: fit-content;
+}
+
+.simulado-image-zoom-img {
+  display: block;
+  max-width: 96vw;
+  max-height: 88vh;
+  width: auto;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+  background: #ffffff;
+}
+
+.simulado-image-zoom-close {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  cursor: pointer;
 }
 
 .evaluation-box {

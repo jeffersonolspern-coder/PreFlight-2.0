@@ -4,11 +4,15 @@ let currentQuestionIndex = 0;
 let isFinished = false;
 let sigwxResetHandler = null;
 let sigwxAutoNextHandler = null;
+let sigwxForceFinishHandler = null;
 const QUESTIONS_PER_SESSION = 20;
 
 let currentQuestionBank = sigwxQuestions;
 let activeQuestions = [];
 let state = [];
+let imageZoomModalEl = null;
+let imageZoomModalImgEl = null;
+let imageZoomModalKeyHandlerBound = false;
 
 function getCurrentSimuladoLabel() {
   const rawKey = String(document.body?.dataset?.simuladoKey || "").toLowerCase();
@@ -44,6 +48,60 @@ function openQuestionReportModal({ questionIndex, questionId, questionText, sele
     modal.classList.remove("hidden");
     messageInput?.focus();
   }
+}
+
+function closeSimuladoImageZoomModal() {
+  if (!imageZoomModalEl) return;
+  imageZoomModalEl.classList.add("is-hidden");
+  if (imageZoomModalImgEl) {
+    imageZoomModalImgEl.removeAttribute("src");
+    imageZoomModalImgEl.removeAttribute("alt");
+  }
+}
+
+function ensureSimuladoImageZoomModal() {
+  if (imageZoomModalEl && imageZoomModalImgEl) return;
+
+  imageZoomModalEl = document.createElement("div");
+  imageZoomModalEl.className = "simulado-image-zoom-modal is-hidden";
+  imageZoomModalEl.setAttribute("role", "dialog");
+  imageZoomModalEl.setAttribute("aria-modal", "true");
+  imageZoomModalEl.innerHTML = `
+    <div class="simulado-image-zoom-box">
+      <button type="button" class="simulado-image-zoom-close" aria-label="Fechar zoom">Fechar</button>
+      <img class="simulado-image-zoom-img" />
+    </div>
+  `;
+
+  imageZoomModalImgEl = imageZoomModalEl.querySelector(".simulado-image-zoom-img");
+  const closeBtn = imageZoomModalEl.querySelector(".simulado-image-zoom-close");
+
+  closeBtn?.addEventListener("click", closeSimuladoImageZoomModal);
+  imageZoomModalEl.addEventListener("click", (e) => {
+    if (e.target === imageZoomModalEl) {
+      closeSimuladoImageZoomModal();
+    }
+  });
+
+  if (!imageZoomModalKeyHandlerBound) {
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeSimuladoImageZoomModal();
+      }
+    });
+    imageZoomModalKeyHandlerBound = true;
+  }
+
+  document.body.appendChild(imageZoomModalEl);
+}
+
+function openSimuladoImageZoomModal({ src = "", alt = "" } = {}) {
+  if (!src) return;
+  ensureSimuladoImageZoomModal();
+  if (!imageZoomModalEl || !imageZoomModalImgEl) return;
+  imageZoomModalImgEl.src = src;
+  imageZoomModalImgEl.alt = alt || "Imagem ampliada";
+  imageZoomModalEl.classList.remove("is-hidden");
 }
 
 function shuffleArray(items) {
@@ -89,7 +147,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
   resetSessionState();
   if (btnFinalizar) btnFinalizar.disabled = false;
 
-  btnFinalizar?.addEventListener("click", finalizarSimulado);
+  btnFinalizar?.addEventListener("click", () => finalizarSimulado());
 
   if (!progress || !questionEl || !optionsEl || !navEl) {
     console.error("SIGWX: elementos não encontrados");
@@ -144,6 +202,14 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
   };
   document.addEventListener("sigwx:auto-next-change", sigwxAutoNextHandler);
 
+  if (sigwxForceFinishHandler) {
+    document.removeEventListener("sigwx:force-finish", sigwxForceFinishHandler);
+  }
+  sigwxForceFinishHandler = () => {
+    finalizarSimulado({ force: true });
+  };
+  document.addEventListener("sigwx:force-finish", sigwxForceFinishHandler);
+
   function render() {
     renderProgress();
     renderImage();
@@ -169,7 +235,33 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
 
   function renderImage() {
     const q = activeQuestions[currentQuestionIndex];
-    questionEl.innerHTML = `<img src="${q.image}" alt="SIGWX" />`;
+    questionEl.innerHTML = "";
+
+    const wrap = document.createElement("div");
+    wrap.className = "simulado-question-media";
+
+    const img = document.createElement("img");
+    img.src = String(q?.image || "");
+    img.alt = `${getCurrentSimuladoLabel()} - Questão ${currentQuestionIndex + 1}`;
+
+    const zoomBtn = document.createElement("button");
+    zoomBtn.type = "button";
+    zoomBtn.className = "simulado-image-zoom-trigger";
+    zoomBtn.innerText = "Ampliar imagem";
+
+    const openZoom = () => {
+      openSimuladoImageZoomModal({
+        src: String(q?.image || ""),
+        alt: img.alt
+      });
+    };
+
+    img.addEventListener("click", openZoom);
+    zoomBtn.addEventListener("click", openZoom);
+
+    wrap.appendChild(img);
+    wrap.appendChild(zoomBtn);
+    questionEl.appendChild(wrap);
   }
 
   function renderOptions() {
@@ -289,9 +381,9 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
     });
   }
 
-  function finalizarSimulado() {
+  function finalizarSimulado({ force = false } = {}) {
     if (isFinished) return;
-    if (document.body.dataset.simuladoMode === "evaluation") {
+    if (!force && document.body.dataset.simuladoMode === "evaluation") {
       const confirmed = confirm("Finalizar avaliação? Você não poderá voltar para responder.");
       if (!confirmed) return;
     }

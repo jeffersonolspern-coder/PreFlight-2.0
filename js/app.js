@@ -1874,7 +1874,11 @@ function setupEvaluationTimer() {
         stopTimer();
         remainingSeconds = 0;
         renderTimer();
-        finishBtn.click();
+        document.dispatchEvent(
+          new CustomEvent("sigwx:force-finish", {
+            detail: { reason: "timer_expired" }
+          })
+        );
         showToast("Tempo encerrado. Avaliação finalizada.", "info");
       }
     }, 1000);
