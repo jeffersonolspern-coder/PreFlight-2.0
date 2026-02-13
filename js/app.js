@@ -4366,7 +4366,7 @@ observeAuthState((user) => {
       }
 
       authInitialRouteDone = true;
-      renderDashboard();
+      renderHomePublic();
     });
 });
 
