@@ -13,6 +13,8 @@ import {
   profileView,
   profileEvaluationView,
   adminView,
+  adminQuestionHubView,
+  adminQuestionEditorView,
   creditsView,
   packagesView,
   contactView,
@@ -60,6 +62,8 @@ import {
 import { startSigwxSimulado } from "./simulados/sigwx/simulado.js";
 import { sigwxQuestions } from "./simulados/sigwx/data.js";
 import { sigwxEvaluationQuestions } from "./simulados/sigwx/data-evaluation.js";
+import { metarTafQuestions } from "./simulados/metar-taf/data.js";
+import { metarTafEvaluationQuestions } from "./simulados/metar-taf/data-evaluation.js";
 
 import "./simulados/sigwx/painel.js";
 
@@ -78,18 +82,33 @@ const CREDITS_HISTORY_PAGE_SIZE = 30;
 const WELCOME_BONUS_CREDITS = 5;
 const PRESENCE_HEARTBEAT_MS = 45 * 1000;
 const ADMIN_LIGHT_MODE_KEY = "preflight_admin_light_mode";
+const ADMIN_MARKED_QUESTIONS_KEY = "preflight_admin_marked_questions_v1";
+const ADMIN_REVIEWED_QUESTIONS_KEY = "preflight_admin_reviewed_questions_v1";
+const ADMIN_AUTO_NEXT_ON_SAVE_KEY = "preflight_admin_auto_next_on_save";
 const QUESTION_BANKS = [
   { id: "sigwx_training", label: "SIGWX • Treinamento", imageBasePath: "assets/questions/sigwx" },
-  { id: "sigwx_evaluation", label: "SIGWX • Avaliação", imageBasePath: "assets/questions/sigwx-evaluation" }
+  { id: "sigwx_evaluation", label: "SIGWX • Avaliação", imageBasePath: "assets/questions/sigwx-evaluation" },
+  {
+    id: "metar_taf_training",
+    label: "METAR/TAF • Treinamento",
+    imageBasePath: "assets/questions/metar-taf/training"
+  },
+  {
+    id: "metar_taf_evaluation",
+    label: "METAR/TAF • Avaliação",
+    imageBasePath: "assets/questions/metar-taf/evaluation"
+  }
 ];
 const QUESTION_BANK_BY_ID = new Map(QUESTION_BANKS.map((bank) => [bank.id, bank]));
-const QUESTION_BANK_FROM_SESSION = {
-  training: "sigwx_training",
-  evaluation: "sigwx_evaluation"
+const SIMULADO_BANKS = {
+  sigwx: { training: "sigwx_training", evaluation: "sigwx_evaluation", label: "SIGWX" },
+  metar_taf: { training: "metar_taf_training", evaluation: "metar_taf_evaluation", label: "METAR/TAF" }
 };
 const DEFAULT_QUESTION_BANKS = {
   sigwx_training: Array.isArray(sigwxQuestions) ? sigwxQuestions.map((q) => ({ ...q })) : [],
-  sigwx_evaluation: Array.isArray(sigwxEvaluationQuestions) ? sigwxEvaluationQuestions.map((q) => ({ ...q })) : []
+  sigwx_evaluation: Array.isArray(sigwxEvaluationQuestions) ? sigwxEvaluationQuestions.map((q) => ({ ...q })) : [],
+  metar_taf_training: Array.isArray(metarTafQuestions) ? metarTafQuestions.map((q) => ({ ...q })) : [],
+  metar_taf_evaluation: Array.isArray(metarTafEvaluationQuestions) ? metarTafEvaluationQuestions.map((q) => ({ ...q })) : []
 };
 const CREDIT_PACKS = {
   bronze: { id: "bronze", name: "Bronze", credits: 10, price: 9.9 },
@@ -116,7 +135,9 @@ let adminUsersCache = [];
 let adminMetricsRange = "30d";
 let adminMetricsData = { evaluations: [], transactions: [] };
 let adminMetricsSummary = null;
+let adminPanelScreen = "dashboard";
 let adminLightMode = localStorage.getItem(ADMIN_LIGHT_MODE_KEY) !== "0";
+let activeSimuladoKey = "sigwx";
 let profileEvaluationsCache = [];
 let profileShowAllEvaluations = false;
 let profileVisibleSpentCredits = 7;
@@ -148,14 +169,176 @@ let userMenuDocumentKeydownHandler = null;
 let apiWarmupDone = false;
 let questionBanksCache = {
   sigwx_training: DEFAULT_QUESTION_BANKS.sigwx_training.map((q) => ({ ...q })),
-  sigwx_evaluation: DEFAULT_QUESTION_BANKS.sigwx_evaluation.map((q) => ({ ...q }))
+  sigwx_evaluation: DEFAULT_QUESTION_BANKS.sigwx_evaluation.map((q) => ({ ...q })),
+  metar_taf_training: DEFAULT_QUESTION_BANKS.metar_taf_training.map((q) => ({ ...q })),
+  metar_taf_evaluation: DEFAULT_QUESTION_BANKS.metar_taf_evaluation.map((q) => ({ ...q }))
 };
 let questionBankLoadedFlags = {
   sigwx_training: false,
-  sigwx_evaluation: false
+  sigwx_evaluation: false,
+  metar_taf_training: false,
+  metar_taf_evaluation: false
 };
 let adminQuestionBank = "sigwx_training";
 let adminQuestionEditor = null;
+let adminQuestionEditorDraftMode = false;
+let adminMarkedQuestionsByBank = readAdminMarkedQuestionsState();
+let adminReviewedQuestionsByBank = readAdminReviewedQuestionsState();
+let adminShowOnlyMarkedByBank = {};
+let adminAutoNextOnSave = localStorage.getItem(ADMIN_AUTO_NEXT_ON_SAVE_KEY) === "1";
+
+function readAdminMarkedQuestionsState() {
+  try {
+    const raw = localStorage.getItem(ADMIN_MARKED_QUESTIONS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+
+    const normalized = {};
+    Object.entries(parsed).forEach(([bankId, ids]) => {
+      if (!Array.isArray(ids)) return;
+      const safeIds = Array.from(
+        new Set(
+          ids
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+            .map((id) => Math.floor(id))
+        )
+      ).sort((a, b) => a - b);
+      if (safeIds.length) {
+        normalized[String(bankId)] = safeIds;
+      }
+    });
+    return normalized;
+  } catch (error) {
+    return {};
+  }
+}
+
+function persistAdminMarkedQuestionsState() {
+  try {
+    localStorage.setItem(ADMIN_MARKED_QUESTIONS_KEY, JSON.stringify(adminMarkedQuestionsByBank || {}));
+  } catch (error) {
+    // no-op
+  }
+}
+
+function getMarkedQuestionIds(bankId) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  const raw = adminMarkedQuestionsByBank?.[safeBankId];
+  return Array.isArray(raw) ? raw : [];
+}
+
+function setMarkedQuestionIds(bankId, ids = []) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  const safeIds = Array.from(
+    new Set(
+      (Array.isArray(ids) ? ids : [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0)
+        .map((id) => Math.floor(id))
+    )
+  ).sort((a, b) => a - b);
+
+  if (!safeIds.length) {
+    delete adminMarkedQuestionsByBank[safeBankId];
+  } else {
+    adminMarkedQuestionsByBank[safeBankId] = safeIds;
+  }
+  persistAdminMarkedQuestionsState();
+}
+
+function toggleMarkedQuestion(bankId, questionId) {
+  const safeId = normalizeQuestionId(questionId, 0);
+  if (!safeId) return false;
+
+  const current = getMarkedQuestionIds(bankId);
+  const exists = current.includes(safeId);
+  const next = exists
+    ? current.filter((id) => id !== safeId)
+    : [...current, safeId];
+  setMarkedQuestionIds(bankId, next);
+  return !exists;
+}
+
+function readAdminReviewedQuestionsState() {
+  try {
+    const raw = localStorage.getItem(ADMIN_REVIEWED_QUESTIONS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+
+    const normalized = {};
+    Object.entries(parsed).forEach(([bankId, ids]) => {
+      if (!Array.isArray(ids)) return;
+      const safeIds = Array.from(
+        new Set(
+          ids
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+            .map((id) => Math.floor(id))
+        )
+      ).sort((a, b) => a - b);
+      if (safeIds.length) {
+        normalized[String(bankId)] = safeIds;
+      }
+    });
+    return normalized;
+  } catch (error) {
+    return {};
+  }
+}
+
+function persistAdminReviewedQuestionsState() {
+  try {
+    localStorage.setItem(ADMIN_REVIEWED_QUESTIONS_KEY, JSON.stringify(adminReviewedQuestionsByBank || {}));
+  } catch (error) {
+    // no-op
+  }
+}
+
+function getReviewedQuestionIds(bankId) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  const raw = adminReviewedQuestionsByBank?.[safeBankId];
+  return Array.isArray(raw) ? raw : [];
+}
+
+function setReviewedQuestionIds(bankId, ids = []) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  const safeIds = Array.from(
+    new Set(
+      (Array.isArray(ids) ? ids : [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0)
+        .map((id) => Math.floor(id))
+    )
+  ).sort((a, b) => a - b);
+
+  if (!safeIds.length) {
+    delete adminReviewedQuestionsByBank[safeBankId];
+  } else {
+    adminReviewedQuestionsByBank[safeBankId] = safeIds;
+  }
+  persistAdminReviewedQuestionsState();
+}
+
+function toggleReviewedQuestion(bankId, questionId) {
+  const safeId = normalizeQuestionId(questionId, 0);
+  if (!safeId) return false;
+
+  const current = getReviewedQuestionIds(bankId);
+  const exists = current.includes(safeId);
+  const next = exists
+    ? current.filter((id) => id !== safeId)
+    : [...current, safeId];
+  setReviewedQuestionIds(bankId, next);
+  return !exists;
+}
+
+function isShowOnlyMarkedEnabled(bankId) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  return adminShowOnlyMarkedByBank[safeBankId] === true;
+}
 
 function cleanupEvaluationFlow() {
   if (typeof stopEvaluationTimerFn === "function") {
@@ -216,7 +399,7 @@ function normalizeQuestionForBank(bankId, rawQuestion = {}, index = 0) {
   const safeBankId = getQuestionBankConfig(bankId).id;
   const id = normalizeQuestionId(rawQuestion?.id, index + 1);
   const bankConfig = getQuestionBankConfig(safeBankId);
-  const fallbackImage = `${bankConfig.imageBasePath}/${id}.webp`;
+  const fallbackImage = String(bankConfig?.defaultImagePath || `${bankConfig.imageBasePath}/${id}.webp`);
   const sourceOptions = Array.isArray(rawQuestion?.options) ? rawQuestion.options : [];
   const options = [0, 1, 2, 3].map((pos) => String(sourceOptions[pos] ?? "").trim());
   const parsedCorrect = Number(rawQuestion?.correctIndex);
@@ -237,6 +420,21 @@ function normalizeQuestionList(bankId, list = []) {
   );
   normalized.sort((a, b) => a.id - b.id);
   return normalized;
+}
+
+function mergeQuestionLists(baseList = [], overrideList = []) {
+  const mergedById = new Map();
+  (Array.isArray(baseList) ? baseList : []).forEach((item) => {
+    const id = normalizeQuestionId(item?.id, 0);
+    if (!id) return;
+    mergedById.set(id, item);
+  });
+  (Array.isArray(overrideList) ? overrideList : []).forEach((item) => {
+    const id = normalizeQuestionId(item?.id, 0);
+    if (!id) return;
+    mergedById.set(id, item);
+  });
+  return Array.from(mergedById.values()).sort((a, b) => a.id - b.id);
 }
 
 function getQuestionBankCache(bankId) {
@@ -272,6 +470,9 @@ function createNewAdminQuestionDraft(bankId) {
 
 function syncAdminQuestionEditor(bankId) {
   const safeBankId = getQuestionBankConfig(bankId).id;
+  if (adminQuestionEditorDraftMode && adminQuestionEditor) {
+    return;
+  }
   const bankList = getQuestionBankCache(safeBankId);
   const currentId = normalizeQuestionId(adminQuestionEditor?.id, 0);
   const selected = bankList.find((item) => item.id === currentId);
@@ -298,13 +499,14 @@ async function ensureQuestionBankLoaded(bankId, { force = false, silent = false 
   try {
     const remoteItems = await getQuestionsByBank(safeBankId);
     const normalizedRemote = normalizeQuestionList(safeBankId, remoteItems);
+    const normalizedDefault = normalizeQuestionList(
+      safeBankId,
+      DEFAULT_QUESTION_BANKS[safeBankId] || []
+    );
     if (normalizedRemote.length) {
-      questionBanksCache[safeBankId] = normalizedRemote;
+      questionBanksCache[safeBankId] = mergeQuestionLists(normalizedDefault, normalizedRemote);
     } else {
-      questionBanksCache[safeBankId] = normalizeQuestionList(
-        safeBankId,
-        DEFAULT_QUESTION_BANKS[safeBankId] || []
-      );
+      questionBanksCache[safeBankId] = normalizedDefault;
       if (!silent) {
         showToast("Banco vazio no Firestore. Exibindo questões locais atuais.", "info");
       }
@@ -331,11 +533,22 @@ async function preloadQuestionBanks() {
   );
 }
 
-function getQuestionsForSession(sessionMode = "training") {
-  const bankId = QUESTION_BANK_FROM_SESSION[sessionMode] || "sigwx_training";
-  const cached = getQuestionBankCache(bankId);
+function getQuestionsForBankId(bankId = "sigwx_training") {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  const cached = getQuestionBankCache(safeBankId);
   if (cached.length) return cached;
-  return normalizeQuestionList(bankId, DEFAULT_QUESTION_BANKS[bankId] || []);
+  return normalizeQuestionList(safeBankId, DEFAULT_QUESTION_BANKS[safeBankId] || []);
+}
+
+function getQuestionsForSimuladoMode(simuladoKey = "sigwx", mode = "training") {
+  const safeSimuladoKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
+  const bankId = SIMULADO_BANKS[safeSimuladoKey][mode === "evaluation" ? "evaluation" : "training"];
+  return getQuestionsForBankId(bankId);
+}
+
+function getSimuladoLabel(simuladoKey = "sigwx") {
+  const safeSimuladoKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
+  return SIMULADO_BANKS[safeSimuladoKey].label || "Simulado";
 }
 
 function normalizeApiBase(baseUrl) {
@@ -460,6 +673,162 @@ function showToast(message, type = "info") {
     toast.classList.remove("is-visible");
     setTimeout(() => toast.remove(), 220);
   }, 2600);
+}
+
+function escapeHtmlPrint(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatAnswerLetter(index) {
+  if (!Number.isFinite(Number(index))) return "-";
+  return ["A", "B", "C", "D"][Number(index)] || "-";
+}
+
+function buildQuestionsPdfHtml({ bankLabel = "Banco", questions = [] } = {}) {
+  const generatedAt = new Date().toLocaleString("pt-BR");
+  const sections = (Array.isArray(questions) ? questions : [])
+    .map((q, idx) => {
+      const options = Array.isArray(q?.options) ? q.options : [];
+      const optionsHtml = [0, 1, 2, 3]
+        .map((pos) => `
+          <li><strong>${formatAnswerLetter(pos)}.</strong> ${escapeHtmlPrint(options[pos] || "")}</li>
+        `)
+        .join("");
+
+      const imageHtml = q?.image
+        ? `<div class="q-image-wrap"><img src="${escapeHtmlPrint(String(q.image))}" alt="Questão ${idx + 1}" /></div>`
+        : "";
+
+      return `
+        <article class="q-card">
+          <header class="q-head">
+            <h2>Questão #${Number(q?.id) || idx + 1}</h2>
+          </header>
+          ${imageHtml}
+          <p class="q-title">${escapeHtmlPrint(q?.question || "")}</p>
+          <ol class="q-options">
+            ${optionsHtml}
+          </ol>
+          <p class="q-answer"><strong>Resposta correta:</strong> ${formatAnswerLetter(q?.correctIndex)}</p>
+          <p class="q-explanation"><strong>Explicação:</strong> ${escapeHtmlPrint(q?.explanation || "")}</p>
+        </article>
+      `;
+    })
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>PDF - ${escapeHtmlPrint(bankLabel)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      color: #111827;
+      margin: 0;
+      padding: 22px;
+      background: #ffffff;
+    }
+    .doc-head {
+      margin-bottom: 18px;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 10px;
+    }
+    .doc-head h1 {
+      margin: 0;
+      color: #0f2f5a;
+      font-size: 22px;
+    }
+    .doc-head p {
+      margin: 6px 0 0;
+      color: #475569;
+      font-size: 12px;
+    }
+    .q-card {
+      border: 1px solid #dbe3ee;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+      page-break-inside: avoid;
+    }
+    .q-head h2 {
+      margin: 0 0 8px;
+      color: #1f4f8f;
+      font-size: 16px;
+    }
+    .q-image-wrap {
+      margin-bottom: 8px;
+    }
+    .q-image-wrap img {
+      max-width: 320px;
+      max-height: 220px;
+      width: auto;
+      height: auto;
+      border: 1px solid #dbe3ee;
+      border-radius: 6px;
+      display: block;
+    }
+    .q-title {
+      margin: 0 0 8px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .q-options {
+      margin: 0 0 8px 20px;
+      padding: 0;
+      list-style: none;
+    }
+    .q-options li {
+      margin: 4px 0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .q-answer, .q-explanation {
+      margin: 6px 0 0;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <header class="doc-head">
+    <h1>${escapeHtmlPrint(bankLabel)} • Questões</h1>
+    <p>Gerado em: ${escapeHtmlPrint(generatedAt)}</p>
+  </header>
+  ${sections}
+</body>
+</html>`;
+}
+
+function openQuestionsPdfWindow(bankId, questions = []) {
+  const bank = getQuestionBankConfig(bankId);
+  const bankLabel = bank?.label || "Banco de questões";
+  const safeQuestions = Array.isArray(questions) ? questions : [];
+  if (!safeQuestions.length) {
+    showToast("Não há questões para gerar o PDF.", "error");
+    return;
+  }
+
+  const win = window.open("", "_blank");
+  if (!win) {
+    showToast("Pop-up bloqueado. Permita pop-ups para gerar o PDF.", "error");
+    return;
+  }
+
+  const html = buildQuestionsPdfHtml({ bankLabel, questions: safeQuestions });
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => {
+    win.print();
+  }, 350);
 }
 
 function startPresenceTracking() {
@@ -979,15 +1348,32 @@ async function consumeStartCredit(mode) {
 }
 
 async function startSigwxWithCredit(mode) {
+  return startSimuladoWithCredit("sigwx", mode);
+}
+
+async function startMetarTafWithCredit(mode) {
+  return startSimuladoWithCredit("metar_taf", mode);
+}
+
+async function startSimuladoWithCredit(simuladoKey = "sigwx", mode = "training") {
   if (!currentUser) {
     renderLogin();
     return;
   }
-  if (mode === "evaluation") {
-    renderSigwxEvaluation();
+  const safeKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
+  if (safeKey === "sigwx") {
+    if (mode === "evaluation") {
+      renderSigwxEvaluation();
+      return;
+    }
+    renderSigwx();
     return;
   }
-  renderSigwx();
+  if (mode === "evaluation") {
+    renderMetarTafEvaluation();
+    return;
+  }
+  renderMetarTaf();
 }
 
 function setupTrainingStartModal({ onStart } = {}) {
@@ -1136,12 +1522,18 @@ function renderDashboard() {
 
 function renderSigwx() {
   cleanupEvaluationFlow();
+  activeSimuladoKey = "sigwx";
   setSimuladoMode("training");
-  app.innerHTML = sigwxView({ isAdmin: isAdminUser(), userLabel: getUserLabel(), credits: getCreditsLabel() });
+  app.innerHTML = sigwxView({
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    simuladoLabel: getSimuladoLabel("sigwx")
+  });
 
   requestAnimationFrame(async () => {
     await ensureQuestionBankLoaded("sigwx_training", { force: false, silent: true });
-    startSigwxSimulado({ questions: getQuestionsForSession("training"), questionBank: "training" });
+    startSigwxSimulado({ questions: getQuestionsForSimuladoMode("sigwx", "training"), questionBank: "training" });
     setupTrainingStartModal();
   });
 
@@ -1154,12 +1546,18 @@ function renderSigwx() {
 
 function renderSigwxEvaluation() {
   cleanupEvaluationFlow();
+  activeSimuladoKey = "sigwx";
   setSimuladoMode("evaluation");
-  app.innerHTML = sigwxEvaluationView({ isAdmin: isAdminUser(), userLabel: getUserLabel(), credits: getCreditsLabel() });
+  app.innerHTML = sigwxEvaluationView({
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    simuladoLabel: getSimuladoLabel("sigwx")
+  });
 
   requestAnimationFrame(async () => {
     await ensureQuestionBankLoaded("sigwx_evaluation", { force: false, silent: true });
-    startSigwxSimulado({ questions: getQuestionsForSession("evaluation"), questionBank: "evaluation" });
+    startSigwxSimulado({ questions: getQuestionsForSimuladoMode("sigwx", "evaluation"), questionBank: "evaluation" });
   });
 
   evaluationFinishHandler = (e) => {
@@ -1171,7 +1569,7 @@ function renderSigwxEvaluation() {
       document.removeEventListener("sigwx:finish", evaluationFinishHandler);
       evaluationFinishHandler = null;
     }
-    renderSigwxEvaluationResults(e.detail);
+    renderSimuladoEvaluationResults(e.detail, { simuladoKey: "sigwx" });
   };
   document.addEventListener("sigwx:finish", evaluationFinishHandler);
 
@@ -1184,8 +1582,72 @@ function renderSigwxEvaluation() {
   setupFooterLinks();
 }
 
-function renderSigwxEvaluationResults(detail) {
+function renderMetarTaf() {
+  cleanupEvaluationFlow();
+  activeSimuladoKey = "metar_taf";
+  setSimuladoMode("training");
+  app.innerHTML = sigwxView({
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    simuladoLabel: getSimuladoLabel("metar_taf")
+  });
+
+  requestAnimationFrame(async () => {
+    await ensureQuestionBankLoaded("metar_taf_training", { force: false, silent: true });
+    startSigwxSimulado({ questions: getQuestionsForSimuladoMode("metar_taf", "training"), questionBank: "training" });
+    setupTrainingStartModal();
+  });
+
+  setupLogout();
+  setupGlobalMenu();
+  setupSimuladoNavToggle();
+  setupContact();
+  setupFooterLinks();
+}
+
+function renderMetarTafEvaluation() {
+  cleanupEvaluationFlow();
+  activeSimuladoKey = "metar_taf";
+  setSimuladoMode("evaluation");
+  app.innerHTML = sigwxEvaluationView({
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    simuladoLabel: getSimuladoLabel("metar_taf")
+  });
+
+  requestAnimationFrame(async () => {
+    await ensureQuestionBankLoaded("metar_taf_evaluation", { force: false, silent: true });
+    startSigwxSimulado({ questions: getQuestionsForSimuladoMode("metar_taf", "evaluation"), questionBank: "evaluation" });
+  });
+
+  evaluationFinishHandler = (e) => {
+    const isEvaluationMode = document.body.dataset.simuladoMode === "evaluation";
+    const isEvaluationFinish = e?.detail?.questionBank === "evaluation";
+    if (!isEvaluationMode || !isEvaluationFinish) return;
+
+    if (typeof evaluationFinishHandler === "function") {
+      document.removeEventListener("sigwx:finish", evaluationFinishHandler);
+      evaluationFinishHandler = null;
+    }
+    renderSimuladoEvaluationResults(e.detail, { simuladoKey: "metar_taf" });
+  };
+  document.addEventListener("sigwx:finish", evaluationFinishHandler);
+
+  setupEvaluationAutoNext();
+  setupEvaluationTimer();
+  setupLogout();
+  setupGlobalMenu();
+  setupSimuladoNavToggle();
+  setupContact();
+  setupFooterLinks();
+}
+
+function renderSimuladoEvaluationResults(detail, { simuladoKey = "sigwx" } = {}) {
   setSimuladoMode("evaluation-results");
+  activeSimuladoKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
+  const simuladoLabel = getSimuladoLabel(activeSimuladoKey);
 
   const total = detail.total;
   const correct = detail.correct;
@@ -1208,8 +1670,8 @@ function renderSigwxEvaluationResults(detail) {
     Array.isArray(detail?.questions) && detail.questions.length
       ? detail.questions
       : (detail?.questionBank === "evaluation"
-        ? getQuestionsForSession("evaluation")
-        : getQuestionsForSession("training")).slice(0, detail?.state?.length || 0);
+        ? getQuestionsForSimuladoMode(activeSimuladoKey, "evaluation")
+        : getQuestionsForSimuladoMode(activeSimuladoKey, "training")).slice(0, detail?.state?.length || 0);
 
   const answers = sessionQuestions.map((q, index) => {
     const st = detail.state[index];
@@ -1249,11 +1711,12 @@ function renderSigwxEvaluationResults(detail) {
     items,
     isAdmin: isAdminUser(),
     userLabel: getUserLabel(),
-    credits: getCreditsLabel()
+    credits: getCreditsLabel(),
+    simuladoLabel
   });
 
   saveEvaluationResult({
-    simulado: "SIGWX",
+    simulado: simuladoLabel,
     percentage,
     correct,
     total,
@@ -1263,7 +1726,7 @@ function renderSigwxEvaluationResults(detail) {
     questionBank: detail?.questionBank === "evaluation" ? "evaluation" : "training"
   });
 
-  setupEvaluationResultsActions(items);
+  setupEvaluationResultsActions(items, { simuladoKey: activeSimuladoKey });
   setupLogout();
   setupGlobalMenu();
   setupContact();
@@ -1293,16 +1756,17 @@ async function saveEvaluationResult({ simulado, percentage, correct, total, stat
   }
 }
 
-function setupEvaluationResultsActions(items) {
+function setupEvaluationResultsActions(items, { simuladoKey = "sigwx" } = {}) {
+  const safeKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
   const toTrainingBtn = document.getElementById("evalToTraining");
   const retryBtn = document.getElementById("evalRetry");
 
   toTrainingBtn?.addEventListener("click", () => {
-    startSigwxWithCredit("training");
+    startSimuladoWithCredit(safeKey, "training");
   });
 
   retryBtn?.addEventListener("click", () => {
-    startSigwxWithCredit("evaluation");
+    startSimuladoWithCredit(safeKey, "evaluation");
   });
 
   document.querySelectorAll(".eval-report").forEach((link) => {
@@ -1316,7 +1780,7 @@ function setupEvaluationResultsActions(items) {
       const messageInput = document.getElementById("contactMessage");
 
       if (subjectInput) {
-        subjectInput.value = `Erro na questão ${index} (SIGWX - Avaliação)`;
+        subjectInput.value = `Erro na questão ${index} (${getSimuladoLabel(safeKey)} - Avaliação)`;
       }
       if (messageInput && item) {
         messageInput.value =
@@ -1651,6 +2115,7 @@ async function renderAdmin() {
     renderHomePublic();
     return;
   }
+  adminPanelScreen = "dashboard";
 
   app.innerHTML = adminView({
     users: [],
@@ -1658,13 +2123,11 @@ async function renderAdmin() {
     isAdmin: true,
     userLabel: getUserLabel(),
     credits: getCreditsLabel(),
-    metrics: computeAdminMetrics({ users: [], evaluations: [], transactions: [], range: adminMetricsRange }),
+    metrics: enrichAdminMetrics(
+      computeAdminMetrics({ users: [], evaluations: [], transactions: [], range: adminMetricsRange })
+    ),
     metricsRange: adminMetricsRange,
-    lightMode: adminLightMode,
-    questionBanks: QUESTION_BANKS,
-    selectedQuestionBank: adminQuestionBank,
-    questionItems: getQuestionBankCache(adminQuestionBank),
-    questionEditor: adminQuestionEditor || createNewAdminQuestionDraft(adminQuestionBank)
+    lightMode: adminLightMode
   });
   setupGlobalMenu();
   setupLogout();
@@ -1672,9 +2135,6 @@ async function renderAdmin() {
   setupFooterLinks();
 
   try {
-    await ensureQuestionBankLoaded(adminQuestionBank, { force: true, silent: true });
-    syncAdminQuestionEditor(adminQuestionBank);
-
     const [users, globalNotice, allCredits] = await Promise.all([
       getAllUsers(),
       getGlobalNotice().catch(() => null),
@@ -1740,12 +2200,12 @@ async function renderAdmin() {
       adminUsersCache.length === 0
         ? "Nenhum usuário retornado. Verifique se há usuários cadastrados."
         : "";
-    const metrics = metricsFromApi || computeAdminMetrics({
+    const metrics = enrichAdminMetrics(metricsFromApi || computeAdminMetrics({
       users: adminUsersCache,
       evaluations: adminMetricsData.evaluations,
       transactions: adminMetricsData.transactions,
       range: adminMetricsRange
-    });
+    }));
     adminMetricsSummary = metrics;
     app.innerHTML = adminView({
       users: adminUsersCache,
@@ -1757,11 +2217,7 @@ async function renderAdmin() {
       globalNotice: globalNoticeMessage,
       metrics,
       metricsRange: adminMetricsRange,
-      lightMode: adminLightMode,
-      questionBanks: QUESTION_BANKS,
-      selectedQuestionBank: adminQuestionBank,
-      questionItems: getQuestionBankCache(adminQuestionBank),
-      questionEditor: adminQuestionEditor
+      lightMode: adminLightMode
     });
     setupGlobalMenu();
     setupLogout();
@@ -1779,18 +2235,14 @@ async function renderAdmin() {
       credits: getCreditsLabel(),
       notice: "Erro ao carregar usuários. Verifique as regras do Firestore.",
       globalNotice: globalNoticeMessage,
-      metrics: computeAdminMetrics({
+      metrics: enrichAdminMetrics(computeAdminMetrics({
         users: [],
         evaluations: adminMetricsData.evaluations,
         transactions: adminMetricsData.transactions,
         range: adminMetricsRange
-      }),
+      })),
       metricsRange: adminMetricsRange,
-      lightMode: adminLightMode,
-      questionBanks: QUESTION_BANKS,
-      selectedQuestionBank: adminQuestionBank,
-      questionItems: getQuestionBankCache(adminQuestionBank),
-      questionEditor: adminQuestionEditor || createNewAdminQuestionDraft(adminQuestionBank)
+      lightMode: adminLightMode
     });
     setupGlobalMenu();
     setupLogout();
@@ -1799,15 +2251,87 @@ async function renderAdmin() {
   }
 }
 
+async function renderAdminQuestionHub() {
+  cleanupEvaluationFlow();
+  if (!isAdminUser()) {
+    renderHomePublic();
+    return;
+  }
+  adminPanelScreen = "question_hub";
+  app.innerHTML = adminQuestionHubView({
+    isAdmin: true,
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel()
+  });
+  setupGlobalMenu();
+  setupLogout();
+  setupContact();
+  setupFooterLinks();
+  setupAdminQuestionHubActions();
+}
+
+async function renderAdminQuestionEditor(bankId = null) {
+  cleanupEvaluationFlow();
+  if (!isAdminUser()) {
+    renderHomePublic();
+    return;
+  }
+  adminPanelScreen = "question_editor";
+  if (bankId) {
+    adminQuestionBank = getQuestionBankConfig(bankId).id;
+  }
+  await ensureQuestionBankLoaded(adminQuestionBank, { force: false, silent: true });
+  syncAdminQuestionEditor(adminQuestionBank);
+  rerenderAdminWithCache();
+}
+
 function rerenderAdminWithCache(notice = "") {
   if (!isAdminUser()) return;
+
+  if (adminPanelScreen === "question_hub") {
+    app.innerHTML = adminQuestionHubView({
+      isAdmin: true,
+      userLabel: getUserLabel(),
+      credits: getCreditsLabel()
+    });
+    setupGlobalMenu();
+    setupLogout();
+    setupContact();
+    setupFooterLinks();
+    setupAdminQuestionHubActions();
+    return;
+  }
+
+  if (adminPanelScreen === "question_editor") {
+    syncAdminQuestionEditor(adminQuestionBank);
+    app.innerHTML = adminQuestionEditorView({
+      isAdmin: true,
+      userLabel: getUserLabel(),
+      credits: getCreditsLabel(),
+      questionBanks: QUESTION_BANKS,
+      selectedQuestionBank: adminQuestionBank,
+      questionItems: getQuestionBankCache(adminQuestionBank),
+      questionEditor: adminQuestionEditor,
+      markedQuestionIds: getMarkedQuestionIds(adminQuestionBank),
+      reviewedQuestionIds: getReviewedQuestionIds(adminQuestionBank),
+      showOnlyMarked: isShowOnlyMarkedEnabled(adminQuestionBank),
+      autoNextOnSave: adminAutoNextOnSave
+    });
+    setupGlobalMenu();
+    setupLogout();
+    setupContact();
+    setupFooterLinks();
+    setupAdminActions();
+    return;
+  }
+
   syncAdminQuestionEditor(adminQuestionBank);
-  const metrics = adminMetricsSummary || computeAdminMetrics({
+  const metrics = enrichAdminMetrics(adminMetricsSummary || computeAdminMetrics({
     users: adminUsersCache,
     evaluations: adminMetricsData.evaluations,
     transactions: adminMetricsData.transactions,
     range: adminMetricsRange
-  });
+  }));
   app.innerHTML = adminView({
     users: adminUsersCache,
     loading: false,
@@ -1818,11 +2342,7 @@ function rerenderAdminWithCache(notice = "") {
     globalNotice: globalNoticeMessage,
     metrics,
     metricsRange: adminMetricsRange,
-    lightMode: adminLightMode,
-    questionBanks: QUESTION_BANKS,
-    selectedQuestionBank: adminQuestionBank,
-    questionItems: getQuestionBankCache(adminQuestionBank),
-    questionEditor: adminQuestionEditor
+    lightMode: adminLightMode
   });
   setupGlobalMenu();
   setupLogout();
@@ -1863,6 +2383,31 @@ function normalizeQuestionLabel(questionId = "") {
   if (!text) return "Questão";
   const compact = text.replace(/[_\s]+/g, "-");
   return compact.length > 24 ? `${compact.slice(0, 24)}...` : compact;
+}
+
+function computeQuestionCatalogMetrics() {
+  let trainingQuestions = 0;
+  let evaluationQuestions = 0;
+
+  QUESTION_BANKS.forEach((bank) => {
+    const id = String(bank?.id || "");
+    const count = getQuestionsForBankId(id).length;
+    if (id.endsWith("_training")) trainingQuestions += count;
+    if (id.endsWith("_evaluation")) evaluationQuestions += count;
+  });
+
+  return {
+    trainingQuestions,
+    evaluationQuestions,
+    totalQuestions: trainingQuestions + evaluationQuestions
+  };
+}
+
+function enrichAdminMetrics(metrics = {}) {
+  return {
+    ...(metrics || {}),
+    ...computeQuestionCatalogMetrics()
+  };
 }
 
 function computeAdminMetrics({
@@ -2351,6 +2896,8 @@ function setupProfileForm(profile) {
 }
 
 function setupAdminActions() {
+  const goAdminQuestionsPageBtn = document.getElementById("goAdminQuestionsPage");
+  const adminQuestionEditorBackBtn = document.getElementById("adminQuestionEditorBack");
   const searchInput = document.getElementById("adminSearch");
   const roleSelect = document.getElementById("adminRole");
   const exportBtn = document.getElementById("adminExport");
@@ -2359,6 +2906,14 @@ function setupAdminActions() {
   const noticeSaveBtn = document.getElementById("adminGlobalNoticeSave");
   const rangeButtons = document.querySelectorAll("[data-metrics-range]");
   const lightModeBtn = document.getElementById("adminLightModeToggle");
+
+  goAdminQuestionsPageBtn?.addEventListener("click", () => {
+    renderAdminQuestionHub();
+  });
+
+  adminQuestionEditorBackBtn?.addEventListener("click", () => {
+    renderAdminQuestionHub();
+  });
 
   const applyFilters = () => {
     const term = (searchInput?.value || "").toLowerCase().trim();
@@ -2390,7 +2945,7 @@ function setupAdminActions() {
       try {
         const metrics = await fetchAdminMetricsFromApi({ range: adminMetricsRange });
         if (metrics) {
-          adminMetricsSummary = metrics;
+          adminMetricsSummary = enrichAdminMetrics(metrics);
           rerenderAdminWithCache();
           return;
         }
@@ -2400,12 +2955,12 @@ function setupAdminActions() {
         rangeButtons.forEach((b) => (b.disabled = false));
       }
 
-      adminMetricsSummary = computeAdminMetrics({
+      adminMetricsSummary = enrichAdminMetrics(computeAdminMetrics({
         users: adminUsersCache,
         evaluations: adminMetricsData.evaluations,
         transactions: adminMetricsData.transactions,
         range: adminMetricsRange
-      });
+      }));
       rerenderAdminWithCache();
     });
   });
@@ -2470,11 +3025,16 @@ function setupAdminActions() {
     }
   });
 
-  const questionBankSelect = document.getElementById("adminQuestionBankSelect");
+  const questionPdfBtn = document.getElementById("adminQuestionPdf");
   const questionReloadBtn = document.getElementById("adminQuestionReload");
   const questionNewBtn = document.getElementById("adminQuestionNew");
+  const questionOnlyMarkedBtn = document.getElementById("adminQuestionOnlyMarked");
   const questionSaveBtn = document.getElementById("adminQuestionSave");
   const questionDeleteBtn = document.getElementById("adminQuestionDelete");
+  const questionMarkToggleBtn = document.getElementById("adminQuestionMarkToggle");
+  const questionReviewedToggleBtn = document.getElementById("adminQuestionReviewedToggle");
+  const questionAutoNextOnSaveInput = document.getElementById("adminQuestionAutoNextOnSave");
+  const questionMarkedClearBtn = document.getElementById("adminQuestionMarkedClear");
   const questionPrevBtn = document.getElementById("adminQuestionPrev");
   const questionNextBtn = document.getElementById("adminQuestionNext");
   const questionIdInput = document.getElementById("adminQuestionId");
@@ -2514,6 +3074,13 @@ function setupAdminActions() {
     return draft;
   };
 
+  const getVisibleQuestionList = () => {
+    const allItems = getQuestionBankCache(adminQuestionBank);
+    if (!isShowOnlyMarkedEnabled(adminQuestionBank)) return allItems;
+    const markedSet = new Set(getMarkedQuestionIds(adminQuestionBank));
+    return allItems.filter((item) => markedSet.has(Number(item?.id)));
+  };
+
   const selectQuestionInEditor = (questionId) => {
     const safeId = normalizeQuestionId(questionId, 0);
     const bankList = getQuestionBankCache(adminQuestionBank);
@@ -2522,12 +3089,13 @@ function setupAdminActions() {
       showToast("Questão não encontrada neste banco.", "error");
       return;
     }
+    adminQuestionEditorDraftMode = false;
     adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, target);
     rerenderAdminWithCache();
   };
 
   const goToRelativeQuestion = (direction = 1) => {
-    const bankList = getQuestionBankCache(adminQuestionBank);
+    const bankList = getVisibleQuestionList();
     if (!bankList.length) return;
     const currentId = normalizeQuestionId(adminQuestionEditor?.id, 0);
     const currentIndex = bankList.findIndex((item) => item.id === currentId);
@@ -2535,15 +3103,36 @@ function setupAdminActions() {
 
     const nextIndex = currentIndex + direction;
     if (nextIndex < 0 || nextIndex >= bankList.length) return;
+    adminQuestionEditorDraftMode = false;
     adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, bankList[nextIndex]);
     rerenderAdminWithCache();
   };
 
-  questionBankSelect?.addEventListener("change", async () => {
-    adminQuestionBank = getQuestionBankConfig(questionBankSelect.value).id;
-    await ensureQuestionBankLoaded(adminQuestionBank, { force: false, silent: true });
-    syncAdminQuestionEditor(adminQuestionBank);
+  questionAutoNextOnSaveInput?.addEventListener("change", () => {
+    adminAutoNextOnSave = !!questionAutoNextOnSaveInput.checked;
+    localStorage.setItem(ADMIN_AUTO_NEXT_ON_SAVE_KEY, adminAutoNextOnSave ? "1" : "0");
+  });
+
+  questionOnlyMarkedBtn?.addEventListener("click", () => {
+    const safeBankId = getQuestionBankConfig(adminQuestionBank).id;
+    adminShowOnlyMarkedByBank[safeBankId] = !isShowOnlyMarkedEnabled(safeBankId);
+
+    const visible = getVisibleQuestionList();
+    if (!visible.length && isShowOnlyMarkedEnabled(safeBankId)) {
+      showToast("Nenhuma questão marcada neste banco.", "info");
+    }
+    if (visible.length) {
+      const currentId = normalizeQuestionId(adminQuestionEditor?.id, 0);
+      const exists = visible.some((item) => item.id === currentId);
+      if (!exists) {
+        adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, visible[0]);
+      }
+    }
     rerenderAdminWithCache();
+  });
+
+  questionPdfBtn?.addEventListener("click", () => {
+    openQuestionsPdfWindow(adminQuestionBank, getQuestionBankCache(adminQuestionBank));
   });
 
   questionReloadBtn?.addEventListener("click", async () => {
@@ -2562,8 +3151,56 @@ function setupAdminActions() {
   });
 
   questionNewBtn?.addEventListener("click", () => {
+    adminQuestionEditorDraftMode = true;
     adminQuestionEditor = createNewAdminQuestionDraft(adminQuestionBank);
     rerenderAdminWithCache();
+  });
+
+  questionMarkToggleBtn?.addEventListener("click", () => {
+    const draft = readQuestionForm();
+    const safeId = normalizeQuestionId(draft?.id, 0);
+    if (!safeId) {
+      showToast("Defina um ID válido para marcar a questão.", "error");
+      return;
+    }
+
+    adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, draft);
+    const markedNow = toggleMarkedQuestion(adminQuestionBank, safeId);
+    rerenderAdminWithCache();
+    showToast(
+      markedNow ? `Questão #${safeId} marcada para revisão.` : `Questão #${safeId} desmarcada.`,
+      "info"
+    );
+  });
+
+  questionReviewedToggleBtn?.addEventListener("click", () => {
+    const draft = readQuestionForm();
+    const safeId = normalizeQuestionId(draft?.id, 0);
+    if (!safeId) {
+      showToast("Defina um ID válido para marcar como revisado.", "error");
+      return;
+    }
+
+    adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, draft);
+    const reviewedNow = toggleReviewedQuestion(adminQuestionBank, safeId);
+    rerenderAdminWithCache();
+    showToast(
+      reviewedNow ? `Questão #${safeId} marcada como revisada.` : `Questão #${safeId} desmarcada como revisada.`,
+      "info"
+    );
+  });
+
+  questionMarkedClearBtn?.addEventListener("click", () => {
+    const ids = getMarkedQuestionIds(adminQuestionBank);
+    if (!ids.length) return;
+    const confirmed = confirm("Limpar todas as questões marcadas deste banco?");
+    if (!confirmed) return;
+    setMarkedQuestionIds(adminQuestionBank, []);
+    if (isShowOnlyMarkedEnabled(adminQuestionBank)) {
+      adminShowOnlyMarkedByBank[getQuestionBankConfig(adminQuestionBank).id] = false;
+    }
+    rerenderAdminWithCache();
+    showToast("Marcadores de revisão limpos.", "success");
   });
 
   questionPrevBtn?.addEventListener("click", () => {
@@ -2577,6 +3214,13 @@ function setupAdminActions() {
   document.querySelectorAll("[data-question-edit]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const questionId = btn.getAttribute("data-question-edit") || "";
+      selectQuestionInEditor(questionId);
+    });
+  });
+
+  document.querySelectorAll("[data-question-marked-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const questionId = btn.getAttribute("data-question-marked-edit") || "";
       selectQuestionInEditor(questionId);
     });
   });
@@ -2614,7 +3258,15 @@ function setupAdminActions() {
         currentUser?.email || ""
       );
       await ensureQuestionBankLoaded(adminQuestionBank, { force: true, silent: true });
-      adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, draft);
+      adminQuestionEditorDraftMode = false;
+      const refreshedList = getVisibleQuestionList();
+      const currentIndex = refreshedList.findIndex((item) => item.id === draft.id);
+      const hasNext = currentIndex !== -1 && currentIndex < refreshedList.length - 1;
+      if (adminAutoNextOnSave && hasNext) {
+        adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, refreshedList[currentIndex + 1]);
+      } else {
+        adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, draft);
+      }
       rerenderAdminWithCache();
       showToast("Questão salva com sucesso.", "success");
     } catch (error) {
@@ -2641,7 +3293,16 @@ function setupAdminActions() {
     questionDeleteBtn.innerText = "Excluindo...";
     try {
       await deleteQuestionDefinition(adminQuestionBank, String(draft.id));
+      setMarkedQuestionIds(
+        adminQuestionBank,
+        getMarkedQuestionIds(adminQuestionBank).filter((id) => id !== draft.id)
+      );
+      setReviewedQuestionIds(
+        adminQuestionBank,
+        getReviewedQuestionIds(adminQuestionBank).filter((id) => id !== draft.id)
+      );
       await ensureQuestionBankLoaded(adminQuestionBank, { force: true, silent: true });
+      adminQuestionEditorDraftMode = false;
       syncAdminQuestionEditor(adminQuestionBank);
       rerenderAdminWithCache();
       showToast("Questão excluída.", "success");
@@ -2750,6 +3411,20 @@ function setupAdminActions() {
     btn.addEventListener("click", () => {
       const userId = btn.getAttribute("data-user-id") || "";
       deleteUserFromSite(userId);
+    });
+  });
+}
+
+function setupAdminQuestionHubActions() {
+  const backBtn = document.getElementById("adminQuestionHubBack");
+  backBtn?.addEventListener("click", () => {
+    renderAdmin();
+  });
+
+  document.querySelectorAll("[data-open-question-bank]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const bankId = String(btn.getAttribute("data-open-question-bank") || "").trim();
+      renderAdminQuestionEditor(bankId);
     });
   });
 }
@@ -2939,9 +3614,12 @@ function renderEvaluationHistory(evaluation) {
   const percentage = evaluation.percentage;
   const status = percentage >= 75 ? "Aprovado" : "Reprovado";
 
+  const evaluationSimulado = String(evaluation?.simulado || "").toLowerCase().includes("metar")
+    ? "metar_taf"
+    : "sigwx";
   const questionSource = evaluation?.questionBank === "evaluation"
-    ? getQuestionsForSession("evaluation")
-    : getQuestionsForSession("training");
+    ? getQuestionsForSimuladoMode(evaluationSimulado, "evaluation")
+    : getQuestionsForSimuladoMode(evaluationSimulado, "training");
   const questionById = new Map(questionSource.map((q) => [q.id, q]));
   const items = (evaluation.answers || []).map((ans, index) => {
     const q = questionById.get(ans?.questionId) || {};
@@ -2974,7 +3652,8 @@ function renderEvaluationHistory(evaluation) {
     summary: { total, correct, wrong, answered, percentage, status, durationSeconds: evaluation.durationSeconds },
     items,
     isAdmin: isAdminUser(),
-    userLabel: getUserLabel()
+    userLabel: getUserLabel(),
+    simuladoLabel: getSimuladoLabel(evaluationSimulado)
   });
 
   const backBtn = document.getElementById("profileBack");
@@ -2982,7 +3661,7 @@ function renderEvaluationHistory(evaluation) {
     renderProfile();
   });
 
-  setupEvaluationResultsActions(items);
+  setupEvaluationResultsActions(items, { simuladoKey: evaluationSimulado });
   setupLogout();
   setupGlobalMenu();
   setupContact();
@@ -3011,13 +3690,18 @@ observeAuthState((user) => {
   if (!currentUser) {
     questionBanksCache = {
       sigwx_training: DEFAULT_QUESTION_BANKS.sigwx_training.map((q) => ({ ...q })),
-      sigwx_evaluation: DEFAULT_QUESTION_BANKS.sigwx_evaluation.map((q) => ({ ...q }))
+      sigwx_evaluation: DEFAULT_QUESTION_BANKS.sigwx_evaluation.map((q) => ({ ...q })),
+      metar_taf_training: DEFAULT_QUESTION_BANKS.metar_taf_training.map((q) => ({ ...q })),
+      metar_taf_evaluation: DEFAULT_QUESTION_BANKS.metar_taf_evaluation.map((q) => ({ ...q }))
     };
     questionBankLoadedFlags = {
       sigwx_training: false,
-      sigwx_evaluation: false
+      sigwx_evaluation: false,
+      metar_taf_training: false,
+      metar_taf_evaluation: false
     };
     adminQuestionEditor = null;
+    adminQuestionEditorDraftMode = false;
     renderHomePublic();
     return;
   }
@@ -3065,6 +3749,10 @@ observeAuthState((user) => {
 });
 
 document.addEventListener("sigwx:go-eval", () => {
+  if (activeSimuladoKey === "metar_taf") {
+    startMetarTafWithCredit("evaluation");
+    return;
+  }
   startSigwxWithCredit("evaluation");
 });
 
@@ -3533,6 +4221,8 @@ function setupHomeModeCarousels() {
 function setupDashboardActions() {
   const trainingBtn = document.getElementById("dashboardSigwxTraining");
   const evalBtn = document.getElementById("dashboardSigwxEval");
+  const metarTrainingBtn = document.getElementById("dashboardMetarTraining");
+  const metarEvalBtn = document.getElementById("dashboardMetarEval");
   const page = document.querySelector(".simulados-page");
 
   if (trainingBtn) {
@@ -3551,6 +4241,22 @@ function setupDashboardActions() {
     };
   }
 
+  if (metarTrainingBtn) {
+    metarTrainingBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (metarTrainingBtn.disabled) return;
+      startMetarTafWithCredit("training");
+    };
+  }
+
+  if (metarEvalBtn) {
+    metarEvalBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (metarEvalBtn.disabled) return;
+      startMetarTafWithCredit("evaluation");
+    };
+  }
+
   if (page) {
     page.onclick = (e) => {
       const target = e.target instanceof Element ? e.target.closest("[data-action]") : null;
@@ -3561,6 +4267,10 @@ function setupDashboardActions() {
         startSigwxWithCredit("training");
       } else if (action === "sigwx-eval") {
         startSigwxWithCredit("evaluation");
+      } else if (action === "metar-taf") {
+        startMetarTafWithCredit("training");
+      } else if (action === "metar-taf-eval") {
+        startMetarTafWithCredit("evaluation");
       }
     };
   }
@@ -3694,7 +4404,9 @@ function setupHomeSimuladosCarousel() {
     const blockCenter = (blockStart + blockEnd) / 2;
     const targetScroll = Math.max(0, blockCenter - viewport.clientWidth / 2);
     const maxScroll = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
-    viewport.scrollLeft = Math.min(targetScroll, maxScroll);
+    const cardStep = Math.max(1, Math.round(step()));
+    const snappedScroll = Math.round(targetScroll / cardStep) * cardStep;
+    viewport.scrollLeft = Math.min(Math.max(0, snappedScroll), maxScroll);
   };
 
   const updateButtons = () => {

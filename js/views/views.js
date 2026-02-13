@@ -148,7 +148,7 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
 
     <section class="simulados">
       <h2>Simulados disponíveis</h2>
-      <p class="simulados-subtitle">Comece por SIGWX. Os próximos módulos serão liberados em etapas.</p>
+      <p class="simulados-subtitle">SIGWX e METAR/TAF disponíveis. Os próximos módulos serão liberados em etapas.</p>
       <div class="simulados-carousel">
         <button type="button" class="simulados-carousel-btn prev" aria-label="Simulado anterior">&#8249;</button>
         <div class="simulados-viewport">
@@ -159,11 +159,11 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
               <h3>SIGWX</h3>
               <p>Simbologia e Nomenclaturas</p>
             </div>
-            <div class="card card-disabled" aria-disabled="true">
-              <span class="status-chip status-chip--soon">Em breve</span>
+            <div class="card" data-action="metar-taf">
+              <span class="status-chip status-chip--live">Disponível agora</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-sun-rain-icon lucide-cloud-sun-rain"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M3 20a5 5 0 1 1 8.9-4H13a3 3 0 0 1 2 5.24"/><path d="M11 20v2"/><path d="M7 19v2"/></svg></span>
               <h3>METAR / TAF</h3>
-              <p>Em desenvolvimento</p>
+              <p>Leitura e interpretação operacional</p>
             </div>
             <div class="card card-disabled" aria-disabled="true">
               <span class="status-chip status-chip--soon">Em breve</span>
@@ -345,13 +345,13 @@ function dashboardView(user, { isAdmin = false, userLabel = "Conta", credits = n
           </div>
         </div>
 
-        <div class="simulado-card">
+        <div class="simulado-card simulado-active">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-sun-rain-icon lucide-cloud-sun-rain"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M3 20a5 5 0 1 1 8.9-4H13a3 3 0 0 1 2 5.24"/><path d="M11 20v2"/><path d="M7 19v2"/></svg></div>
           <h3>METAR / TAF</h3>
-          <p>Em desenvolvimento.</p>
+          <p>Leitura e interpretação operacional.</p>
           <div class="simulado-actions">
-            <button class="simulado-btn primary" disabled>Treinamento</button>
-            <button class="simulado-btn ghost" disabled>Avaliação</button>
+            <button id="dashboardMetarTraining" class="simulado-btn primary" data-action="metar-taf"${canStartSessions ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button id="dashboardMetarEval" class="simulado-btn ghost" data-action="metar-taf-eval"${canStartSessions ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
           </div>
         </div>
 
@@ -395,13 +395,13 @@ function dashboardView(user, { isAdmin = false, userLabel = "Conta", credits = n
 // ===============================
 // SIGWX (TREINO / AVALIAÃ‡ÃƒO / RESULTADO)
 // ===============================
-function sigwxView({ isAdmin = false, userLabel = "Conta", credits = null } = {}) {
+function sigwxView({ isAdmin = false, userLabel = "Conta", credits = null, simuladoLabel = "SIGWX" } = {}) {
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
 
     <div class="simulado-header">
       <div>
-        <h2 class="simulado-mode-title">Modo Treinamento &middot; SIGWX</h2>
+        <h2 class="simulado-mode-title">Modo Treinamento &middot; ${escapeHtml(simuladoLabel)}</h2>
         <div class="simulado-status" id="sigwxProgress"></div>
       </div>
     </div>
@@ -454,13 +454,13 @@ function sigwxView({ isAdmin = false, userLabel = "Conta", credits = null } = {}
   `;
 }
 
-function sigwxEvaluationView({ isAdmin = false, userLabel = "Conta", credits = null } = {}) {
+function sigwxEvaluationView({ isAdmin = false, userLabel = "Conta", credits = null, simuladoLabel = "SIGWX" } = {}) {
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
 
     <div class="simulado-header">
       <div>
-        <h2 class="simulado-mode-title">Modo Avaliação &middot; SIGWX</h2>
+        <h2 class="simulado-mode-title">Modo Avaliação &middot; ${escapeHtml(simuladoLabel)}</h2>
         <div class="simulado-status" id="sigwxProgress"></div>
       </div>
       <div class="simulado-timer" id="sigwxTimer" aria-live="polite">15:00</div>
@@ -519,14 +519,14 @@ function sigwxEvaluationView({ isAdmin = false, userLabel = "Conta", credits = n
   `;
 }
 
-function sigwxEvaluationResultView({ summary, items, isAdmin = false, userLabel = "Conta", credits = null }) {
+function sigwxEvaluationResultView({ summary, items, isAdmin = false, userLabel = "Conta", credits = null, simuladoLabel = "SIGWX" }) {
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
 
     <section class="eval-result">
       <div class="eval-header">
         <div>
-          <h1>Resultado &middot; Avaliação SIGWX</h1>
+          <h1>Resultado &middot; Avaliação ${escapeHtml(simuladoLabel)}</h1>
           <p>Confira seu desempenho e o gabarito completo abaixo.</p>
         </div>
         <div class="eval-score-group">
@@ -969,13 +969,13 @@ function profileView({
   `;
 }
 
-function profileEvaluationView({ summary, items, isAdmin = false, userLabel = "Conta", credits = null }) {
+function profileEvaluationView({ summary, items, isAdmin = false, userLabel = "Conta", credits = null, simuladoLabel = "SIGWX" }) {
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
     <section class="eval-result">
       <div class="eval-header">
         <div>
-          <h1>Gabarito &middot; Avaliação SIGWX</h1>
+          <h1>Gabarito &middot; Avaliação ${escapeHtml(simuladoLabel)}</h1>
           <p>Resultado e gabarito da avaliação selecionada.</p>
         </div>
       </div>
@@ -1037,44 +1037,11 @@ function adminView({
   questionBanks = [],
   selectedQuestionBank = "",
   questionItems = [],
-  questionEditor = null
+  questionEditor = null,
+  markedQuestionIds = [],
+  reviewedQuestionIds = [],
+  showOnlyMarked = false
 } = {}) {
-  const bankOptions = (Array.isArray(questionBanks) ? questionBanks : [])
-    .map((bank) => {
-      const id = String(bank?.id || "").trim();
-      const label = String(bank?.label || id || "Banco");
-      return `<option value="${escapeHtml(id)}" ${id === selectedQuestionBank ? "selected" : ""}>${escapeHtml(label)}</option>`;
-    })
-    .join("");
-
-  const questionList = (Array.isArray(questionItems) ? questionItems : [])
-    .map((item) => `
-      <button type="button" class="admin-question-item ${Number(item?.id) === Number(questionEditor?.id) ? "active" : ""}" data-question-edit="${Number(item?.id) || 0}">
-        <div class="admin-question-item-head">
-          <strong>#${Number(item?.id) || 0}</strong>
-          ${item?.image
-            ? `<img src="${escapeHtml(String(item.image))}" alt="Questão ${Number(item?.id) || 0}" loading="lazy" />`
-            : `<span class="admin-question-thumb-empty">Sem imagem</span>`}
-        </div>
-        <span>${escapeHtml(String(item?.question || "Sem enunciado"))}</span>
-      </button>
-    `)
-    .join("");
-
-  const editorId = Number(questionEditor?.id) || "";
-  const editorQuestion = escapeHtml(String(questionEditor?.question || ""));
-  const editorImage = escapeHtml(String(questionEditor?.image || ""));
-  const editorOptions = Array.isArray(questionEditor?.options) ? questionEditor.options : [];
-  const editorCorrect = Number.isFinite(Number(questionEditor?.correctIndex))
-    ? Number(questionEditor.correctIndex)
-    : 0;
-  const editorExplanation = escapeHtml(String(questionEditor?.explanation || ""));
-  const currentIndex = (Array.isArray(questionItems) ? questionItems : []).findIndex(
-    (item) => Number(item?.id) === Number(questionEditor?.id)
-  );
-  const hasPrev = currentIndex > 0;
-  const hasNext = currentIndex !== -1 && currentIndex < (Array.isArray(questionItems) ? questionItems.length : 0) - 1;
-
   const list = users.length
     ? `<div class="admin-grid">` +
         users.map((u) => {
@@ -1171,6 +1138,18 @@ function adminView({
               <span>Créditos (gasto/comprado)</span>
               <strong>${Number.isFinite(Number(metrics?.creditsConsumed)) ? Number(metrics.creditsConsumed) : 0} / ${Number.isFinite(Number(metrics?.creditsPurchased)) ? Number(metrics.creditsPurchased) : 0}</strong>
             </article>
+            <article class="admin-metric-card">
+              <span>Questões de treino</span>
+              <strong>${Number.isFinite(Number(metrics?.trainingQuestions)) ? Number(metrics.trainingQuestions) : 0}</strong>
+            </article>
+            <article class="admin-metric-card">
+              <span>Questões de avaliação</span>
+              <strong>${Number.isFinite(Number(metrics?.evaluationQuestions)) ? Number(metrics.evaluationQuestions) : 0}</strong>
+            </article>
+            <article class="admin-metric-card">
+              <span>Total de questões</span>
+              <strong>${Number.isFinite(Number(metrics?.totalQuestions)) ? Number(metrics.totalQuestions) : 0}</strong>
+            </article>
           </div>
           <p class="admin-metrics-footnote">
             "Usuários no histórico" inclui contas removidas com atividade registrada. Top erros: ${Array.isArray(metrics?.topErrors) && metrics.topErrors.length ? metrics.topErrors.join(" • ") : "Sem dados no período."}
@@ -1182,74 +1161,10 @@ function adminView({
           <textarea id="adminGlobalNotice" rows="3" placeholder="Escreva um aviso global...">${escapeHtml(globalNotice || "")}</textarea>
           <button type="button" id="adminGlobalNoticeSave">Salvar aviso</button>
         </div>
-        <div class="admin-questions">
-          <div class="admin-questions-head">
-            <h2>Banco de questões</h2>
-            <div class="admin-questions-controls">
-              <select id="adminQuestionBankSelect">${bankOptions}</select>
-              <button type="button" id="adminQuestionReload">Recarregar</button>
-              <button type="button" id="adminQuestionNew">Nova questão</button>
-            </div>
-          </div>
-          <div class="admin-questions-grid">
-            <div class="admin-question-list">
-              ${questionList || `<div class="profile-empty">Nenhuma questão cadastrada neste banco.</div>`}
-            </div>
-            <div class="admin-question-editor">
-              <div class="admin-question-row">
-                <label for="adminQuestionId">ID</label>
-                <input type="number" id="adminQuestionId" min="1" step="1" value="${editorId}" />
-              </div>
-              <div class="admin-question-row">
-                <label for="adminQuestionImage">Imagem (caminho)</label>
-                <input type="text" id="adminQuestionImage" value="${editorImage}" placeholder="assets/questions/sigwx/1.webp" />
-                <div class="admin-question-preview ${editorImage ? "" : "is-empty"}">
-                  ${editorImage
-                    ? `<img src="${editorImage}" alt="Prévia da questão" />`
-                    : `<span>Sem imagem definida para esta questão.</span>`}
-                </div>
-              </div>
-              <div class="admin-question-row">
-                <label for="adminQuestionText">Enunciado</label>
-                <textarea id="adminQuestionText" rows="3" placeholder="Digite o enunciado">${editorQuestion}</textarea>
-              </div>
-              <div class="admin-question-row">
-                <label for="adminQuestionOption0">Opção A</label>
-                <input type="text" id="adminQuestionOption0" value="${escapeHtml(String(editorOptions[0] || ""))}" />
-              </div>
-              <div class="admin-question-row">
-                <label for="adminQuestionOption1">Opção B</label>
-                <input type="text" id="adminQuestionOption1" value="${escapeHtml(String(editorOptions[1] || ""))}" />
-              </div>
-              <div class="admin-question-row">
-                <label for="adminQuestionOption2">Opção C</label>
-                <input type="text" id="adminQuestionOption2" value="${escapeHtml(String(editorOptions[2] || ""))}" />
-              </div>
-              <div class="admin-question-row">
-                <label for="adminQuestionOption3">Opção D</label>
-                <input type="text" id="adminQuestionOption3" value="${escapeHtml(String(editorOptions[3] || ""))}" />
-              </div>
-              <div class="admin-question-row">
-                <label for="adminQuestionCorrect">Resposta correta</label>
-                <select id="adminQuestionCorrect">
-                  <option value="0" ${editorCorrect === 0 ? "selected" : ""}>A</option>
-                  <option value="1" ${editorCorrect === 1 ? "selected" : ""}>B</option>
-                  <option value="2" ${editorCorrect === 2 ? "selected" : ""}>C</option>
-                  <option value="3" ${editorCorrect === 3 ? "selected" : ""}>D</option>
-                </select>
-              </div>
-              <div class="admin-question-row">
-                <label for="adminQuestionExplanation">Explicação</label>
-                <textarea id="adminQuestionExplanation" rows="3" placeholder="Explique por que a alternativa correta está certa">${editorExplanation}</textarea>
-              </div>
-              <div class="admin-question-actions">
-                <button type="button" id="adminQuestionSave">Salvar questão</button>
-                <button type="button" id="adminQuestionDelete" class="danger">Excluir questão</button>
-                <button type="button" id="adminQuestionPrev" ${hasPrev ? "" : "disabled"}>Anterior</button>
-                <button type="button" id="adminQuestionNext" ${hasNext ? "" : "disabled"}>Próxima</button>
-              </div>
-            </div>
-          </div>
+        <div class="admin-questions-entry">
+          <h2>Painel de questões</h2>
+          <p>Acesse a área dedicada para cadastrar e revisar questões por simulador e modo.</p>
+          <button type="button" id="goAdminQuestionsPage">Abrir área de questões</button>
         </div>
         <div class="admin-filters">
           <input type="text" id="adminSearch" placeholder="Buscar por nome ou email" />
@@ -1263,6 +1178,227 @@ function adminView({
           <button type="button" id="adminExport">Exportar CSV</button>
         </div>
         ${loading ? `<div class="profile-loading">Carregando...</div>` : list}
+      </div>
+    </section>
+    ${footerView()}
+    ${contactWidgetView()}
+  `;
+}
+
+function adminQuestionHubView({ isAdmin = false, userLabel = "Conta", credits = null } = {}) {
+  return `
+    ${headerView({ logged: true, isAdmin, userLabel, credits })}
+    <section class="admin-page">
+      <div class="admin-header admin-question-hub-head">
+        <div>
+          <h1>Painel de questões</h1>
+          <p>Escolha o simulador e o modo para editar o banco.</p>
+        </div>
+        <button type="button" id="adminQuestionHubBack">Voltar ao Admin</button>
+      </div>
+      <div class="admin-question-hub">
+        <article class="admin-question-hub-card">
+          <h2>SIGWX</h2>
+          <p>Simbologia e nomenclaturas.</p>
+          <div class="admin-question-hub-actions">
+            <button type="button" data-open-question-bank="sigwx_training">Modo Treino</button>
+            <button type="button" data-open-question-bank="sigwx_evaluation">Modo Avaliação</button>
+          </div>
+        </article>
+        <article class="admin-question-hub-card">
+          <h2>METAR / TAF</h2>
+          <p>Leitura e interpretação operacional.</p>
+          <div class="admin-question-hub-actions">
+            <button type="button" data-open-question-bank="metar_taf_training">Modo Treino</button>
+            <button type="button" data-open-question-bank="metar_taf_evaluation">Modo Avaliação</button>
+          </div>
+        </article>
+      </div>
+    </section>
+    ${footerView()}
+    ${contactWidgetView()}
+  `;
+}
+
+function adminQuestionEditorView({
+  isAdmin = false,
+  userLabel = "Conta",
+  credits = null,
+  questionBanks = [],
+  selectedQuestionBank = "",
+  questionItems = [],
+  questionEditor = null,
+  markedQuestionIds = [],
+  reviewedQuestionIds = [],
+  showOnlyMarked = false,
+  autoNextOnSave = false
+} = {}) {
+  const markedIdSet = new Set(
+    (Array.isArray(markedQuestionIds) ? markedQuestionIds : [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0)
+  );
+  const reviewedIdSet = new Set(
+    (Array.isArray(reviewedQuestionIds) ? reviewedQuestionIds : [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0)
+  );
+  const selectedBankLabel =
+    (Array.isArray(questionBanks) ? questionBanks : []).find((bank) => String(bank?.id || "").trim() === selectedQuestionBank)?.label ||
+    selectedQuestionBank ||
+    "Banco";
+
+  const visibleQuestionItems = (Array.isArray(questionItems) ? questionItems : [])
+    .filter((item) => !showOnlyMarked || markedIdSet.has(Number(item?.id)));
+
+  const questionList = visibleQuestionItems
+    .map((item) => `
+      <button type="button" class="admin-question-item ${Number(item?.id) === Number(questionEditor?.id) ? "active" : ""}" data-question-edit="${Number(item?.id) || 0}">
+        <div class="admin-question-item-head">
+          <div class="admin-question-item-id">
+            <strong>#${Number(item?.id) || 0}</strong>
+            ${reviewedIdSet.has(Number(item?.id))
+              ? `<span class="admin-question-reviewed-badge" aria-label="Revisado">&#10003;</span>`
+              : ""}
+          </div>
+          ${item?.image
+            ? `<img src="${escapeHtml(String(item.image))}" alt="Questão ${Number(item?.id) || 0}" loading="lazy" />`
+            : `<span class="admin-question-thumb-empty">Sem imagem</span>`}
+        </div>
+        <span>${escapeHtml(String(item?.question || "Sem enunciado"))}</span>
+      </button>
+    `)
+    .join("");
+
+  const editorId = Number(questionEditor?.id) || "";
+  const editorQuestion = escapeHtml(String(questionEditor?.question || ""));
+  const editorImage = escapeHtml(String(questionEditor?.image || ""));
+  const editorOptions = Array.isArray(questionEditor?.options) ? questionEditor.options : [];
+  const editorCorrect = Number.isFinite(Number(questionEditor?.correctIndex))
+    ? Number(questionEditor.correctIndex)
+    : 0;
+  const editorExplanation = escapeHtml(String(questionEditor?.explanation || ""));
+  const currentIndex = visibleQuestionItems.findIndex(
+    (item) => Number(item?.id) === Number(questionEditor?.id)
+  );
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex !== -1 && currentIndex < visibleQuestionItems.length - 1;
+  const markedItems = (Array.isArray(questionItems) ? questionItems : [])
+    .filter((item) => markedIdSet.has(Number(item?.id)))
+    .sort((a, b) => Number(a?.id || 0) - Number(b?.id || 0));
+  const isCurrentMarked = markedIdSet.has(Number(editorId));
+  const isCurrentReviewed = reviewedIdSet.has(Number(editorId));
+
+  return `
+    ${headerView({ logged: true, isAdmin, userLabel, credits })}
+    <section class="admin-page">
+      <div class="admin-header">
+        <h1>Editor de questões</h1>
+        <p>Gerencie o banco de perguntas por simulador e modo.</p>
+      </div>
+      <div class="admin-questions">
+        <div class="admin-questions-head">
+          <h2>Banco de questões</h2>
+          <div class="admin-question-mode-chip">${escapeHtml(String(selectedBankLabel))}</div>
+          <div class="admin-questions-controls">
+            <button type="button" id="adminQuestionOnlyMarked" class="${showOnlyMarked ? "active" : ""}">
+              ${showOnlyMarked ? "Mostrar todas" : "Só marcadas"}
+            </button>
+            <button type="button" id="adminQuestionPdf">Gerar PDF</button>
+            <button type="button" id="adminQuestionReload">Recarregar</button>
+            <button type="button" id="adminQuestionNew">Nova questão</button>
+            <button type="button" id="adminQuestionEditorBack">Simuladores</button>
+          </div>
+        </div>
+        <div class="admin-questions-grid">
+          <div class="admin-question-left">
+            <div class="admin-question-list">
+              ${questionList || `<div class="profile-empty">${showOnlyMarked ? "Nenhuma questão marcada neste banco." : "Nenhuma questão cadastrada neste banco."}</div>`}
+            </div>
+            <div class="admin-question-marked-panel">
+              <div class="admin-question-marked-head">
+                <strong>Marcadas para revisão</strong>
+                <span>${markedItems.length}</span>
+              </div>
+              <div class="admin-question-marked-list">
+                ${markedItems.length
+                  ? markedItems.map((item) => `
+                      <button type="button" class="admin-question-marked-item" data-question-marked-edit="${Number(item?.id) || 0}">
+                        #${Number(item?.id) || 0}
+                      </button>
+                    `).join("")
+                  : `<small>Nenhuma questão marcada ainda.</small>`}
+              </div>
+              <button type="button" id="adminQuestionMarkedClear" class="admin-question-marked-clear"${markedItems.length ? "" : " disabled"}>
+                Limpar marcadas
+              </button>
+            </div>
+          </div>
+          <div class="admin-question-editor">
+            <div class="admin-question-row">
+              <label for="adminQuestionId">ID</label>
+              <input type="number" id="adminQuestionId" min="1" step="1" value="${editorId}" />
+            </div>
+            <div class="admin-question-row">
+              <label for="adminQuestionImage">Imagem (caminho)</label>
+              <input type="text" id="adminQuestionImage" value="${editorImage}" placeholder="assets/questions/sigwx/1.webp" />
+              <div class="admin-question-preview ${editorImage ? "" : "is-empty"}">
+                ${editorImage
+                  ? `<img src="${editorImage}" alt="Prévia da questão" />`
+                  : `<span>Sem imagem definida para esta questão.</span>`}
+              </div>
+            </div>
+            <div class="admin-question-row">
+              <label for="adminQuestionText">Enunciado</label>
+              <textarea id="adminQuestionText" rows="3" placeholder="Digite o enunciado">${editorQuestion}</textarea>
+            </div>
+            <div class="admin-question-row">
+              <label for="adminQuestionOption0">Opção A</label>
+              <input type="text" id="adminQuestionOption0" value="${escapeHtml(String(editorOptions[0] || ""))}" />
+            </div>
+            <div class="admin-question-row">
+              <label for="adminQuestionOption1">Opção B</label>
+              <input type="text" id="adminQuestionOption1" value="${escapeHtml(String(editorOptions[1] || ""))}" />
+            </div>
+            <div class="admin-question-row">
+              <label for="adminQuestionOption2">Opção C</label>
+              <input type="text" id="adminQuestionOption2" value="${escapeHtml(String(editorOptions[2] || ""))}" />
+            </div>
+            <div class="admin-question-row">
+              <label for="adminQuestionOption3">Opção D</label>
+              <input type="text" id="adminQuestionOption3" value="${escapeHtml(String(editorOptions[3] || ""))}" />
+            </div>
+            <div class="admin-question-row">
+              <label for="adminQuestionCorrect">Resposta correta</label>
+              <select id="adminQuestionCorrect">
+                <option value="0" ${editorCorrect === 0 ? "selected" : ""}>A</option>
+                <option value="1" ${editorCorrect === 1 ? "selected" : ""}>B</option>
+                <option value="2" ${editorCorrect === 2 ? "selected" : ""}>C</option>
+                <option value="3" ${editorCorrect === 3 ? "selected" : ""}>D</option>
+              </select>
+            </div>
+            <div class="admin-question-row">
+              <label for="adminQuestionExplanation">Explicação</label>
+              <textarea id="adminQuestionExplanation" rows="3" placeholder="Explique por que a alternativa correta está certa">${editorExplanation}</textarea>
+            </div>
+            <label class="admin-question-switch">
+              <input type="checkbox" id="adminQuestionAutoNextOnSave" ${autoNextOnSave ? "checked" : ""} />
+              <span>Após salvar, ir para próxima</span>
+            </label>
+            <div class="admin-question-actions">
+              <button type="button" id="adminQuestionSave">Salvar questão</button>
+              <button type="button" id="adminQuestionDelete" class="danger">Excluir questão</button>
+              <button type="button" id="adminQuestionMarkToggle" class="${isCurrentMarked ? "is-marked" : ""}">
+                ${isCurrentMarked ? "Desmarcar revisão" : "Marcar revisão"}
+              </button>
+              <button type="button" id="adminQuestionReviewedToggle" class="${isCurrentReviewed ? "is-reviewed" : ""}">
+                ${isCurrentReviewed ? "Desmarcar revisado" : "Revisado"}
+              </button>
+              <button type="button" id="adminQuestionPrev" ${hasPrev ? "" : "disabled"}>Anterior</button>
+              <button type="button" id="adminQuestionNext" ${hasNext ? "" : "disabled"}>Próxima</button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
     ${footerView()}
@@ -1538,6 +1674,8 @@ export {
   profileView,
   profileEvaluationView,
   adminView,
+  adminQuestionHubView,
+  adminQuestionEditorView,
   creditsView,
   packagesView,
   privacyView,
