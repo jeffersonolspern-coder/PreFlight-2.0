@@ -10,6 +10,42 @@ let currentQuestionBank = sigwxQuestions;
 let activeQuestions = [];
 let state = [];
 
+function getCurrentSimuladoLabel() {
+  const rawKey = String(document.body?.dataset?.simuladoKey || "").toLowerCase();
+  if (rawKey === "metar_taf") return "METAR/TAF";
+  return "SIGWX";
+}
+
+function getCurrentModeLabel() {
+  return document.body?.dataset?.simuladoMode === "evaluation" ? "Avaliação" : "Treinamento";
+}
+
+function openQuestionReportModal({ questionIndex, questionId, questionText, selectedText = "" }) {
+  const modal = document.getElementById("contactModal");
+  const subjectInput = document.getElementById("contactSubject");
+  const messageInput = document.getElementById("contactMessage");
+  const simuladoLabel = getCurrentSimuladoLabel();
+  const modeLabel = getCurrentModeLabel();
+
+  if (subjectInput) {
+    subjectInput.value = `Erro na questão ${questionIndex} (ID ${questionId}) (${simuladoLabel} - ${modeLabel})`;
+  }
+  if (messageInput) {
+    const selectedLine = selectedText
+      ? `Minha resposta: ${selectedText}\n`
+      : "Minha resposta: (ainda não respondida)\n";
+    messageInput.value =
+      `Questão ${questionIndex} (ID ${questionId}):\n${questionText}\n\n` +
+      `${selectedLine}\n` +
+      "Descreva o erro abaixo:";
+  }
+
+  if (modal) {
+    modal.classList.remove("hidden");
+    messageInput?.focus();
+  }
+}
+
 function shuffleArray(items) {
   const shuffled = [...items];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -185,6 +221,25 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
       feedback.innerText = "Resposta registrada";
       optionsEl.appendChild(feedback);
     }
+
+    if (!isEvaluation) {
+      const reportBtn = document.createElement("button");
+      reportBtn.type = "button";
+      reportBtn.className = "simulado-report-link";
+      reportBtn.innerText = "Reportar erro nesta questão";
+      reportBtn.addEventListener("click", () => {
+        const selectedText = qState.selected !== null
+          ? String(qState.shuffledOptions[qState.selected]?.text || "").trim()
+          : "";
+        openQuestionReportModal({
+          questionIndex: currentQuestionIndex + 1,
+          questionId: q.id,
+          questionText: q.question,
+          selectedText
+        });
+      });
+      optionsEl.appendChild(reportBtn);
+    }
   }
 
   function handleAnswer(selectedIndex) {
@@ -298,4 +353,3 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
     return options;
   }
 }
-

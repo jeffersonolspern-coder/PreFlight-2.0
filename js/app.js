@@ -1802,6 +1802,7 @@ function setupEvaluationResultsActions(items, { simuladoKey = "sigwx" } = {}) {
 
 function setSimuladoMode(mode) {
   document.body.dataset.simuladoMode = mode;
+  document.body.dataset.simuladoKey = activeSimuladoKey;
 }
 
 function setupEvaluationAutoNext() {

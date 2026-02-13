@@ -1493,6 +1493,22 @@ textarea:focus-visible {
   font-weight: 600;
 }
 
+.simulado-report-link {
+  margin-top: 10px;
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #1b4a8e;
+  text-decoration: underline;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.simulado-report-link:hover {
+  color: #123667;
+}
+
 /* ===============================
    SIGWX - NAVEGAï¿½ï¿½O LATERAL
 =============================== */
