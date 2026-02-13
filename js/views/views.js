@@ -16,7 +16,7 @@ function headerView({ logged = false, isAdmin = false, userLabel = "Conta", cred
       <div class="header-content">
         <div class="logo">PreFlight Simulados</div>
         <div class="header-top-actions">
-          <a href="#" id="goCreditsTop" class="header-credits-pill">Créditos${logged ? `: ${credits ?? 0}` : ""}</a>
+          <a href="#" id="goCreditsTop" class="header-credits-pill">Créditos</a>
           <button type="button" id="mobileMenuToggle" class="mobile-menu-toggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="primaryMenu">
             <span></span>
             <span></span>
@@ -32,7 +32,7 @@ function headerView({ logged = false, isAdmin = false, userLabel = "Conta", cred
                 <a href="#" id="goDashboard">Simulados</a>
                 ${isAdmin ? `<a href="#" id="goAdmin">Admin</a>` : ""}
                 <a href="#" id="goContact">Contato</a>
-                <a href="#" id="goCredits">Créditos${credits !== null ? `: ${credits}` : ""}</a>
+                <a href="#" id="goCredits">Créditos</a>
                 <div class="user-menu">
                   <button type="button" id="userMenuBtn" class="user-menu-btn">
                     ${userLabel}
@@ -734,6 +734,7 @@ function profileView({
   user,
   profile,
   evaluations = [],
+  evaluationStats = null,
   loading = false,
   isAdmin = false,
   userLabel = "Conta",
@@ -745,7 +746,9 @@ function profileView({
   creditHistoryError = "",
   showAllEvaluations = false,
   visibleSpentCredits = 7,
-  globalNotice = ""
+  globalNotice = "",
+  showEvaluationHistory = false,
+  showCreditHistory = false
 }) {
   const formatDuration = (secs) => {
     if (secs === null || secs === undefined) return "";
@@ -806,12 +809,29 @@ function profileView({
       )
     : `<div class="profile-empty">Nenhuma avaliação registrada ainda.</div>`;
 
-  const approvedCount = evaluations.filter((e) => e.status === "Aprovado").length;
-  const evaluationsTotal = evaluations.length;
+  const statsTotalRaw = Number(evaluationStats?.total);
+  const statsApprovedRaw = Number(evaluationStats?.approved);
+  const statsPercentageSumRaw = Number(evaluationStats?.percentageSum);
+  const hasServerStats =
+    Number.isFinite(statsTotalRaw) &&
+    statsTotalRaw >= 0 &&
+    Number.isFinite(statsApprovedRaw) &&
+    statsApprovedRaw >= 0 &&
+    Number.isFinite(statsPercentageSumRaw) &&
+    statsPercentageSumRaw >= 0;
+
+  const approvedCount = hasServerStats
+    ? Math.max(0, Math.floor(statsApprovedRaw))
+    : evaluations.filter((e) => e.status === "Aprovado").length;
+  const evaluationsTotal = hasServerStats
+    ? Math.max(0, Math.floor(statsTotalRaw))
+    : evaluations.length;
   const averagePercent = evaluationsTotal
-    ? Math.round(
-      evaluations.reduce((acc, e) => acc + (Number(e.percentage) || 0), 0) / evaluationsTotal
-    )
+    ? (hasServerStats
+      ? Math.round(statsPercentageSumRaw / evaluationsTotal)
+      : Math.round(
+        evaluations.reduce((acc, e) => acc + (Number(e.percentage) || 0), 0) / evaluationsTotal
+      ))
     : 0;
 
   const safeHistoryItems = Array.isArray(creditHistoryItems) ? creditHistoryItems : [];
@@ -852,6 +872,37 @@ function profileView({
       : creditHistoryError
         ? `<div class="credits-history-error">${creditHistoryError}</div>`
         : `<div class="profile-empty">Nenhuma movimentação de crédito encontrada ainda.</div>`;
+
+  const creditsHistorySection = showCreditHistory
+    ? `
+            <section class="credits-history">
+              <div class="credits-history-header">
+                <h2>Histórico de créditos</h2>
+                <p>Últimas 7 movimentações de créditos da sua conta.</p>
+              </div>
+              ${historyContent}
+              ${hasMoreSpentToShow && !creditHistoryLoading
+                ? `<button type="button" class="credits-history-more" id="creditsHistoryMoreBtn"${creditHistoryLoadingMore ? " disabled" : ""}>${creditHistoryLoadingMore ? "Carregando..." : "Visualizar mais"}</button>`
+                : ""}
+            </section>
+      `
+    : `
+            <section class="credits-history">
+              <div class="credits-history-header">
+                <h2>Histórico de créditos</h2>
+                <p>Carregado sob demanda para reduzir leituras.</p>
+              </div>
+              <div class="profile-empty">Abra a tela de créditos para ver o histórico completo.</div>
+              <button type="button" class="credits-history-more" id="profileOpenCreditsHistory">Abrir histórico de créditos</button>
+            </section>
+      `;
+
+  const evaluationsHistoryContent = showEvaluationHistory
+    ? `${loading ? `<div class="profile-loading">Carregando...</div>` : list}`
+    : `
+            <div class="profile-empty">Carregado sob demanda para reduzir leituras.</div>
+            <button type="button" class="credits-history-more" id="profileOpenEvaluationsHistory">Abrir histórico de avaliações</button>
+      `;
 
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
@@ -920,16 +971,7 @@ function profileView({
               Treino e avaliação consomem 1 crédito cada.
             </div>
 
-            <section class="credits-history">
-              <div class="credits-history-header">
-                <h2>Histórico de créditos</h2>
-                <p>Últimas 7 movimentações de créditos da sua conta.</p>
-              </div>
-              ${historyContent}
-              ${hasMoreSpentToShow && !creditHistoryLoading
-                ? `<button type="button" class="credits-history-more" id="creditsHistoryMoreBtn"${creditHistoryLoadingMore ? " disabled" : ""}>${creditHistoryLoadingMore ? "Carregando..." : "Visualizar mais"}</button>`
-                : ""}
-            </section>
+            ${creditsHistorySection}
 
             <div class="evaluation-modal hidden" id="creditsCheckoutModal" role="dialog" aria-modal="true" aria-labelledby="creditsCheckoutTitle">
               <div class="evaluation-box credits-checkout-box">
@@ -948,17 +990,28 @@ function profileView({
         <div class="profile-column profile-column--right">
           <div class="profile-section">
             <h2>Histórico de avaliações</h2>
-            <div class="profile-summary-inline">
-              <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
-              <div><span>Aprovadas</span><strong>${approvedCount}</strong></div>
-              <div class="is-percent"><span>Média</span><strong>${averagePercent}%</strong></div>
-            </div>
-            <div class="profile-filters">
-              <button type="button" class="active" data-profile-filter="all">Todas</button>
-              <button type="button" data-profile-filter="Aprovado">Aprovadas</button>
-              <button type="button" data-profile-filter="Reprovado">Reprovadas</button>
-            </div>
-            ${loading ? `<div class="profile-loading">Carregando...</div>` : list}
+            ${showEvaluationHistory
+              ? `<button type="button" class="credits-history-more" id="profileBackToSummary">Voltar ao resumo</button>`
+              : ""}
+            ${showEvaluationHistory
+              ? `
+                <div class="profile-summary-inline">
+                  <div><span>Avaliações</span><strong>${evaluationsTotal}</strong></div>
+                  <div><span>Aprovadas</span><strong>${approvedCount}</strong></div>
+                  <div class="is-percent"><span>Média</span><strong>${averagePercent}%</strong></div>
+                </div>
+              `
+              : ""}
+            ${showEvaluationHistory
+              ? `
+                <div class="profile-filters">
+                  <button type="button" class="active" data-profile-filter="all">Todas</button>
+                  <button type="button" data-profile-filter="Aprovado">Aprovadas</button>
+                  <button type="button" data-profile-filter="Reprovado">Reprovadas</button>
+                </div>
+              `
+              : ""}
+            ${evaluationsHistoryContent}
           </div>
         </div>
       </div>
@@ -1034,6 +1087,9 @@ function adminView({
   metrics = null,
   metricsRange = "30d",
   lightMode = false,
+  usersHasMore = false,
+  usersLoadingMore = false,
+  mode = "summary",
   questionBanks = [],
   selectedQuestionBank = "",
   questionItems = [],
@@ -1042,6 +1098,9 @@ function adminView({
   reviewedQuestionIds = [],
   showOnlyMarked = false
 } = {}) {
+  const isSummaryMode = mode === "summary";
+  const isUsersMode = mode === "users";
+  const isMetricsMode = mode === "metrics";
   const list = users.length
     ? `<div class="admin-grid">` +
         users.map((u) => {
@@ -1091,6 +1150,22 @@ function adminView({
         ${notice ? `<div class="admin-notice">${notice}</div>` : ""}
       </div>
       <div class="admin-section">
+        <div class="admin-questions-entry">
+          <h2>Painel administrativo</h2>
+          <p>Abra apenas o bloco necessário para reduzir leituras no Firestore.</p>
+          <div class="admin-question-hub-actions">
+            ${!isUsersMode ? `<button type="button" id="adminOpenUsersPage">Abrir Perfis</button>` : `<button type="button" id="adminBackSummaryPage">Voltar ao Resumo</button>`}
+            ${!isMetricsMode ? `<button type="button" id="adminOpenMetricsPage">Abrir Métricas</button>` : `<button type="button" id="adminBackSummaryPage">Voltar ao Resumo</button>`}
+          </div>
+        </div>
+      </div>
+      <div class="admin-section">
+        ${isSummaryMode
+          ? `
+            <div class="profile-empty">Resumo leve ativo. Perfis e métricas são carregados somente sob demanda.</div>
+          `
+          : ""}
+        ${isMetricsMode ? `
         <div class="admin-metrics">
           <div class="admin-metrics-head">
             <h2>Métricas</h2>
@@ -1111,28 +1186,8 @@ function adminView({
               <strong>${Number.isFinite(Number(metrics?.totalUsersCurrent)) ? Number(metrics.totalUsersCurrent) : 0}</strong>
             </article>
             <article class="admin-metric-card">
-              <span>Usuários no histórico</span>
-              <strong>${Number.isFinite(Number(metrics?.totalUsersHistorical)) ? Number(metrics.totalUsersHistorical) : 0}</strong>
-            </article>
-            <article class="admin-metric-card">
-              <span>Usuários com atividade</span>
-              <strong>${Number.isFinite(Number(metrics?.activeUsers)) ? Number(metrics.activeUsers) : 0}</strong>
-            </article>
-            <article class="admin-metric-card">
-              <span>Online agora</span>
-              <strong>${Number.isFinite(Number(metrics?.onlineNow)) ? Number(metrics.onlineNow) : 0}</strong>
-            </article>
-            <article class="admin-metric-card">
-              <span>Treinos iniciados</span>
-              <strong>${Number.isFinite(Number(metrics?.trainingStarted)) ? Number(metrics.trainingStarted) : 0}</strong>
-            </article>
-            <article class="admin-metric-card">
               <span>Avaliações concluídas</span>
               <strong>${Number.isFinite(Number(metrics?.evaluationsCompleted)) ? Number(metrics.evaluationsCompleted) : 0}</strong>
-            </article>
-            <article class="admin-metric-card">
-              <span>Taxa de aprovação</span>
-              <strong>${Number.isFinite(Number(metrics?.approvalRate)) ? Number(metrics.approvalRate) : 0}%</strong>
             </article>
             <article class="admin-metric-card">
               <span>Créditos (gasto/comprado)</span>
@@ -1151,10 +1206,9 @@ function adminView({
               <strong>${Number.isFinite(Number(metrics?.totalQuestions)) ? Number(metrics.totalQuestions) : 0}</strong>
             </article>
           </div>
-          <p class="admin-metrics-footnote">
-            "Usuários no histórico" inclui contas removidas com atividade registrada. Top erros: ${Array.isArray(metrics?.topErrors) && metrics.topErrors.length ? metrics.topErrors.join(" • ") : "Sem dados no período."}
-          </p>
+          <p class="admin-metrics-footnote"></p>
         </div>
+        ` : ""}
 
         <div class="admin-global-notice">
           <label for="adminGlobalNotice">Mural de avisos (aparece para todos os usuários no perfil)</label>
@@ -1166,18 +1220,27 @@ function adminView({
           <p>Acesse a área dedicada para cadastrar e revisar questões por simulador e modo.</p>
           <button type="button" id="goAdminQuestionsPage">Abrir área de questões</button>
         </div>
-        <div class="admin-filters">
-          <input type="text" id="adminSearch" placeholder="Buscar por nome ou email" />
-          <select id="adminRole">
-            <option value="">Todos os perfis</option>
-            <option value="Aluno Piloto">Aluno Piloto</option>
-            <option value="Piloto">Piloto</option>
-            <option value="Outro">Outro</option>
-          </select>
-          <button type="button" id="adminRefresh">Atualizar</button>
-          <button type="button" id="adminExport">Exportar CSV</button>
-        </div>
-        ${loading ? `<div class="profile-loading">Carregando...</div>` : list}
+        ${isUsersMode
+          ? `
+            <div class="admin-filters">
+              <input type="text" id="adminSearch" placeholder="Buscar por nome ou email" />
+              <select id="adminRole">
+                <option value="">Todos os perfis</option>
+                <option value="Aluno Piloto">Aluno Piloto</option>
+                <option value="Piloto">Piloto</option>
+                <option value="Outro">Outro</option>
+              </select>
+              <button type="button" id="adminRefresh">Atualizar</button>
+              <button type="button" id="adminExport">Exportar CSV</button>
+            </div>
+          `
+          : ""}
+        ${isUsersMode
+          ? (loading ? `<div class="profile-loading">Carregando...</div>` : list)
+          : ""}
+        ${isUsersMode && !loading && usersHasMore
+          ? `<div class="admin-load-more-wrap"><button type="button" id="adminLoadMoreUsers"${usersLoadingMore ? " disabled" : ""}>${usersLoadingMore ? "Carregando..." : "Carregar mais usuários"}</button></div>`
+          : ""}
       </div>
     </section>
     ${footerView()}

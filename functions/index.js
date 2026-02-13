@@ -23,7 +23,7 @@ const CREDIT_PACKS = {
 };
 const DEFAULT_CREDIT_PACK_ID = "bronze";
 const BUILD_ID = process.env.RENDER_GIT_COMMIT || process.env.SOURCE_VERSION || "local";
-const ADMIN_METRICS_CACHE_TTL_MS = Number(process.env.ADMIN_METRICS_CACHE_TTL_MS || 60_000);
+const ADMIN_METRICS_CACHE_TTL_MS = Number(process.env.ADMIN_METRICS_CACHE_TTL_MS || 10 * 60_000);
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || (functions.config()?.admin?.emails ?? "") || "jeffersonolspern@gmail.com")
   .split(",")
   .map((e) => e.trim().toLowerCase())
@@ -111,18 +111,6 @@ function resolvePackFromPayment(paymentData = {}) {
   if (matched) return matched;
 
   return CREDIT_PACKS[DEFAULT_CREDIT_PACK_ID];
-}
-
-function parseTimestampMs(value) {
-  if (!value) return 0;
-  if (typeof value.toDate === "function") {
-    const dt = value.toDate();
-    return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
-  }
-  if (typeof value._seconds === "number") return value._seconds * 1000;
-  if (typeof value.seconds === "number") return value.seconds * 1000;
-  const dt = new Date(value);
-  return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
 }
 
 function getRangeStartMs(range = "30d") {
@@ -230,14 +218,10 @@ app.post("/mpWebhook", async (req, res) => {
     const txRef = db.collection("credit_transactions").doc();
 
     await db.runTransaction(async (tx) => {
-      const snap = await tx.get(creditsRef);
-      const current = snap.exists ? snap.data() : { balance: 0 };
-      const nextBalance = (current.balance || 0) + selectedPack.credits;
-
       tx.set(
         creditsRef,
         {
-          balance: nextBalance,
+          balance: admin.firestore.FieldValue.increment(selectedPack.credits),
           updatedAt: now,
           expiresAt
         },
@@ -313,14 +297,10 @@ app.post("/reprocessPayment", async (req, res) => {
     const txRef = db.collection("credit_transactions").doc();
 
     await db.runTransaction(async (tx) => {
-      const snap = await tx.get(creditsRef);
-      const current = snap.exists ? snap.data() : { balance: 0 };
-      const nextBalance = (current.balance || 0) + selectedPack.credits;
-
       tx.set(
         creditsRef,
         {
-          balance: nextBalance,
+          balance: admin.firestore.FieldValue.increment(selectedPack.credits),
           updatedAt: now,
           expiresAt
         },
@@ -434,47 +414,29 @@ app.get("/admin/metrics", async (req, res) => {
     const nowMs = Date.now();
     const cached = adminMetricsCache.get(cacheKey);
     if (cached && cached.expiresAt > nowMs) {
-      return res.json({ metrics: cached.data, cached: true, range });
+      return res.json({ metrics: cached.data, cached: true, range, readEstimate: 0 });
     }
 
     const startMs = getRangeStartMs(range);
     const startTs = admin.firestore.Timestamp.fromDate(new Date(startMs));
 
-    const [usersSnap, evalPeriodSnap, txPeriodSnap, evalAllSnap, txAllSnap] = await Promise.all([
+    const [usersSnap, evalPeriodSnap, txPeriodSnap] = await Promise.all([
       db.collection("users").get(),
       db.collection("evaluations").where("createdAt", ">=", startTs).get(),
-      db.collection("credit_transactions").where("createdAt", ">=", startTs).get(),
-      db.collection("evaluations").get(),
-      db.collection("credit_transactions").get()
+      db.collection("credit_transactions").where("createdAt", ">=", startTs).get()
     ]);
 
     const currentUserIds = new Set(usersSnap.docs.map((d) => d.id));
-    const historicalUserIds = new Set(currentUserIds);
-    evalAllSnap.docs.forEach((d) => {
-      const uid = String(d.data()?.userId || "").trim();
-      if (uid) historicalUserIds.add(uid);
-    });
-    txAllSnap.docs.forEach((d) => {
-      const uid = String(d.data()?.userId || "").trim();
-      if (uid) historicalUserIds.add(uid);
-    });
-
-    const periodActiveIds = new Set();
-    let trainingStarted = 0;
     let creditsConsumed = 0;
     let creditsPurchased = 0;
 
     txPeriodSnap.docs.forEach((doc) => {
       const data = doc.data() || {};
-      const uid = String(data.userId || "").trim();
-      if (uid) periodActiveIds.add(uid);
       const type = String(data.type || "").toLowerCase();
-      const mode = String(data.mode || "").toLowerCase();
       const amount = Number.isFinite(Number(data.amount)) ? Math.trunc(Number(data.amount)) : 0;
 
       if (type === "consume" || amount < 0) {
         creditsConsumed += Math.abs(amount || 1);
-        if (mode === "training") trainingStarted += 1;
       }
       if (type === "purchase" || type === "reprocess" || amount > 0) {
         creditsPurchased += Math.max(0, amount);
@@ -482,67 +444,24 @@ app.get("/admin/metrics", async (req, res) => {
     });
 
     const evalDocs = evalPeriodSnap.docs.map((d) => d.data() || {});
-    evalDocs.forEach((data) => {
-      const uid = String(data.userId || "").trim();
-      if (uid) periodActiveIds.add(uid);
-    });
 
     const evaluationsCompleted = evalDocs.length;
-    const approvedCount = evalDocs.filter((d) => String(d.status || "").toLowerCase() === "aprovado").length;
-    const approvalRate = evaluationsCompleted ? Math.round((approvedCount / evaluationsCompleted) * 100) : 0;
-
-    const questionErrors = new Map();
-    evalDocs.forEach((ev) => {
-      const answers = Array.isArray(ev.answers) ? ev.answers : [];
-      answers.forEach((answer) => {
-        const selectedIndex = Number(answer?.selectedIndex);
-        const options = Array.isArray(answer?.options) ? answer.options : [];
-        if (!Number.isFinite(selectedIndex) || selectedIndex < 0) return;
-        const selected = options[selectedIndex];
-        if (!selected || selected.isCorrect) return;
-        const qidRaw = String(answer?.questionId || "questao").trim();
-        const qid = qidRaw.length > 24 ? `${qidRaw.slice(0, 24)}...` : qidRaw;
-        questionErrors.set(qid, (questionErrors.get(qid) || 0) + 1);
-      });
-    });
-    const topErrors = Array.from(questionErrors.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([qid, count]) => `${qid} (${count})`);
-
-    let activeUsers = 0;
-    periodActiveIds.forEach((uid) => {
-      if (currentUserIds.has(uid)) activeUsers += 1;
-    });
-
-    const onlineWindowMs = 2 * 60 * 1000;
-    const onlineNow = usersSnap.docs.reduce((acc, d) => {
-      const data = d.data() || {};
-      if (!data.isOnline) return acc;
-      const lastSeenMs = parseTimestampMs(data.lastSeenAt);
-      if (!lastSeenMs) return acc;
-      return nowMs - lastSeenMs <= onlineWindowMs ? acc + 1 : acc;
-    }, 0);
 
     const metrics = {
       totalUsersCurrent: currentUserIds.size,
-      totalUsersHistorical: historicalUserIds.size,
-      activeUsers,
-      onlineNow,
-      trainingStarted,
+      totalUsersHistorical: currentUserIds.size,
       evaluationsCompleted,
-      approvalRate,
       creditsConsumed,
-      creditsPurchased,
-      topErrors
+      creditsPurchased
     };
+    const readEstimate = Number(usersSnap.size || 0) + Number(evalPeriodSnap.size || 0) + Number(txPeriodSnap.size || 0);
 
     adminMetricsCache.set(cacheKey, {
       data: metrics,
       expiresAt: nowMs + ADMIN_METRICS_CACHE_TTL_MS
     });
 
-    return res.json({ metrics, cached: false, range });
+    return res.json({ metrics, cached: false, range, readEstimate });
   } catch (error) {
     console.error("admin metrics error:", error);
     return res.status(500).json({ error: "admin_metrics_error" });
@@ -601,14 +520,10 @@ app.post("/consumeCredit", async (req, res) => {
 
       balanceAfter = currentBalance - 1;
 
-      tx.set(
-        creditsRef,
-        {
-          balance: balanceAfter,
-          updatedAt: now
-        },
-        { merge: true }
-      );
+      tx.update(creditsRef, {
+        balance: admin.firestore.FieldValue.increment(-1),
+        updatedAt: now
+      });
 
       tx.set(txRef, {
         userId,
@@ -648,18 +563,14 @@ app.get("/credits/history", async (req, res) => {
 
   try {
     const rawPageSize = Number(req.query?.pageSize ?? 8);
-    const rawOffset = Number(req.query?.offset ?? 0);
     const pageSize = Number.isFinite(rawPageSize)
       ? Math.max(1, Math.min(20, Math.floor(rawPageSize)))
       : 8;
-    const offset = Number.isFinite(rawOffset)
+    const rawCursor = String(req.query?.cursor || "").trim();
+    const rawOffset = Number(req.query?.offset ?? 0);
+    const legacyOffset = Number.isFinite(rawOffset)
       ? Math.max(0, Math.floor(rawOffset))
       : 0;
-
-    const snap = await db
-      .collection("credit_transactions")
-      .where("userId", "==", authUser.uid)
-      .get();
 
     const getTimestampMs = (value) => {
       if (!value) return 0;
@@ -675,35 +586,50 @@ app.get("/credits/history", async (req, res) => {
       return 0;
     };
 
-    const allItems = snap.docs
-      .map((doc) => {
-        const data = doc.data() || {};
-        return {
-          id: doc.id,
-          userId: data.userId || "",
-          type: data.type || "",
-          mode: data.mode || "",
-          amount: Number.isFinite(Number(data.amount)) ? Number(data.amount) : 0,
-          paymentId: data.paymentId || "",
-          packageId: data.packageId || "",
-          packageTitle: data.packageTitle || "",
-          packagePrice: Number.isFinite(Number(data.packagePrice)) ? Number(data.packagePrice) : null,
-          requestId: data.requestId || "",
-          balanceBefore: Number.isFinite(Number(data.balanceBefore)) ? Number(data.balanceBefore) : null,
-          balanceAfter: Number.isFinite(Number(data.balanceAfter)) ? Number(data.balanceAfter) : null,
-          createdAt: toIso(data.createdAt),
-          expiresAt: toIso(data.expiresAt)
-        };
-      })
-      .sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
+    let queryRef = db
+      .collection("credit_transactions")
+      .where("userId", "==", authUser.uid)
+      .orderBy("createdAt", "desc")
+      .limit(pageSize);
 
-    const items = allItems.slice(offset, offset + pageSize);
-    const nextOffset = offset + items.length;
-    const hasMore = nextOffset < allItems.length;
+    const cursorMs = Number(rawCursor);
+    if (rawCursor && Number.isFinite(cursorMs) && cursorMs > 0) {
+      queryRef = queryRef.startAfter(admin.firestore.Timestamp.fromMillis(cursorMs));
+    } else if (!rawCursor && legacyOffset > 0) {
+      // Compatibilidade antiga; manter apenas como fallback.
+      queryRef = queryRef.offset(legacyOffset);
+    }
+
+    const snap = await queryRef.get();
+    const items = snap.docs.map((doc) => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        userId: data.userId || "",
+        type: data.type || "",
+        mode: data.mode || "",
+        amount: Number.isFinite(Number(data.amount)) ? Number(data.amount) : 0,
+        paymentId: data.paymentId || "",
+        packageId: data.packageId || "",
+        packageTitle: data.packageTitle || "",
+        packagePrice: Number.isFinite(Number(data.packagePrice)) ? Number(data.packagePrice) : null,
+        requestId: data.requestId || "",
+        balanceBefore: Number.isFinite(Number(data.balanceBefore)) ? Number(data.balanceBefore) : null,
+        balanceAfter: Number.isFinite(Number(data.balanceAfter)) ? Number(data.balanceAfter) : null,
+        createdAt: toIso(data.createdAt),
+        expiresAt: toIso(data.expiresAt)
+      };
+    });
+
+    const hasMore = snap.size === pageSize;
+    const lastItem = items.length ? items[items.length - 1] : null;
+    const nextCursor = hasMore && lastItem?.createdAt
+      ? getTimestampMs(lastItem.createdAt)
+      : null;
 
     return res.json({
       items,
-      nextCursor: hasMore ? nextOffset : null,
+      nextCursor,
       hasMore
     });
   } catch (error) {

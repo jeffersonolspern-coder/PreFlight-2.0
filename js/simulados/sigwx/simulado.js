@@ -1,4 +1,4 @@
-import { sigwxQuestions } from "./data.js";
+﻿import { sigwxQuestions } from "./data.js";
 
 let currentQuestionIndex = 0;
 let isFinished = false;
@@ -10,9 +10,7 @@ const QUESTIONS_PER_SESSION = 20;
 let currentQuestionBank = sigwxQuestions;
 let activeQuestions = [];
 let state = [];
-let imageZoomModalEl = null;
-let imageZoomModalImgEl = null;
-let imageZoomModalKeyHandlerBound = false;
+const DESKTOP_HOVER_QUERY = "(hover: hover) and (pointer: fine)";
 
 function getCurrentSimuladoLabel() {
   const rawKey = String(document.body?.dataset?.simuladoKey || "").toLowerCase();
@@ -21,7 +19,7 @@ function getCurrentSimuladoLabel() {
 }
 
 function getCurrentModeLabel() {
-  return document.body?.dataset?.simuladoMode === "evaluation" ? "Avaliação" : "Treinamento";
+  return document.body?.dataset?.simuladoMode === "evaluation" ? "AvaliaÃ§Ã£o" : "Treinamento";
 }
 
 function openQuestionReportModal({ questionIndex, questionId, questionText, selectedText = "" }) {
@@ -32,14 +30,14 @@ function openQuestionReportModal({ questionIndex, questionId, questionText, sele
   const modeLabel = getCurrentModeLabel();
 
   if (subjectInput) {
-    subjectInput.value = `Erro na questão ${questionIndex} (ID ${questionId}) (${simuladoLabel} - ${modeLabel})`;
+    subjectInput.value = `Erro na questÃ£o ${questionIndex} (ID ${questionId}) (${simuladoLabel} - ${modeLabel})`;
   }
   if (messageInput) {
     const selectedLine = selectedText
       ? `Minha resposta: ${selectedText}\n`
-      : "Minha resposta: (ainda não respondida)\n";
+      : "Minha resposta: (ainda nÃ£o respondida)\n";
     messageInput.value =
-      `Questão ${questionIndex} (ID ${questionId}):\n${questionText}\n\n` +
+      `QuestÃ£o ${questionIndex} (ID ${questionId}):\n${questionText}\n\n` +
       `${selectedLine}\n` +
       "Descreva o erro abaixo:";
   }
@@ -48,60 +46,6 @@ function openQuestionReportModal({ questionIndex, questionId, questionText, sele
     modal.classList.remove("hidden");
     messageInput?.focus();
   }
-}
-
-function closeSimuladoImageZoomModal() {
-  if (!imageZoomModalEl) return;
-  imageZoomModalEl.classList.add("is-hidden");
-  if (imageZoomModalImgEl) {
-    imageZoomModalImgEl.removeAttribute("src");
-    imageZoomModalImgEl.removeAttribute("alt");
-  }
-}
-
-function ensureSimuladoImageZoomModal() {
-  if (imageZoomModalEl && imageZoomModalImgEl) return;
-
-  imageZoomModalEl = document.createElement("div");
-  imageZoomModalEl.className = "simulado-image-zoom-modal is-hidden";
-  imageZoomModalEl.setAttribute("role", "dialog");
-  imageZoomModalEl.setAttribute("aria-modal", "true");
-  imageZoomModalEl.innerHTML = `
-    <div class="simulado-image-zoom-box">
-      <button type="button" class="simulado-image-zoom-close" aria-label="Fechar zoom">Fechar</button>
-      <img class="simulado-image-zoom-img" />
-    </div>
-  `;
-
-  imageZoomModalImgEl = imageZoomModalEl.querySelector(".simulado-image-zoom-img");
-  const closeBtn = imageZoomModalEl.querySelector(".simulado-image-zoom-close");
-
-  closeBtn?.addEventListener("click", closeSimuladoImageZoomModal);
-  imageZoomModalEl.addEventListener("click", (e) => {
-    if (e.target === imageZoomModalEl) {
-      closeSimuladoImageZoomModal();
-    }
-  });
-
-  if (!imageZoomModalKeyHandlerBound) {
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        closeSimuladoImageZoomModal();
-      }
-    });
-    imageZoomModalKeyHandlerBound = true;
-  }
-
-  document.body.appendChild(imageZoomModalEl);
-}
-
-function openSimuladoImageZoomModal({ src = "", alt = "" } = {}) {
-  if (!src) return;
-  ensureSimuladoImageZoomModal();
-  if (!imageZoomModalEl || !imageZoomModalImgEl) return;
-  imageZoomModalImgEl.src = src;
-  imageZoomModalImgEl.alt = alt || "Imagem ampliada";
-  imageZoomModalEl.classList.remove("is-hidden");
 }
 
 function shuffleArray(items) {
@@ -128,6 +72,82 @@ function resetSessionState() {
 
 resetSessionState();
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function shouldEnableImageMagnifier() {
+  if (document.body?.dataset?.simuladoMode !== "evaluation") return false;
+  return window.matchMedia(DESKTOP_HOVER_QUERY).matches;
+}
+
+function createMagnifiedImageNode({ imageUrl, alt }) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "simulado-image-magnifier";
+
+  const img = document.createElement("img");
+  img.src = imageUrl;
+  img.alt = alt;
+
+  const lens = document.createElement("span");
+  lens.className = "simulado-magnifier-lens";
+
+  const zoom = document.createElement("span");
+  zoom.className = "simulado-magnifier-zoom";
+  zoom.style.backgroundImage = `url("${imageUrl}")`;
+
+  wrapper.appendChild(img);
+  wrapper.appendChild(lens);
+  wrapper.appendChild(zoom);
+
+  const zoomScale = 2.2;
+  let rafId = null;
+
+  const updateZoom = (event) => {
+    rafId = null;
+    const imgRect = img.getBoundingClientRect();
+    if (!imgRect.width || !imgRect.height) return;
+
+    const xRatio = clamp((event.clientX - imgRect.left) / imgRect.width, 0, 1);
+    const yRatio = clamp((event.clientY - imgRect.top) / imgRect.height, 0, 1);
+
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const lensWidth = lens.offsetWidth || 120;
+    const lensHeight = lens.offsetHeight || 120;
+    const imgLeft = imgRect.left - wrapperRect.left;
+    const imgTop = imgRect.top - wrapperRect.top;
+    const cursorXInImage = clamp(event.clientX - imgRect.left, 0, imgRect.width);
+    const cursorYInImage = clamp(event.clientY - imgRect.top, 0, imgRect.height);
+    const lensLeft = imgLeft + cursorXInImage - lensWidth / 2;
+    const lensTop = imgTop + cursorYInImage - lensHeight / 2;
+
+    lens.style.left = `${lensLeft}px`;
+    lens.style.top = `${lensTop}px`;
+    zoom.style.backgroundSize = `${imgRect.width * zoomScale}px ${imgRect.height * zoomScale}px`;
+    zoom.style.backgroundPosition = `${xRatio * 100}% ${yRatio * 100}%`;
+  };
+
+  const queueUpdate = (event) => {
+    if (rafId !== null) return;
+    rafId = window.requestAnimationFrame(() => updateZoom(event));
+  };
+
+  img.addEventListener("mouseenter", () => {
+    wrapper.classList.add("is-active");
+  });
+
+  img.addEventListener("mouseleave", () => {
+    wrapper.classList.remove("is-active");
+  });
+
+  img.addEventListener("mousemove", queueUpdate);
+  img.addEventListener("load", () => {
+    zoom.style.backgroundImage = `url("${img.currentSrc || imageUrl}")`;
+  });
+
+  return wrapper;
+}
+
 export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = "training" } = {}) {
   currentQuestionBank = Array.isArray(questions) && questions.length ? questions : sigwxQuestions;
   const progress = document.getElementById("sigwxProgress");
@@ -150,7 +170,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
   btnFinalizar?.addEventListener("click", () => finalizarSimulado());
 
   if (!progress || !questionEl || !optionsEl || !navEl) {
-    console.error("SIGWX: elementos não encontrados");
+    console.error("SIGWX: elementos nÃ£o encontrados");
     return;
   }
 
@@ -221,7 +241,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
   function renderProgress() {
     const total = activeQuestions.length;
     if (!total) {
-      progress.innerText = "Nenhuma questão disponível neste banco.";
+      progress.innerText = "Nenhuma questÃ£o disponÃ­vel neste banco.";
       if (progressBar) progressBar.style.width = "0%";
       if (progressText) progressText.innerText = "0 de 0 respondidas (0%)";
       return;
@@ -229,7 +249,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
     const answered = state.filter((q) => q.selected !== null).length;
     const percent = Math.round((answered / total) * 100);
 
-    progress.innerText = `Questão ${currentQuestionIndex + 1} de ${total} . Respondidas ${answered}/${total}`;
+    progress.innerText = `QuestÃ£o ${currentQuestionIndex + 1} de ${total} . Respondidas ${answered}/${total}`;
 
     if (progressBar) {
       progressBar.style.width = `${percent}%`;
@@ -247,38 +267,27 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
     }
     questionEl.innerHTML = "";
 
-    const wrap = document.createElement("div");
-    wrap.className = "simulado-question-media";
+    if (shouldEnableImageMagnifier()) {
+      questionEl.appendChild(
+        createMagnifiedImageNode({
+          imageUrl: q.image,
+          alt: getCurrentSimuladoLabel()
+        })
+      );
+      return;
+    }
 
-    const img = document.createElement("img");
-    img.src = String(q?.image || "");
-    img.alt = `${getCurrentSimuladoLabel()} - Questão ${currentQuestionIndex + 1}`;
-
-    const zoomBtn = document.createElement("button");
-    zoomBtn.type = "button";
-    zoomBtn.className = "simulado-image-zoom-trigger";
-    zoomBtn.innerText = "Ampliar imagem";
-
-    const openZoom = () => {
-      openSimuladoImageZoomModal({
-        src: String(q?.image || ""),
-        alt: img.alt
-      });
-    };
-
-    img.addEventListener("click", openZoom);
-    zoomBtn.addEventListener("click", openZoom);
-
-    wrap.appendChild(img);
-    wrap.appendChild(zoomBtn);
-    questionEl.appendChild(wrap);
+    const image = document.createElement("img");
+    image.src = q.image;
+    image.alt = getCurrentSimuladoLabel();
+    questionEl.appendChild(image);
   }
 
   function renderOptions() {
     const q = activeQuestions[currentQuestionIndex];
     const qState = state[currentQuestionIndex];
     if (!q || !qState) {
-      optionsEl.innerHTML = `<h2>Nenhuma questão disponível para este modo.</h2>`;
+      optionsEl.innerHTML = `<h2>Nenhuma questÃ£o disponÃ­vel para este modo.</h2>`;
       return;
     }
 
@@ -332,7 +341,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
       const reportBtn = document.createElement("button");
       reportBtn.type = "button";
       reportBtn.className = "simulado-report-link";
-      reportBtn.innerText = "Reportar erro nesta questão";
+      reportBtn.innerText = "Reportar erro nesta questÃ£o";
       reportBtn.addEventListener("click", () => {
         const selectedText = qState.selected !== null
           ? String(qState.shuffledOptions[qState.selected]?.text || "").trim()
@@ -399,7 +408,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
   function finalizarSimulado({ force = false } = {}) {
     if (isFinished) return;
     if (!force && document.body.dataset.simuladoMode === "evaluation") {
-      const confirmed = confirm("Finalizar avaliação? Você não poderá voltar para responder.");
+      const confirmed = confirm("Finalizar avaliaÃ§Ã£o? VocÃª nÃ£o poderÃ¡ voltar para responder.");
       if (!confirmed) return;
     }
     isFinished = true;
@@ -466,3 +475,6 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
     return options;
   }
 }
+
+
+

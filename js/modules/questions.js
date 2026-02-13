@@ -3,7 +3,6 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  getDocsFromServer,
   serverTimestamp,
   setDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -30,12 +29,7 @@ function getQuestionDoc(bankId, questionId) {
 
 async function getQuestionsByBank(bankId) {
   const ref = getQuestionsCollection(bankId);
-  let snap;
-  try {
-    snap = await getDocsFromServer(ref);
-  } catch (error) {
-    snap = await getDocs(ref);
-  }
+  const snap = await getDocs(ref);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
