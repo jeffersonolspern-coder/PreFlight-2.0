@@ -80,6 +80,7 @@ const IS_LOCAL_DEV_HOST =
 const LOCAL_CREDITS_KEY_PREFIX = "preflight_local_credits_";
 const CREDITS_HISTORY_PAGE_SIZE = 30;
 const WELCOME_BONUS_CREDITS = 5;
+const CREDIT_API_TIMEOUT_MS = 12000;
 const PRESENCE_HEARTBEAT_MS = 45 * 1000;
 const ADMIN_LIGHT_MODE_KEY = "preflight_admin_light_mode";
 const ADMIN_MARKED_QUESTIONS_KEY = "preflight_admin_marked_questions_v1";
@@ -528,9 +529,13 @@ async function ensureQuestionBankLoaded(bankId, { force = false, silent = false 
 }
 
 async function preloadQuestionBanks() {
-  await Promise.all(
-    QUESTION_BANKS.map((bank) => ensureQuestionBankLoaded(bank.id, { force: false, silent: true }))
-  );
+  for (const bank of QUESTION_BANKS) {
+    try {
+      await ensureQuestionBankLoaded(bank.id, { force: false, silent: true });
+    } catch (_) {
+      // segue para o próximo banco sem bloquear o fluxo
+    }
+  }
 }
 
 function getQuestionsForBankId(bankId = "sigwx_training") {
@@ -1234,7 +1239,12 @@ function setDashboardStartButtonsDisabled(disabled) {
 async function refreshCurrentUserCredits() {
   if (!currentUser) return null;
   try {
-    const credits = await getUserCredits(currentUser.uid);
+    const credits = await Promise.race([
+      getUserCredits(currentUser.uid),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("credits_fetch_timeout")), CREDIT_API_TIMEOUT_MS)
+      )
+    ]);
     currentCredits = applyLocalCreditsBalance(credits || { balance: 0 }, true);
     return getCreditsBalanceValue(currentCredits);
   } catch (error) {
@@ -1246,6 +1256,18 @@ async function refreshCurrentUserCredits() {
 function createCreditRequestId(mode) {
   const randomPart = Math.random().toString(36).slice(2, 10);
   return `${mode}_${Date.now()}_${randomPart}`;
+}
+
+function createTimeoutController(timeoutMs = CREDIT_API_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    try {
+      controller.abort();
+    } catch (_) {
+      // no-op
+    }
+  }, Math.max(1000, Number(timeoutMs) || CREDIT_API_TIMEOUT_MS));
+  return { controller, timeoutId };
 }
 
 async function consumeStartCredit(mode) {
@@ -1277,17 +1299,24 @@ async function consumeStartCredit(mode) {
 
   try {
     const token = await currentUser.getIdToken();
-    const response = await fetchApiWithPathFallback("/consumeCredit", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        mode,
-        requestId
-      })
-    });
+    const { controller, timeoutId } = createTimeoutController();
+    let response;
+    try {
+      response = await fetchApiWithPathFallback("/consumeCredit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          mode,
+          requestId
+        }),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     let data = {};
     try {
@@ -1334,7 +1363,16 @@ async function consumeStartCredit(mode) {
       throw error;
     }
 
-    const fallback = await consumeUserCredit(currentUser.uid, mode, requestId);
+    const fallback = await Promise.race([
+      consumeUserCredit(currentUser.uid, mode, requestId),
+      new Promise((_, reject) =>
+        setTimeout(() => {
+          const timeoutError = new Error("consume_credit_timeout");
+          timeoutError.code = "consume_credit_timeout";
+          reject(timeoutError);
+        }, CREDIT_API_TIMEOUT_MS)
+      )
+    ]);
     const fallbackBalance = Number(fallback?.balance);
     const safeBalance = Number.isFinite(fallbackBalance) ? Math.max(0, Math.floor(fallbackBalance)) : 0;
     currentCredits = {
@@ -1447,6 +1485,27 @@ function setupTrainingStartModal({ onStart } = {}) {
         return;
       }
 
+      const isTransientCreditsError =
+        code.includes("timeout") ||
+        code.includes("abort") ||
+        code.includes("network") ||
+        code.includes("failed to fetch");
+      if (isTransientCreditsError) {
+        const localBalance = getCreditsBalanceValue();
+        if (localBalance !== null && localBalance > 0) {
+          currentCredits = {
+            ...(currentCredits || {}),
+            balance: Math.max(0, localBalance - 1)
+          };
+          writeLocalCreditsBalance(currentUser.uid, currentCredits.balance);
+          updateVisibleCreditsLabel();
+          modalEl.classList.add("hidden");
+          if (typeof onStart === "function") onStart();
+          showToast("Iniciado em modo contingência. Sincronize os créditos depois.", "info");
+          return;
+        }
+      }
+
       console.error("Falha ao iniciar treinamento:", error);
       showToast("Não foi possível iniciar agora. Tente novamente.", "error");
     } finally {
@@ -1532,8 +1591,15 @@ function renderSigwx() {
   });
 
   requestAnimationFrame(async () => {
-    await ensureQuestionBankLoaded("sigwx_training", { force: false, silent: true });
-    startSigwxSimulado({ questions: getQuestionsForSimuladoMode("sigwx", "training"), questionBank: "training" });
+    // inicia de imediato com cache/local; se vazio, força carga antes de iniciar
+    let questions = getQuestionsForSimuladoMode("sigwx", "training");
+    if (!Array.isArray(questions) || !questions.length) {
+      await ensureQuestionBankLoaded("sigwx_training", { force: false, silent: true });
+      questions = getQuestionsForSimuladoMode("sigwx", "training");
+    } else {
+      ensureQuestionBankLoaded("sigwx_training", { force: false, silent: true }).catch(() => {});
+    }
+    startSigwxSimulado({ questions, questionBank: "training" });
     setupTrainingStartModal();
   });
 
@@ -1556,8 +1622,14 @@ function renderSigwxEvaluation() {
   });
 
   requestAnimationFrame(async () => {
-    await ensureQuestionBankLoaded("sigwx_evaluation", { force: false, silent: true });
-    startSigwxSimulado({ questions: getQuestionsForSimuladoMode("sigwx", "evaluation"), questionBank: "evaluation" });
+    let questions = getQuestionsForSimuladoMode("sigwx", "evaluation");
+    if (!Array.isArray(questions) || !questions.length) {
+      await ensureQuestionBankLoaded("sigwx_evaluation", { force: false, silent: true });
+      questions = getQuestionsForSimuladoMode("sigwx", "evaluation");
+    } else {
+      ensureQuestionBankLoaded("sigwx_evaluation", { force: false, silent: true }).catch(() => {});
+    }
+    startSigwxSimulado({ questions, questionBank: "evaluation" });
   });
 
   evaluationFinishHandler = (e) => {
@@ -1594,8 +1666,14 @@ function renderMetarTaf() {
   });
 
   requestAnimationFrame(async () => {
-    await ensureQuestionBankLoaded("metar_taf_training", { force: false, silent: true });
-    startSigwxSimulado({ questions: getQuestionsForSimuladoMode("metar_taf", "training"), questionBank: "training" });
+    let questions = getQuestionsForSimuladoMode("metar_taf", "training");
+    if (!Array.isArray(questions) || !questions.length) {
+      await ensureQuestionBankLoaded("metar_taf_training", { force: false, silent: true });
+      questions = getQuestionsForSimuladoMode("metar_taf", "training");
+    } else {
+      ensureQuestionBankLoaded("metar_taf_training", { force: false, silent: true }).catch(() => {});
+    }
+    startSigwxSimulado({ questions, questionBank: "training" });
     setupTrainingStartModal();
   });
 
@@ -1618,8 +1696,14 @@ function renderMetarTafEvaluation() {
   });
 
   requestAnimationFrame(async () => {
-    await ensureQuestionBankLoaded("metar_taf_evaluation", { force: false, silent: true });
-    startSigwxSimulado({ questions: getQuestionsForSimuladoMode("metar_taf", "evaluation"), questionBank: "evaluation" });
+    let questions = getQuestionsForSimuladoMode("metar_taf", "evaluation");
+    if (!Array.isArray(questions) || !questions.length) {
+      await ensureQuestionBankLoaded("metar_taf_evaluation", { force: false, silent: true });
+      questions = getQuestionsForSimuladoMode("metar_taf", "evaluation");
+    } else {
+      ensureQuestionBankLoaded("metar_taf_evaluation", { force: false, silent: true }).catch(() => {});
+    }
+    startSigwxSimulado({ questions, questionBank: "evaluation" });
   });
 
   evaluationFinishHandler = (e) => {
@@ -1939,6 +2023,28 @@ function setupEvaluationTimer() {
         updateVisibleCreditsLabel();
         showToast(INSUFFICIENT_CREDITS_MESSAGE, "error");
         return;
+      }
+
+      const isTransientCreditsError =
+        code.includes("timeout") ||
+        code.includes("abort") ||
+        code.includes("network") ||
+        code.includes("failed to fetch");
+      if (isTransientCreditsError) {
+        const localBalance = getCreditsBalanceValue();
+        if (localBalance !== null && localBalance > 0) {
+          currentCredits = {
+            ...(currentCredits || {}),
+            balance: Math.max(0, localBalance - 1)
+          };
+          writeLocalCreditsBalance(currentUser.uid, currentCredits.balance);
+          updateVisibleCreditsLabel();
+          modalEl.classList.add("hidden");
+          evaluationStartAtMs = Date.now();
+          startTimer();
+          showToast("Iniciado em modo contingência. Sincronize os créditos depois.", "info");
+          return;
+        }
       }
 
       console.error("Falha ao iniciar avaliação:", error);
@@ -3712,9 +3818,11 @@ observeAuthState((user) => {
   }
 
   startPresenceTracking();
-  preloadQuestionBanks().catch((error) => {
-    console.warn("Falha no preload dos bancos de questões:", error);
-  });
+  setTimeout(() => {
+    preloadQuestionBanks().catch((error) => {
+      console.warn("Falha no preload dos bancos de questões:", error);
+    });
+  }, 1200);
 
   getUserProfile(currentUser.uid)
     .then(async (profile) => {
@@ -3743,12 +3851,22 @@ observeAuthState((user) => {
       currentProfile = null;
     })
     .finally(() => {
-      if (document.body.dataset.simuladoMode !== "training" && document.body.dataset.simuladoMode !== "evaluation") {
-        if (isAdminUser()) {
-          renderAdmin();
-        } else {
-          renderProfile();
-        }
+      const mode = String(document.body.dataset.simuladoMode || "");
+      const inSessionFlow =
+        mode === "training" ||
+        mode === "evaluation" ||
+        mode === "evaluation-results" ||
+        mode === "evaluation-history";
+      const hasActiveScreen = !!document.querySelector(
+        ".simulados-page, .simulado-container, .simulado-header, .eval-result, .admin-page, .credits-page, .packages-page, .contact-page, .profile-page"
+      );
+
+      if (inSessionFlow || hasActiveScreen) return;
+
+      if (isAdminUser()) {
+        renderAdmin();
+      } else {
+        renderProfile();
       }
     });
 });

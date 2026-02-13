@@ -220,6 +220,12 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
 
   function renderProgress() {
     const total = activeQuestions.length;
+    if (!total) {
+      progress.innerText = "Nenhuma questão disponível neste banco.";
+      if (progressBar) progressBar.style.width = "0%";
+      if (progressText) progressText.innerText = "0 de 0 respondidas (0%)";
+      return;
+    }
     const answered = state.filter((q) => q.selected !== null).length;
     const percent = Math.round((answered / total) * 100);
 
@@ -235,6 +241,10 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
 
   function renderImage() {
     const q = activeQuestions[currentQuestionIndex];
+    if (!q) {
+      questionEl.innerHTML = `<div class="simulado-empty">Sem imagem disponível.</div>`;
+      return;
+    }
     questionEl.innerHTML = "";
 
     const wrap = document.createElement("div");
@@ -267,6 +277,10 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
   function renderOptions() {
     const q = activeQuestions[currentQuestionIndex];
     const qState = state[currentQuestionIndex];
+    if (!q || !qState) {
+      optionsEl.innerHTML = `<h2>Nenhuma questão disponível para este modo.</h2>`;
+      return;
+    }
 
     if (!qState.shuffledOptions) {
       qState.shuffledOptions = shuffleOptions(q);
@@ -355,6 +369,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
 
   function renderNav() {
     navEl.innerHTML = "";
+    if (!activeQuestions.length) return;
 
     activeQuestions.forEach((_, index) => {
       const btn = document.createElement("button");
@@ -418,6 +433,12 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
   }
 
   function renderControls() {
+    if (!activeQuestions.length) {
+      if (btnPrev) btnPrev.disabled = true;
+      if (btnNext) btnNext.disabled = true;
+      if (btnFinalizar) btnFinalizar.disabled = true;
+      return;
+    }
     if (btnPrev) {
       const isFirst = currentQuestionIndex === 0;
       btnPrev.disabled = isFirst;

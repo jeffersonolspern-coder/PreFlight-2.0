@@ -1525,6 +1525,17 @@ textarea:focus-visible {
   font-weight: 600;
 }
 
+.simulado-empty {
+  width: 100%;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  padding: 18px 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
 .simulado-report-link {
   margin-top: 10px;
   align-self: flex-start;
@@ -1832,44 +1843,6 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   margin-bottom: 56px;
 }
 
-/* ===============================
-   METAR/TAF - AVALIACAO (layout dedicado)
-=============================== */
-body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-container {
-  grid-template-columns: 110px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  align-items: start;
-}
-
-body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-nav {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-}
-
-body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-main {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-question-box {
-  grid-column: 2;
-  grid-row: 2;
-  min-height: 0;
-  padding: 18px;
-}
-
-body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-image {
-  min-height: 180px;
-  padding: 14px;
-  align-items: center;
-}
-
-body[data-simulado-mode="evaluation"][data-simulado-key="metar_taf"] .simulado-image img {
-  width: 100%;
-  max-width: 100%;
-  max-height: 160px;
-  object-fit: contain;
-}
 .sigwx-stats {
   max-width: 1000px;
   margin: 40px auto;
