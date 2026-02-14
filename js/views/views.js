@@ -1179,11 +1179,6 @@ function adminView({
         </div>
       </div>
       <div class="admin-section">
-        ${isSummaryMode
-          ? `
-            <div class="profile-empty">Resumo leve ativo. Perfis e métricas são carregados somente sob demanda.</div>
-          `
-          : ""}
         ${isMetricsMode ? `
         <div class="admin-metrics">
           <div class="admin-metrics-head">
