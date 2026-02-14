@@ -1896,13 +1896,8 @@ function renderMetarTaf() {
   });
 
   requestAnimationFrame(async () => {
-    let questions = getQuestionsForSimuladoMode("metar_taf", "training");
-    if (!Array.isArray(questions) || !questions.length) {
-      await ensureQuestionBankLoaded("metar_taf_training", { force: false, silent: true });
-      questions = getQuestionsForSimuladoMode("metar_taf", "training");
-    } else if (!LOW_COST_MODE) {
-      ensureQuestionBankLoaded("metar_taf_training", { force: false, silent: true }).catch(() => {});
-    }
+    await ensureQuestionBankLoaded("metar_taf_training", { force: false, silent: true });
+    const questions = getQuestionsForSimuladoMode("metar_taf", "training");
     startSigwxSimulado({ questions, questionBank: "training" });
     setupTrainingStartModal();
   });
@@ -1926,13 +1921,8 @@ function renderMetarTafEvaluation() {
   });
 
   requestAnimationFrame(async () => {
-    let questions = getQuestionsForSimuladoMode("metar_taf", "evaluation");
-    if (!Array.isArray(questions) || !questions.length) {
-      await ensureQuestionBankLoaded("metar_taf_evaluation", { force: false, silent: true });
-      questions = getQuestionsForSimuladoMode("metar_taf", "evaluation");
-    } else if (!LOW_COST_MODE) {
-      ensureQuestionBankLoaded("metar_taf_evaluation", { force: false, silent: true }).catch(() => {});
-    }
+    await ensureQuestionBankLoaded("metar_taf_evaluation", { force: false, silent: true });
+    const questions = getQuestionsForSimuladoMode("metar_taf", "evaluation");
     startSigwxSimulado({ questions, questionBank: "evaluation" });
   });
 
