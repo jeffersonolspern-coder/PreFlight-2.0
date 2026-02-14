@@ -324,7 +324,21 @@ function registerView({ isAdmin = false, userLabel = "Conta" } = {}) {
 // ===============================
 // DASHBOARD
 // ===============================
-function dashboardView(user, { isAdmin = false, userLabel = "Conta", credits = null, canStartSessions = true } = {}) {
+function dashboardView(
+  user,
+  {
+    isAdmin = false,
+    userLabel = "Conta",
+    credits = null,
+    canStartSessions = true,
+    sessionAvailability = null
+  } = {}
+) {
+  const isModeEnabled = (simuladoKey, mode) => {
+    if (!canStartSessions) return false;
+    const value = sessionAvailability?.[simuladoKey]?.[mode];
+    return typeof value === "boolean" ? value : true;
+  };
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
 
@@ -340,8 +354,8 @@ function dashboardView(user, { isAdmin = false, userLabel = "Conta", credits = n
           <h3>SIGWX</h3>
           <p>Cartas de tempo significativo e interpretação operacional.</p>
           <div class="simulado-actions">
-            <button id="dashboardSigwxTraining" class="simulado-btn primary" data-action="sigwx"${canStartSessions ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button id="dashboardSigwxEval" class="simulado-btn ghost" data-action="sigwx-eval"${canStartSessions ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+            <button id="dashboardSigwxTraining" class="simulado-btn primary" data-action="sigwx"${isModeEnabled("sigwx", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button id="dashboardSigwxEval" class="simulado-btn ghost" data-action="sigwx-eval"${isModeEnabled("sigwx", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
           </div>
         </div>
 
@@ -350,8 +364,8 @@ function dashboardView(user, { isAdmin = false, userLabel = "Conta", credits = n
           <h3>METAR / TAF</h3>
           <p>Leitura e interpretação operacional.</p>
           <div class="simulado-actions">
-            <button id="dashboardMetarTraining" class="simulado-btn primary" data-action="metar-taf"${canStartSessions ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button id="dashboardMetarEval" class="simulado-btn ghost" data-action="metar-taf-eval"${canStartSessions ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+            <button id="dashboardMetarTraining" class="simulado-btn primary" data-action="metar-taf"${isModeEnabled("metar_taf", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button id="dashboardMetarEval" class="simulado-btn ghost" data-action="metar-taf-eval"${isModeEnabled("metar_taf", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
           </div>
         </div>
 
@@ -1090,6 +1104,7 @@ function adminView({
   usersHasMore = false,
   usersLoadingMore = false,
   mode = "summary",
+  sessionAvailability = null,
   questionBanks = [],
   selectedQuestionBank = "",
   questionItems = [],
@@ -1101,6 +1116,10 @@ function adminView({
   const isSummaryMode = mode === "summary";
   const isUsersMode = mode === "users";
   const isMetricsMode = mode === "metrics";
+  const sessionConfig = sessionAvailability || {
+    sigwx: { training: true, evaluation: true },
+    metar_taf: { training: true, evaluation: true }
+  };
   const list = users.length
     ? `<div class="admin-grid">` +
         users.map((u) => {
@@ -1214,6 +1233,59 @@ function adminView({
           <label for="adminGlobalNotice">Mural de avisos (aparece para todos os usuários no perfil)</label>
           <textarea id="adminGlobalNotice" rows="3" placeholder="Escreva um aviso global...">${escapeHtml(globalNotice || "")}</textarea>
           <button type="button" id="adminGlobalNoticeSave">Salvar aviso</button>
+        </div>
+        <div class="admin-global-notice">
+          <label>Disponibilidade de simulados (treino/avaliação)</label>
+          <p>Desative modos individualmente para bloquear no dashboard dos alunos.</p>
+          <div class="admin-session-grid">
+            <article class="admin-session-card">
+              <h3>SIGWX</h3>
+              <div class="admin-session-actions">
+                <button
+                  type="button"
+                  class="admin-session-toggle ${sessionConfig.sigwx?.training ? "is-enabled" : "is-disabled"}"
+                  data-session-toggle="sigwx:training"
+                  data-enabled="${sessionConfig.sigwx?.training ? "1" : "0"}"
+                  aria-pressed="${sessionConfig.sigwx?.training ? "true" : "false"}"
+                >
+                  Treino: ${sessionConfig.sigwx?.training ? "Ativado" : "Desativado"}
+                </button>
+                <button
+                  type="button"
+                  class="admin-session-toggle ${sessionConfig.sigwx?.evaluation ? "is-enabled" : "is-disabled"}"
+                  data-session-toggle="sigwx:evaluation"
+                  data-enabled="${sessionConfig.sigwx?.evaluation ? "1" : "0"}"
+                  aria-pressed="${sessionConfig.sigwx?.evaluation ? "true" : "false"}"
+                >
+                  Avaliação: ${sessionConfig.sigwx?.evaluation ? "Ativado" : "Desativado"}
+                </button>
+              </div>
+            </article>
+            <article class="admin-session-card">
+              <h3>METAR/TAF</h3>
+              <div class="admin-session-actions">
+                <button
+                  type="button"
+                  class="admin-session-toggle ${sessionConfig.metar_taf?.training ? "is-enabled" : "is-disabled"}"
+                  data-session-toggle="metar_taf:training"
+                  data-enabled="${sessionConfig.metar_taf?.training ? "1" : "0"}"
+                  aria-pressed="${sessionConfig.metar_taf?.training ? "true" : "false"}"
+                >
+                  Treino: ${sessionConfig.metar_taf?.training ? "Ativado" : "Desativado"}
+                </button>
+                <button
+                  type="button"
+                  class="admin-session-toggle ${sessionConfig.metar_taf?.evaluation ? "is-enabled" : "is-disabled"}"
+                  data-session-toggle="metar_taf:evaluation"
+                  data-enabled="${sessionConfig.metar_taf?.evaluation ? "1" : "0"}"
+                  aria-pressed="${sessionConfig.metar_taf?.evaluation ? "true" : "false"}"
+                >
+                  Avaliação: ${sessionConfig.metar_taf?.evaluation ? "Ativado" : "Desativado"}
+                </button>
+              </div>
+            </article>
+          </div>
+          <button type="button" id="adminSessionAvailabilitySave">Salvar disponibilidade</button>
         </div>
         <div class="admin-questions-entry">
           <h2>Painel de questões</h2>
@@ -1450,6 +1522,7 @@ function adminQuestionEditorView({
             </label>
             <div class="admin-question-actions">
               <button type="button" id="adminQuestionSave">Salvar questão</button>
+              <button type="button" id="adminQuestionSaveAndNew">Salvar e novo</button>
               <button type="button" id="adminQuestionDelete" class="danger">Excluir questão</button>
               <button type="button" id="adminQuestionMarkToggle" class="${isCurrentMarked ? "is-marked" : ""}">
                 ${isCurrentMarked ? "Desmarcar revisão" : "Marcar revisão"}

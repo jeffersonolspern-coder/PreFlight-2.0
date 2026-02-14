@@ -22,12 +22,15 @@ import {
 import { db } from "./firebase.js";
 
 const GLOBAL_NOTICE_REF = doc(db, "settings", "global_notice");
+const SESSION_AVAILABILITY_REF = doc(db, "settings", "session_availability");
 const userProfileCache = new Map();
 const userCreditsCache = new Map();
 let allUsersCache = null;
 let allCreditsCache = null;
 let globalNoticeCacheLoaded = false;
 let globalNoticeCacheValue = null;
+let sessionAvailabilityCacheLoaded = false;
+let sessionAvailabilityCacheValue = null;
 let allCreditTransactionsCache = null;
 
 function clearUserFirestoreCaches(userId = "") {
@@ -44,6 +47,8 @@ function clearUserFirestoreCaches(userId = "") {
   allCreditsCache = null;
   globalNoticeCacheLoaded = false;
   globalNoticeCacheValue = null;
+  sessionAvailabilityCacheLoaded = false;
+  sessionAvailabilityCacheValue = null;
   allCreditTransactionsCache = null;
 }
 
@@ -429,6 +434,51 @@ async function getAllCreditTransactions({ forceRefresh = false } = {}) {
   return items;
 }
 
+function normalizeSessionAvailabilityConfig(raw = null) {
+  const readFlag = (simulado, mode) => {
+    const value = raw?.[simulado]?.[mode];
+    return typeof value === "boolean" ? value : true;
+  };
+
+  return {
+    sigwx: {
+      training: readFlag("sigwx", "training"),
+      evaluation: readFlag("sigwx", "evaluation")
+    },
+    metar_taf: {
+      training: readFlag("metar_taf", "training"),
+      evaluation: readFlag("metar_taf", "evaluation")
+    }
+  };
+}
+
+async function getSessionAvailability({ forceRefresh = false } = {}) {
+  if (!forceRefresh && sessionAvailabilityCacheLoaded) {
+    return sessionAvailabilityCacheValue;
+  }
+
+  const snap = await getDoc(SESSION_AVAILABILITY_REF);
+  const raw = snap.exists() ? snap.data() : null;
+  sessionAvailabilityCacheLoaded = true;
+  sessionAvailabilityCacheValue = normalizeSessionAvailabilityConfig(raw);
+  return sessionAvailabilityCacheValue;
+}
+
+async function setSessionAvailability(config = {}, updatedBy = "") {
+  const normalized = normalizeSessionAvailabilityConfig(config);
+  await setDoc(
+    SESSION_AVAILABILITY_REF,
+    {
+      ...normalized,
+      updatedBy: String(updatedBy || "").trim(),
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+  sessionAvailabilityCacheLoaded = true;
+  sessionAvailabilityCacheValue = normalized;
+}
+
 async function setGlobalNotice(message, updatedBy = "") {
   const text = String(message || "").trim();
   await setDoc(
@@ -459,7 +509,9 @@ export {
   getUserCreditTransactionsPage,
   getUserSessionCounts,
   getGlobalNotice,
+  getSessionAvailability,
   setGlobalNotice,
+  setSessionAvailability,
   getAllCreditTransactions,
   setCachedUserCredits,
   clearUserFirestoreCaches

@@ -48,7 +48,9 @@ import {
   getUserCreditTransactionsPage,
   getUserSessionCounts,
   getGlobalNotice,
+  getSessionAvailability,
   setGlobalNotice,
+  setSessionAvailability,
   setCachedUserCredits,
   clearUserFirestoreCaches
 } from "./modules/users.js";
@@ -151,6 +153,10 @@ let profileEvaluationsCache = [];
 let profileShowAllEvaluations = false;
 let profileVisibleSpentCredits = 7;
 let globalNoticeMessage = "";
+let sessionAvailability = {
+  sigwx: { training: true, evaluation: true },
+  metar_taf: { training: true, evaluation: true }
+};
 let pendingWelcomeAnnouncement = "";
 let currentCredits = null;
 let creditHistoryItems = [];
@@ -180,6 +186,7 @@ let homeSimuladosResizeHandler = null;
 let simuladoNavResizeHandler = null;
 let homeModeCarouselCleanupFns = [];
 const INSUFFICIENT_CREDITS_MESSAGE = "Você não possui créditos suficientes.";
+const SESSION_BLOCKED_MESSAGE = "Este modo está temporariamente desabilitado no momento.";
 let userMenuDocumentClickHandler = null;
 let userMenuDocumentKeydownHandler = null;
 let apiWarmupDone = false;
@@ -276,6 +283,31 @@ function trackTelemetry(flow, { reads = 0, writes = 0, count = 1 } = {}) {
   state.days[dayKey].totals.writes += safeWrites;
 
   writeTelemetryState(state);
+}
+
+function normalizeSessionAvailability(raw = null) {
+  const readFlag = (simulado, mode) => {
+    const value = raw?.[simulado]?.[mode];
+    return typeof value === "boolean" ? value : true;
+  };
+
+  return {
+    sigwx: {
+      training: readFlag("sigwx", "training"),
+      evaluation: readFlag("sigwx", "evaluation")
+    },
+    metar_taf: {
+      training: readFlag("metar_taf", "training"),
+      evaluation: readFlag("metar_taf", "evaluation")
+    }
+  };
+}
+
+function isSessionModeAvailable(simuladoKey = "sigwx", mode = "training") {
+  const safeKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
+  const safeMode = mode === "evaluation" ? "evaluation" : "training";
+  const value = sessionAvailability?.[safeKey]?.[safeMode];
+  return typeof value === "boolean" ? value : true;
 }
 
 function getTelemetryReport(days = TELEMETRY_RETENTION_DAYS) {
@@ -1581,15 +1613,20 @@ async function startSimuladoWithCredit(simuladoKey = "sigwx", mode = "training")
     return;
   }
   const safeKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
+  const safeMode = mode === "evaluation" ? "evaluation" : "training";
+  if (!isSessionModeAvailable(safeKey, safeMode)) {
+    showToast(SESSION_BLOCKED_MESSAGE, "info");
+    return;
+  }
   if (safeKey === "sigwx") {
-    if (mode === "evaluation") {
+    if (safeMode === "evaluation") {
       renderSigwxEvaluation();
       return;
     }
     renderSigwx();
     return;
   }
-  if (mode === "evaluation") {
+  if (safeMode === "evaluation") {
     renderMetarTafEvaluation();
     return;
   }
@@ -1747,13 +1784,22 @@ function renderRegister() {
   setupFooterLinks();
 }
 
-function renderDashboard() {
+async function renderDashboard() {
   cleanupEvaluationFlow();
+  try {
+    const availability = await getSessionAvailability().catch(() => null);
+    trackTelemetry("session_availability_fetch", { reads: 1 });
+    sessionAvailability = normalizeSessionAvailability(availability);
+  } catch (_) {
+    sessionAvailability = normalizeSessionAvailability(sessionAvailability);
+  }
+
   app.innerHTML = dashboardView(currentUser, {
     isAdmin: isAdminUser(),
     userLabel: getUserLabel(),
     credits: getCreditsLabel(),
-    canStartSessions: true
+    canStartSessions: true,
+    sessionAvailability
   });
   setupLogout();
   setupDashboardActions();
@@ -2578,7 +2624,8 @@ async function renderAdmin() {
     lightMode: adminLightMode,
     usersHasMore: false,
     usersLoadingMore: false,
-    mode: "summary"
+    mode: "summary",
+    sessionAvailability
   });
   setupGlobalMenu();
   setupLogout();
@@ -2590,9 +2637,13 @@ async function renderAdmin() {
     const globalNotice = await getGlobalNotice().catch(() => null);
     trackTelemetry("admin_notice_fetch", { reads: 1 });
     globalNoticeMessage = String(globalNotice?.message || "").trim();
+    const availability = await getSessionAvailability().catch(() => null);
+    trackTelemetry("session_availability_fetch", { reads: 1 });
+    sessionAvailability = normalizeSessionAvailability(availability);
     rerenderAdminWithCache();
   } catch (error) {
     console.error("Erro ao carregar aviso global:", error);
+    sessionAvailability = normalizeSessionAvailability(sessionAvailability);
     rerenderAdminWithCache("Não foi possível carregar o aviso global agora.");
   }
 }
@@ -2646,7 +2697,8 @@ async function renderAdminUsers({ forceRefresh = false } = {}) {
     lightMode: adminLightMode,
     usersHasMore: adminUsersHasMore,
     usersLoadingMore: adminUsersLoadingMore,
-    mode: "users"
+    mode: "users",
+    sessionAvailability
   });
   setupGlobalMenu();
   setupLogout();
@@ -2696,7 +2748,8 @@ async function renderAdminMetrics({ forceRefresh = false } = {}) {
     lightMode: adminLightMode,
     usersHasMore: false,
     usersLoadingMore: false,
-    mode: "metrics"
+    mode: "metrics",
+    sessionAvailability
   });
   setupGlobalMenu();
   setupLogout();
@@ -2863,7 +2916,8 @@ function rerenderAdminWithCache(notice = "") {
     lightMode: adminLightMode,
     usersHasMore: mode === "users" ? adminUsersHasMore : false,
     usersLoadingMore: mode === "users" ? adminUsersLoadingMore : false,
-    mode
+    mode,
+    sessionAvailability
   });
   setupGlobalMenu();
   setupLogout();
@@ -3450,6 +3504,8 @@ function setupAdminActions() {
   const loadMoreBtn = document.getElementById("adminLoadMoreUsers");
   const noticeInput = document.getElementById("adminGlobalNotice");
   const noticeSaveBtn = document.getElementById("adminGlobalNoticeSave");
+  const sessionSaveBtn = document.getElementById("adminSessionAvailabilitySave");
+  const sessionToggleButtons = document.querySelectorAll("[data-session-toggle]");
   const rangeButtons = document.querySelectorAll("[data-metrics-range]");
   const lightModeBtn = document.getElementById("adminLightModeToggle");
 
@@ -3602,11 +3658,68 @@ function setupAdminActions() {
     }
   });
 
+  const updateSessionToggleButton = (btn, enabled) => {
+    if (!btn) return;
+    const raw = String(btn.getAttribute("data-session-toggle") || "");
+    const [, mode] = raw.split(":");
+    const modeLabel = mode === "evaluation" ? "Avaliação" : "Treino";
+    const isEnabled = !!enabled;
+    btn.setAttribute("data-enabled", isEnabled ? "1" : "0");
+    btn.setAttribute("aria-pressed", isEnabled ? "true" : "false");
+    btn.classList.toggle("is-enabled", isEnabled);
+    btn.classList.toggle("is-disabled", !isEnabled);
+    btn.innerText = `${modeLabel}: ${isEnabled ? "Ativado" : "Desativado"}`;
+  };
+
+  sessionToggleButtons.forEach((btn) => {
+    const isEnabled = String(btn.getAttribute("data-enabled") || "1") === "1";
+    updateSessionToggleButton(btn, isEnabled);
+    btn.addEventListener("click", () => {
+      const current = String(btn.getAttribute("data-enabled") || "1") === "1";
+      updateSessionToggleButton(btn, !current);
+    });
+  });
+
+  const readSessionToggle = (simulado, mode) => {
+    const btn = document.querySelector(`[data-session-toggle="${simulado}:${mode}"]`);
+    if (!btn) return true;
+    return String(btn.getAttribute("data-enabled") || "1") === "1";
+  };
+
+  sessionSaveBtn?.addEventListener("click", async () => {
+    const nextAvailability = normalizeSessionAvailability({
+      sigwx: {
+        training: readSessionToggle("sigwx", "training"),
+        evaluation: readSessionToggle("sigwx", "evaluation")
+      },
+      metar_taf: {
+        training: readSessionToggle("metar_taf", "training"),
+        evaluation: readSessionToggle("metar_taf", "evaluation")
+      }
+    });
+
+    sessionSaveBtn.disabled = true;
+    const prev = sessionSaveBtn.innerText;
+    sessionSaveBtn.innerText = "Salvando...";
+    try {
+      await setSessionAvailability(nextAvailability, currentUser?.email || "");
+      sessionAvailability = nextAvailability;
+      showToast("Disponibilidade atualizada.", "success");
+    } catch (error) {
+      console.error("Erro ao salvar disponibilidade de simulados:", error);
+      showToast("Não foi possível salvar a disponibilidade.", "error");
+    } finally {
+      sessionSaveBtn.disabled = false;
+      sessionSaveBtn.innerText = prev;
+    }
+  });
+
   const questionPdfBtn = document.getElementById("adminQuestionPdf");
   const questionReloadBtn = document.getElementById("adminQuestionReload");
   const questionNewBtn = document.getElementById("adminQuestionNew");
   const questionOnlyMarkedBtn = document.getElementById("adminQuestionOnlyMarked");
   const questionSaveBtn = document.getElementById("adminQuestionSave");
+  const questionSaveAndNewBtn = document.getElementById("adminQuestionSaveAndNew");
   const questionDeleteBtn = document.getElementById("adminQuestionDelete");
   const questionMarkToggleBtn = document.getElementById("adminQuestionMarkToggle");
   const questionReviewedToggleBtn = document.getElementById("adminQuestionReviewedToggle");
@@ -3802,7 +3915,7 @@ function setupAdminActions() {
     });
   });
 
-  questionSaveBtn?.addEventListener("click", async () => {
+  const saveQuestionFromForm = async ({ openNewAfterSave = false } = {}) => {
     const draft = readQuestionForm();
     if (!draft.id) {
       showToast("Informe um ID válido para a questão.", "error");
@@ -3817,9 +3930,13 @@ function setupAdminActions() {
       return;
     }
 
-    questionSaveBtn.disabled = true;
-    const prev = questionSaveBtn.innerText;
-    questionSaveBtn.innerText = "Salvando...";
+    const buttonsToLock = [questionSaveBtn, questionSaveAndNewBtn].filter(Boolean);
+    const previousLabels = buttonsToLock.map((btn) => btn.innerText);
+    buttonsToLock.forEach((btn) => {
+      btn.disabled = true;
+    });
+    if (questionSaveBtn) questionSaveBtn.innerText = "Salvando...";
+    if (questionSaveAndNewBtn) questionSaveAndNewBtn.innerText = "Salvando...";
     try {
       await saveQuestionDefinition(
         adminQuestionBank,
@@ -3836,13 +3953,18 @@ function setupAdminActions() {
       );
       await ensureQuestionBankLoaded(adminQuestionBank, { force: true, silent: true });
       adminQuestionEditorDraftMode = false;
-      const refreshedList = getVisibleQuestionList();
-      const currentIndex = refreshedList.findIndex((item) => item.id === draft.id);
-      const hasNext = currentIndex !== -1 && currentIndex < refreshedList.length - 1;
-      if (adminAutoNextOnSave && hasNext) {
-        adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, refreshedList[currentIndex + 1]);
+      if (openNewAfterSave) {
+        adminQuestionEditorDraftMode = true;
+        adminQuestionEditor = createNewAdminQuestionDraft(adminQuestionBank);
       } else {
-        adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, draft);
+        const refreshedList = getVisibleQuestionList();
+        const currentIndex = refreshedList.findIndex((item) => item.id === draft.id);
+        const hasNext = currentIndex !== -1 && currentIndex < refreshedList.length - 1;
+        if (adminAutoNextOnSave && hasNext) {
+          adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, refreshedList[currentIndex + 1]);
+        } else {
+          adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, draft);
+        }
       }
       rerenderAdminWithCache();
       showToast("Questão salva com sucesso.", "success");
@@ -3850,9 +3972,19 @@ function setupAdminActions() {
       console.error("Erro ao salvar questão:", error);
       showToast("Não foi possível salvar a questão.", "error");
     } finally {
-      questionSaveBtn.disabled = false;
-      questionSaveBtn.innerText = prev;
+      buttonsToLock.forEach((btn, index) => {
+        btn.disabled = false;
+        btn.innerText = previousLabels[index];
+      });
     }
+  };
+
+  questionSaveBtn?.addEventListener("click", async () => {
+    await saveQuestionFromForm();
+  });
+
+  questionSaveAndNewBtn?.addEventListener("click", async () => {
+    await saveQuestionFromForm({ openNewAfterSave: true });
   });
 
   questionDeleteBtn?.addEventListener("click", async () => {
