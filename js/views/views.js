@@ -121,7 +121,17 @@ function footerView() {
 // ===============================
 // HOME PÃšBLICA
 // ===============================
-function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", credits = null } = {}) {
+function homePublicView({
+  logged = false,
+  isAdmin = false,
+  userLabel = "Conta",
+  credits = null,
+  sessionAvailability = null
+} = {}) {
+  const isSimuladoEnabled = (simuladoKey) => {
+    const value = sessionAvailability?.[simuladoKey]?.enabled;
+    return typeof value === "boolean" ? value : true;
+  };
   return `
     ${headerView({ logged, isAdmin, userLabel, credits: logged ? credits : null })}
 
@@ -153,36 +163,62 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
         <button type="button" class="simulados-carousel-btn prev" aria-label="Simulado anterior">&#8249;</button>
         <div class="simulados-viewport">
           <div class="cards simulados-cards-track">
+            ${isSimuladoEnabled("sigwx") ? `
             <div class="card" data-action="sigwx">
               <span class="status-chip status-chip--live">Disponível agora</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-plus-icon lucide-map-plus"><path d="m11 19-1.106-.552a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0l4.212 2.106a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619V12"/><path d="M15 5.764V12"/><path d="M18 15v6"/><path d="M21 18h-6"/><path d="M9 3.236v15"/></svg></span>
               <h3>SIGWX</h3>
               <p>Simbologia e Nomenclaturas</p>
             </div>
+            ` : ""}
+            ${isSimuladoEnabled("metar_taf") ? `
             <div class="card" data-action="metar-taf">
               <span class="status-chip status-chip--live">Disponível agora</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-sun-rain-icon lucide-cloud-sun-rain"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M3 20a5 5 0 1 1 8.9-4H13a3 3 0 0 1 2 5.24"/><path d="M11 20v2"/><path d="M7 19v2"/></svg></span>
               <h3>METAR / TAF</h3>
               <p>Leitura e interpretação operacional</p>
             </div>
+            ` : ""}
+            ${isSimuladoEnabled("notam") ? `
             <div class="card card-disabled" aria-disabled="true">
               <span class="status-chip status-chip--soon">Em breve</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list-icon lucide-clipboard-list"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>
               <h3>NOTAM</h3>
               <p>Em desenvolvimento</p>
             </div>
+            ` : ""}
+            ${isSimuladoEnabled("rotaer") ? `
             <div class="card card-disabled" aria-disabled="true">
               <span class="status-chip status-chip--soon">Em breve</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tower-control-icon lucide-tower-control"><path d="M18.2 12.27 20 6H4l1.8 6.27a1 1 0 0 0 .95.73h10.5a1 1 0 0 0 .96-.73Z"/><path d="M8 13v9"/><path d="M16 22v-9"/><path d="m9 6 1 7"/><path d="m15 6-1 7"/><path d="M12 6V2"/><path d="M13 2h-2"/></svg></span>
               <h3>ROTAER</h3>
               <p>Em desenvolvimento</p>
             </div>
+            ` : ""}
+            ${isSimuladoEnabled("nuvens") ? `
             <div class="card card-disabled" aria-disabled="true">
               <span class="status-chip status-chip--soon">Em breve</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloudy-icon lucide-cloudy"><path d="M17.5 12a1 1 0 1 1 0 9H9.006a7 7 0 1 1 6.702-9z"/><path d="M21.832 9A3 3 0 0 0 19 7h-2.207a5.5 5.5 0 0 0-10.72.61"/></svg></span>
               <h3>Nuvens</h3>
               <p>Em desenvolvimento</p>
             </div>
+            ` : ""}
+            ${isSimuladoEnabled("sinais_luminosos") ? `
+            <div class="card card-disabled" aria-disabled="true">
+              <span class="status-chip status-chip--soon">Em breve</span>
+              <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-spotlight"><path d="M4 10h7l4-3v10l-4-3H4z"/><path d="M15 9l5-2v10l-5-2"/><path d="M6 14v4"/><path d="M9 14v4"/><path d="M5 18h5"/></svg></span>
+              <h3>Sinais luminosos</h3>
+              <p>Em desenvolvimento</p>
+            </div>
+            ` : ""}
+            ${isSimuladoEnabled("espacos_aereos") ? `
+            <div class="card card-disabled" aria-disabled="true">
+              <span class="status-chip status-chip--soon">Em breve</span>
+              <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-radar-icon lucide-radar"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4.93 4.93A10 10 0 0 0 3.34 17.01"/><path d="M4.93 19.07A10 10 0 0 0 17.01 20.66"/><path d="M19.07 19.07A10 10 0 0 0 20.66 6.99"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg></span>
+              <h3>Espaços Aéreos</h3>
+              <p>Em desenvolvimento</p>
+            </div>
+            ` : ""}
           </div>
         </div>
         <button type="button" class="simulados-carousel-btn next" aria-label="Próximo simulado">&#8250;</button>
@@ -245,6 +281,78 @@ function homePublicView({ logged = false, isAdmin = false, userLabel = "Conta", 
           </button>
         </div>
         <p class="home-packages-note">1 crédito = 1 treino ou 1 avaliação &bull; Compra única, sem assinatura.</p>
+      </div>
+    </section>
+
+    ${footerView()}
+    ${contactWidgetView()}
+  `;
+}
+
+function metarTafHubView(
+  {
+    isAdmin = false,
+    userLabel = "Conta",
+    credits = null,
+    canStartSessions = true,
+    sessionAvailability = null
+  } = {}
+) {
+  const isModeEnabled = (mode) => {
+    if (!canStartSessions) return false;
+    const value = sessionAvailability?.metar_taf?.[mode];
+    return typeof value === "boolean" ? value : true;
+  };
+  const trainingEnabled = isModeEnabled("training");
+  const evaluationEnabled = isModeEnabled("evaluation");
+  return `
+    ${headerView({ logged: true, isAdmin, userLabel, credits })}
+
+    <section class="simulados-page metar-taf-page">
+      <div class="simulados-header">
+        <h1>Simulados METAR e TAF</h1>
+        <p>Nesta página você organiza o estudo de METAR/TAF e acessa os dois tipos de simulado.</p>
+      </div>
+
+      <div class="metar-taf-support-grid">
+        <article class="metar-taf-support-card">
+          <h3>METAR</h3>
+          <p>Área para resumir padrões, grupos e interpretação operacional que você quiser manter de apoio.</p>
+        </article>
+        <article class="metar-taf-support-card">
+          <h3>TAF</h3>
+          <p>Espaço para observações de validade, mudanças previstas e pontos de revisão para prova.</p>
+        </article>
+        <article class="metar-taf-support-card">
+          <h3>Material de Estudo</h3>
+          <p>Bloco pronto para adicionar docs, links e referências que você usa no treinamento.</p>
+        </article>
+      </div>
+
+      <div class="simulados-grid">
+        <div class="simulado-card simulado-active">
+          <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-sun-rain-icon lucide-cloud-sun-rain"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M3 20a5 5 0 1 1 8.9-4H13a3 3 0 0 1 2 5.24"/><path d="M11 20v2"/><path d="M7 19v2"/></svg></div>
+          <h3>Simulado METAR</h3>
+          <p>Treino e avaliação focados na leitura e interpretação de METAR.</p>
+          <div class="simulado-actions">
+            <button class="simulado-btn primary" data-action="metar-training"${trainingEnabled ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button class="simulado-btn ghost" data-action="metar-eval"${evaluationEnabled ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+          </div>
+        </div>
+
+        <div class="simulado-card simulado-active">
+          <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text-icon lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div>
+          <h3>Simulado TAF</h3>
+          <p>Treino e avaliação focados na interpretação de TAF e tendência operacional.</p>
+          <div class="simulado-actions">
+            <button class="simulado-btn primary" data-action="taf-training"${trainingEnabled ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button class="simulado-btn ghost" data-action="taf-eval"${evaluationEnabled ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="metar-taf-page-actions">
+        <button type="button" class="simulado-btn primary" id="metarTafBackDashboard">Voltar para Simulados</button>
       </div>
     </section>
 
@@ -339,6 +447,10 @@ function dashboardView(
     const value = sessionAvailability?.[simuladoKey]?.[mode];
     return typeof value === "boolean" ? value : true;
   };
+  const isSimuladoEnabled = (simuladoKey) => {
+    const value = sessionAvailability?.[simuladoKey]?.enabled;
+    return typeof value === "boolean" ? value : true;
+  };
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
 
@@ -349,6 +461,7 @@ function dashboardView(
       </div>
 
       <div class="simulados-grid">
+        ${isSimuladoEnabled("sigwx") ? `
         <div class="simulado-card simulado-active">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-plus-icon lucide-map-plus"><path d="m11 19-1.106-.552a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0l4.212 2.106a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619V12"/><path d="M15 5.764V12"/><path d="M18 15v6"/><path d="M21 18h-6"/><path d="M9 3.236v15"/></svg></div>
           <h3>SIGWX</h3>
@@ -358,7 +471,9 @@ function dashboardView(
             <button id="dashboardSigwxEval" class="simulado-btn ghost" data-action="sigwx-eval"${isModeEnabled("sigwx", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
           </div>
         </div>
+        ` : ""}
 
+        ${isSimuladoEnabled("metar_taf") ? `
         <div class="simulado-card simulado-active">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-sun-rain-icon lucide-cloud-sun-rain"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M3 20a5 5 0 1 1 8.9-4H13a3 3 0 0 1 2 5.24"/><path d="M11 20v2"/><path d="M7 19v2"/></svg></div>
           <h3>METAR / TAF</h3>
@@ -368,36 +483,67 @@ function dashboardView(
             <button id="dashboardMetarEval" class="simulado-btn ghost" data-action="metar-taf-eval"${isModeEnabled("metar_taf", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
           </div>
         </div>
+        ` : ""}
 
-        <div class="simulado-card">
+        ${isSimuladoEnabled("notam") ? `
+        <div class="simulado-card ${isModeEnabled("notam", "training") || isModeEnabled("notam", "evaluation") ? "simulado-active" : ""}">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list-icon lucide-clipboard-list"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></div>
           <h3>NOTAM</h3>
           <p>Em desenvolvimento.</p>
           <div class="simulado-actions">
-            <button class="simulado-btn primary" disabled>Treinamento</button>
-            <button class="simulado-btn ghost" disabled>Avaliação</button>
+            <button class="simulado-btn primary" data-action="notam-training"${isModeEnabled("notam", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button class="simulado-btn ghost" data-action="notam-eval"${isModeEnabled("notam", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
           </div>
         </div>
+        ` : ""}
 
-        <div class="simulado-card">
+        ${isSimuladoEnabled("rotaer") ? `
+        <div class="simulado-card ${isModeEnabled("rotaer", "training") || isModeEnabled("rotaer", "evaluation") ? "simulado-active" : ""}">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tower-control-icon lucide-tower-control"><path d="M18.2 12.27 20 6H4l1.8 6.27a1 1 0 0 0 .95.73h10.5a1 1 0 0 0 .96-.73Z"/><path d="M8 13v9"/><path d="M16 22v-9"/><path d="m9 6 1 7"/><path d="m15 6-1 7"/><path d="M12 6V2"/><path d="M13 2h-2"/></svg></div>
           <h3>ROTAER</h3>
           <p>Em desenvolvimento.</p>
           <div class="simulado-actions">
-            <button class="simulado-btn primary" disabled>Treinamento</button>
-            <button class="simulado-btn ghost" disabled>Avaliação</button>
+            <button class="simulado-btn primary" data-action="rotaer-training"${isModeEnabled("rotaer", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button class="simulado-btn ghost" data-action="rotaer-eval"${isModeEnabled("rotaer", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
           </div>
         </div>
+        ` : ""}
 
-        <div class="simulado-card">
+        ${isSimuladoEnabled("nuvens") ? `
+        <div class="simulado-card ${isModeEnabled("nuvens", "training") || isModeEnabled("nuvens", "evaluation") ? "simulado-active" : ""}">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloudy-icon lucide-cloudy"><path d="M17.5 12a1 1 0 1 1 0 9H9.006a7 7 0 1 1 6.702-9z"/><path d="M21.832 9A3 3 0 0 0 19 7h-2.207a5.5 5.5 0 0 0-10.72.61"/></svg></div>
           <h3>Nuvens</h3>
           <p>Em desenvolvimento.</p>
           <div class="simulado-actions">
-            <button class="simulado-btn primary" disabled>Treinamento</button>
-            <button class="simulado-btn ghost" disabled>Avaliação</button>
+            <button class="simulado-btn primary" data-action="nuvens-training"${isModeEnabled("nuvens", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button class="simulado-btn ghost" data-action="nuvens-eval"${isModeEnabled("nuvens", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
           </div>
         </div>
+        ` : ""}
+
+        ${isSimuladoEnabled("sinais_luminosos") ? `
+        <div class="simulado-card ${isModeEnabled("sinais_luminosos", "training") || isModeEnabled("sinais_luminosos", "evaluation") ? "simulado-active" : ""}">
+          <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-spotlight"><path d="M4 10h7l4-3v10l-4-3H4z"/><path d="M15 9l5-2v10l-5-2"/><path d="M6 14v4"/><path d="M9 14v4"/><path d="M5 18h5"/></svg></div>
+          <h3>Sinais luminosos</h3>
+          <p>Em desenvolvimento.</p>
+          <div class="simulado-actions">
+            <button class="simulado-btn primary" data-action="sinais-luminosos-training"${isModeEnabled("sinais_luminosos", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button class="simulado-btn ghost" data-action="sinais-luminosos-eval"${isModeEnabled("sinais_luminosos", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+          </div>
+        </div>
+        ` : ""}
+
+        ${isSimuladoEnabled("espacos_aereos") ? `
+        <div class="simulado-card ${isModeEnabled("espacos_aereos", "training") || isModeEnabled("espacos_aereos", "evaluation") ? "simulado-active" : ""}">
+          <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-radar-icon lucide-radar"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4.93 4.93A10 10 0 0 0 3.34 17.01"/><path d="M4.93 19.07A10 10 0 0 0 17.01 20.66"/><path d="M19.07 19.07A10 10 0 0 0 20.66 6.99"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg></div>
+          <h3>Espaços Aéreos</h3>
+          <p>Em desenvolvimento.</p>
+          <div class="simulado-actions">
+            <button class="simulado-btn primary" data-action="espacos-aereos-training"${isModeEnabled("espacos_aereos", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
+            <button class="simulado-btn ghost" data-action="espacos-aereos-eval"${isModeEnabled("espacos_aereos", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+          </div>
+        </div>
+        ` : ""}
       </div>
     </section>
 
@@ -1117,9 +1263,27 @@ function adminView({
   const isUsersMode = mode === "users";
   const isMetricsMode = mode === "metrics";
   const sessionConfig = sessionAvailability || {
-    sigwx: { training: true, evaluation: true },
-    metar_taf: { training: true, evaluation: true }
+    sigwx: { enabled: true, training: true, evaluation: true },
+    metar_taf: { enabled: true, training: true, evaluation: true },
+    notam: { enabled: true, training: true, evaluation: true },
+    rotaer: { enabled: true, training: true, evaluation: true },
+    nuvens: { enabled: true, training: true, evaluation: true },
+    sinais_luminosos: { enabled: true, training: true, evaluation: true },
+    espacos_aereos: { enabled: true, training: true, evaluation: true }
   };
+  const adminSessionSimulados = [
+    { key: "sigwx", label: "SIGWX" },
+    { key: "metar_taf", label: "METAR/TAF" },
+    { key: "notam", label: "NOTAM" },
+    { key: "rotaer", label: "ROTAER" },
+    { key: "nuvens", label: "Nuvens" },
+    { key: "sinais_luminosos", label: "Sinais luminosos" },
+    { key: "espacos_aereos", label: "Espaços Aéreos" }
+  ];
+  const toggleState = (key, mode) => (sessionConfig?.[key]?.[mode] ? "1" : "0");
+  const toggleClass = (key, mode) => (sessionConfig?.[key]?.[mode] ? "is-enabled" : "is-disabled");
+  const togglePressed = (key, mode) => (sessionConfig?.[key]?.[mode] ? "true" : "false");
+  const toggleText = (key, mode, label) => `${label}: ${sessionConfig?.[key]?.[mode] ? "Ativado" : "Desativado"}`;
   const list = users.length
     ? `<div class="admin-grid">` +
         users.map((u) => {
@@ -1187,6 +1351,9 @@ function adminView({
               <button type="button" class="admin-light-mode-btn ${lightMode ? "active" : ""}" id="adminLightModeToggle">
                 Modo leve: ${lightMode ? "ON" : "OFF"}
               </button>
+              <button type="button" class="admin-light-mode-btn" id="adminGenerateReport">
+                Gerar relatório geral
+              </button>
               <div class="admin-metrics-range" role="group" aria-label="Período das métricas">
                 <button type="button" class="${metricsRange === "today" ? "active" : ""}" data-metrics-range="today">Hoje</button>
                 <button type="button" class="${metricsRange === "7d" ? "active" : ""}" data-metrics-range="7d">7 dias</button>
@@ -1231,54 +1398,42 @@ function adminView({
         </div>
         <div class="admin-global-notice">
           <label>Disponibilidade de simulados (treino/avaliação)</label>
-          <p>Desative modos individualmente para bloquear no dashboard dos alunos.</p>
+          <p>Gerencie visibilidade do simulado e também os modos de treino/avaliação.</p>
           <div class="admin-session-grid">
-            <article class="admin-session-card">
-              <h3>SIGWX</h3>
-              <div class="admin-session-actions">
-                <button
-                  type="button"
-                  class="admin-session-toggle ${sessionConfig.sigwx?.training ? "is-enabled" : "is-disabled"}"
-                  data-session-toggle="sigwx:training"
-                  data-enabled="${sessionConfig.sigwx?.training ? "1" : "0"}"
-                  aria-pressed="${sessionConfig.sigwx?.training ? "true" : "false"}"
-                >
-                  Treino: ${sessionConfig.sigwx?.training ? "Ativado" : "Desativado"}
-                </button>
-                <button
-                  type="button"
-                  class="admin-session-toggle ${sessionConfig.sigwx?.evaluation ? "is-enabled" : "is-disabled"}"
-                  data-session-toggle="sigwx:evaluation"
-                  data-enabled="${sessionConfig.sigwx?.evaluation ? "1" : "0"}"
-                  aria-pressed="${sessionConfig.sigwx?.evaluation ? "true" : "false"}"
-                >
-                  Avaliação: ${sessionConfig.sigwx?.evaluation ? "Ativado" : "Desativado"}
-                </button>
-              </div>
-            </article>
-            <article class="admin-session-card">
-              <h3>METAR/TAF</h3>
-              <div class="admin-session-actions">
-                <button
-                  type="button"
-                  class="admin-session-toggle ${sessionConfig.metar_taf?.training ? "is-enabled" : "is-disabled"}"
-                  data-session-toggle="metar_taf:training"
-                  data-enabled="${sessionConfig.metar_taf?.training ? "1" : "0"}"
-                  aria-pressed="${sessionConfig.metar_taf?.training ? "true" : "false"}"
-                >
-                  Treino: ${sessionConfig.metar_taf?.training ? "Ativado" : "Desativado"}
-                </button>
-                <button
-                  type="button"
-                  class="admin-session-toggle ${sessionConfig.metar_taf?.evaluation ? "is-enabled" : "is-disabled"}"
-                  data-session-toggle="metar_taf:evaluation"
-                  data-enabled="${sessionConfig.metar_taf?.evaluation ? "1" : "0"}"
-                  aria-pressed="${sessionConfig.metar_taf?.evaluation ? "true" : "false"}"
-                >
-                  Avaliação: ${sessionConfig.metar_taf?.evaluation ? "Ativado" : "Desativado"}
-                </button>
-              </div>
-            </article>
+            ${adminSessionSimulados.map((simulado) => `
+              <article class="admin-session-card">
+                <h3>${simulado.label}</h3>
+                <div class="admin-session-actions">
+                  <button
+                    type="button"
+                    class="admin-session-toggle ${toggleClass(simulado.key, "enabled")}"
+                    data-session-toggle="${simulado.key}:enabled"
+                    data-enabled="${toggleState(simulado.key, "enabled")}"
+                    aria-pressed="${togglePressed(simulado.key, "enabled")}"
+                  >
+                    ${toggleText(simulado.key, "enabled", "Simulado")}
+                  </button>
+                  <button
+                    type="button"
+                    class="admin-session-toggle ${toggleClass(simulado.key, "training")}"
+                    data-session-toggle="${simulado.key}:training"
+                    data-enabled="${toggleState(simulado.key, "training")}"
+                    aria-pressed="${togglePressed(simulado.key, "training")}"
+                  >
+                    ${toggleText(simulado.key, "training", "Treino")}
+                  </button>
+                  <button
+                    type="button"
+                    class="admin-session-toggle ${toggleClass(simulado.key, "evaluation")}"
+                    data-session-toggle="${simulado.key}:evaluation"
+                    data-enabled="${toggleState(simulado.key, "evaluation")}"
+                    aria-pressed="${togglePressed(simulado.key, "evaluation")}"
+                  >
+                    ${toggleText(simulado.key, "evaluation", "Avaliação")}
+                  </button>
+                </div>
+              </article>
+            `).join("")}
           </div>
           <button type="button" id="adminSessionAvailabilitySave">Salvar disponibilidade</button>
         </div>
@@ -1798,6 +1953,7 @@ export {
   loginView,
   registerView,
   dashboardView,
+  metarTafHubView,
   sigwxView,
   sigwxEvaluationView,
   sigwxEvaluationResultView,

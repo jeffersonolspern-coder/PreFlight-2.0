@@ -7,6 +7,7 @@ import {
   loginView,
   registerView,
   dashboardView,
+  metarTafHubView,
   sigwxView,
   sigwxEvaluationView,
   sigwxEvaluationResultView,
@@ -112,6 +113,15 @@ const SIMULADO_BANKS = {
   sigwx: { training: "sigwx_training", evaluation: "sigwx_evaluation", label: "SIGWX" },
   metar_taf: { training: "metar_taf_training", evaluation: "metar_taf_evaluation", label: "METAR/TAF" }
 };
+const SESSION_SIMULADO_KEYS = [
+  "sigwx",
+  "metar_taf",
+  "notam",
+  "rotaer",
+  "nuvens",
+  "sinais_luminosos",
+  "espacos_aereos"
+];
 const DEFAULT_QUESTION_BANKS = {
   sigwx_training: Array.isArray(sigwxQuestions) ? sigwxQuestions.map((q) => ({ ...q })) : [],
   sigwx_evaluation: Array.isArray(sigwxEvaluationQuestions) ? sigwxEvaluationQuestions.map((q) => ({ ...q })) : [],
@@ -146,6 +156,7 @@ let adminUsersLoadingMore = false;
 let adminMetricsRange = "30d";
 let adminMetricsData = { evaluations: [], transactions: [] };
 let adminMetricsSummary = null;
+let adminMetricsFromApi = false;
 let adminPanelScreen = "summary";
 let adminLightMode = localStorage.getItem(ADMIN_LIGHT_MODE_KEY) !== "0";
 let activeSimuladoKey = "sigwx";
@@ -153,10 +164,10 @@ let profileEvaluationsCache = [];
 let profileShowAllEvaluations = false;
 let profileVisibleSpentCredits = 7;
 let globalNoticeMessage = "";
-let sessionAvailability = {
-  sigwx: { training: true, evaluation: true },
-  metar_taf: { training: true, evaluation: true }
-};
+let sessionAvailability = SESSION_SIMULADO_KEYS.reduce((acc, key) => {
+  acc[key] = { enabled: true, training: true, evaluation: true };
+  return acc;
+}, {});
 let pendingWelcomeAnnouncement = "";
 let currentCredits = null;
 let creditHistoryItems = [];
@@ -291,16 +302,14 @@ function normalizeSessionAvailability(raw = null) {
     return typeof value === "boolean" ? value : true;
   };
 
-  return {
-    sigwx: {
-      training: readFlag("sigwx", "training"),
-      evaluation: readFlag("sigwx", "evaluation")
-    },
-    metar_taf: {
-      training: readFlag("metar_taf", "training"),
-      evaluation: readFlag("metar_taf", "evaluation")
-    }
-  };
+  return SESSION_SIMULADO_KEYS.reduce((acc, simulado) => {
+    acc[simulado] = {
+      enabled: readFlag(simulado, "enabled"),
+      training: readFlag(simulado, "training"),
+      evaluation: readFlag(simulado, "evaluation")
+    };
+    return acc;
+  }, {});
 }
 
 function isSessionModeAvailable(simuladoKey = "sigwx", mode = "training") {
@@ -1742,13 +1751,22 @@ function setupTrainingStartModal({ onStart } = {}) {
 // ===============================
 // RENDERIZAÇÕES
 // ===============================
-function renderHomePublic() {
+async function renderHomePublic() {
   cleanupEvaluationFlow();
+  try {
+    const availability = await getSessionAvailability().catch(() => null);
+    trackTelemetry("session_availability_fetch", { reads: 1 });
+    sessionAvailability = normalizeSessionAvailability(availability);
+  } catch (_) {
+    sessionAvailability = normalizeSessionAvailability(sessionAvailability);
+  }
+
   app.innerHTML = homePublicView({
     logged: !!currentUser,
     isAdmin: isAdminUser(),
     userLabel: getUserLabel(),
-    credits: getCreditsLabel()
+    credits: getCreditsLabel(),
+    sessionAvailability
   });
   setupGlobalMenu();
   setupLogout();
@@ -1807,6 +1825,30 @@ async function renderDashboard() {
   setupContact();
   setupFooterLinks();
   warmupApi();
+}
+
+async function renderMetarTafHub() {
+  cleanupEvaluationFlow();
+  try {
+    const availability = await getSessionAvailability().catch(() => null);
+    trackTelemetry("session_availability_fetch", { reads: 1 });
+    sessionAvailability = normalizeSessionAvailability(availability);
+  } catch (_) {
+    sessionAvailability = normalizeSessionAvailability(sessionAvailability);
+  }
+
+  app.innerHTML = metarTafHubView({
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    canStartSessions: true,
+    sessionAvailability
+  });
+  setupLogout();
+  setupMetarTafHubActions();
+  setupGlobalMenu();
+  setupContact();
+  setupFooterLinks();
 }
 
 function renderSigwx() {
@@ -2600,6 +2642,7 @@ async function renderAdmin() {
   adminUsersCursor = null;
   adminUsersHasMore = false;
   adminUsersLoadingMore = false;
+  adminMetricsFromApi = false;
 
   app.innerHTML = adminView({
     users: [],
@@ -2747,12 +2790,13 @@ async function renderAdminMetrics({ forceRefresh = false } = {}) {
   setupFooterLinks();
   setupAdminActions();
 
-  if (adminMetricsSummary && !forceRefresh) return;
+  if (adminMetricsSummary && adminMetricsFromApi && !forceRefresh) return;
 
   try {
     const metrics = await fetchAdminMetricsFromApi({ range: adminMetricsRange });
     if (metrics) {
       adminMetricsSummary = enrichAdminMetrics(metrics);
+      adminMetricsFromApi = true;
     } else {
       adminMetricsSummary = enrichAdminMetrics(computeAdminMetrics({
         users: adminUsersCache,
@@ -2760,6 +2804,7 @@ async function renderAdminMetrics({ forceRefresh = false } = {}) {
         transactions: adminMetricsData.transactions,
         range: adminMetricsRange
       }));
+      adminMetricsFromApi = false;
     }
   } catch (error) {
     console.warn("Admin metrics API failed; usando cache local leve:", error);
@@ -2769,6 +2814,7 @@ async function renderAdminMetrics({ forceRefresh = false } = {}) {
       transactions: adminMetricsData.transactions,
       range: adminMetricsRange
     }));
+    adminMetricsFromApi = false;
   }
 
   rerenderAdminWithCache();
@@ -2950,6 +2996,92 @@ function normalizeQuestionLabel(questionId = "") {
   return compact.length > 24 ? `${compact.slice(0, 24)}...` : compact;
 }
 
+function normalizeSimuladoMetricKey(value = "") {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return "unknown";
+  if (text.includes("metar")) return "metar_taf";
+  if (text.includes("sigwx")) return "sigwx";
+  return "unknown";
+}
+
+function getMetricsRangeLabel(range = "30d") {
+  if (range === "today") return "Hoje";
+  if (range === "7d") return "Últimos 7 dias";
+  return "Últimos 30 dias";
+}
+
+function getSimuladoLabelFromMetricKey(key = "unknown") {
+  if (key === "sigwx") return "SIGWX";
+  if (key === "metar_taf") return "METAR/TAF";
+  return "Outros";
+}
+
+function buildAdminGeneralReportText(metrics = {}, range = "30d") {
+  const generatedAt = new Date().toLocaleString("pt-BR");
+  const hasSessionBreakdown =
+    Number.isFinite(Number(metrics?.sessionsTotal)) ||
+    Number.isFinite(Number(metrics?.sessionsTraining)) ||
+    Number.isFinite(Number(metrics?.sessionsEvaluation));
+  const hasSimuladoBreakdown = metrics?.evaluationsBySimulado && typeof metrics.evaluationsBySimulado === "object";
+  const bySimulado = hasSimuladoBreakdown ? metrics.evaluationsBySimulado : {};
+  const topSimulado = metrics?.topSimulado || { key: "unknown", count: 0 };
+  const sessionsTotalText = hasSessionBreakdown ? String(Number(metrics?.sessionsTotal || 0)) : "N/D";
+  const sessionsTrainingText = hasSessionBreakdown ? String(Number(metrics?.sessionsTraining || 0)) : "N/D";
+  const sessionsEvaluationText = hasSessionBreakdown ? String(Number(metrics?.sessionsEvaluation || 0)) : "N/D";
+  const sigwxEvalText = hasSimuladoBreakdown ? String(Number(bySimulado?.sigwx || 0)) : "N/D";
+  const metarEvalText = hasSimuladoBreakdown ? String(Number(bySimulado?.metar_taf || 0)) : "N/D";
+  const otherEvalText = hasSimuladoBreakdown ? String(Number(bySimulado?.unknown || 0)) : "N/D";
+  const topSimuladoText = hasSimuladoBreakdown
+    ? `${getSimuladoLabelFromMetricKey(topSimulado?.key)} (${Number(topSimulado?.count || 0)})`
+    : "N/D";
+  const lines = [
+    "PreFlight - Relatório Geral",
+    `Gerado em: ${generatedAt}`,
+    `Período: ${getMetricsRangeLabel(range)}`,
+    "",
+    "Resumo:",
+    `- Usuários cadastrados: ${Number(metrics?.totalUsersCurrent || 0)}`,
+    `- Avaliações concluídas: ${Number(metrics?.evaluationsCompleted || 0)}`,
+    `- Sessões totais (treino + avaliação): ${sessionsTotalText}`,
+    `- Sessões de treino: ${sessionsTrainingText}`,
+    `- Sessões de avaliação: ${sessionsEvaluationText}`,
+    `- Créditos consumidos: ${Number(metrics?.creditsConsumed || 0)}`,
+    `- Créditos comprados: ${Number(metrics?.creditsPurchased || 0)}`,
+    "",
+    "Avaliações por simulado:",
+    `- SIGWX: ${sigwxEvalText}`,
+    `- METAR/TAF: ${metarEvalText}`,
+    `- Outros: ${otherEvalText}`,
+    `- Simulado mais feito: ${topSimuladoText}`,
+    "",
+    "Catálogo de questões:",
+    `- Questões de treino: ${Number(metrics?.trainingQuestions || 0)}`,
+    `- Questões de avaliação: ${Number(metrics?.evaluationQuestions || 0)}`,
+    `- Total de questões: ${Number(metrics?.totalQuestions || 0)}`
+  ];
+  return lines.join("\n");
+}
+
+function downloadAdminGeneralReport(metrics = {}, range = "30d") {
+  const content = buildAdminGeneralReportText(metrics, range);
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    "-",
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0")
+  ].join("");
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `relatorio-geral-${stamp}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function computeQuestionCatalogMetrics() {
   let trainingQuestions = 0;
   let evaluationQuestions = 0;
@@ -3013,9 +3145,17 @@ function computeAdminMetrics({
 
   let creditsConsumed = 0;
   let creditsPurchased = 0;
+  let sessionsTraining = 0;
+  let sessionsEvaluation = 0;
+  const evaluationsBySimulado = {
+    sigwx: 0,
+    metar_taf: 0,
+    unknown: 0
+  };
 
   periodTransactions.forEach((tx) => {
     const type = String(tx?.type || "").toLowerCase();
+    const mode = String(tx?.mode || "").toLowerCase();
     const amount = Number(tx?.amount);
     const safeAmount = Number.isFinite(amount) ? Math.trunc(amount) : 0;
 
@@ -3025,15 +3165,34 @@ function computeAdminMetrics({
     if (type === "purchase" || type === "reprocess" || safeAmount > 0) {
       creditsPurchased += Math.max(0, safeAmount);
     }
+    if (type === "consume") {
+      if (mode === "training") sessionsTraining += 1;
+      if (mode === "evaluation") sessionsEvaluation += 1;
+    }
+  });
+
+  periodEvaluations.forEach((ev) => {
+    const simuladoKey = normalizeSimuladoMetricKey(ev?.simulado || "");
+    evaluationsBySimulado[simuladoKey] = Number(evaluationsBySimulado[simuladoKey] || 0) + 1;
   });
 
   const evaluationsCompleted = periodEvaluations.length;
+  const topSimuladoEntry = Object.entries(evaluationsBySimulado)
+    .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))[0] || ["unknown", 0];
   return {
     totalUsersCurrent: currentUserIds.size,
     totalUsersHistorical: historicalUserIds.size,
     evaluationsCompleted,
     creditsConsumed,
-    creditsPurchased
+    creditsPurchased,
+    sessionsTraining,
+    sessionsEvaluation,
+    sessionsTotal: sessionsTraining + sessionsEvaluation,
+    evaluationsBySimulado,
+    topSimulado: {
+      key: topSimuladoEntry[0],
+      count: Number(topSimuladoEntry[1] || 0)
+    }
   };
 }
 
@@ -3495,6 +3654,7 @@ function setupAdminActions() {
   const noticeInput = document.getElementById("adminGlobalNotice");
   const noticeSaveBtn = document.getElementById("adminGlobalNoticeSave");
   const sessionSaveBtn = document.getElementById("adminSessionAvailabilitySave");
+  const adminGenerateReportBtn = document.getElementById("adminGenerateReport");
   const sessionToggleButtons = document.querySelectorAll("[data-session-toggle]");
   const rangeButtons = document.querySelectorAll("[data-metrics-range]");
   const lightModeBtn = document.getElementById("adminLightModeToggle");
@@ -3550,6 +3710,7 @@ function setupAdminActions() {
         const metrics = await fetchAdminMetricsFromApi({ range: adminMetricsRange });
         if (metrics) {
           adminMetricsSummary = enrichAdminMetrics(metrics);
+          adminMetricsFromApi = true;
           rerenderAdminWithCache();
           return;
         }
@@ -3565,6 +3726,7 @@ function setupAdminActions() {
         transactions: adminMetricsData.transactions,
         range: adminMetricsRange
       }));
+      adminMetricsFromApi = false;
       rerenderAdminWithCache();
     });
   });
@@ -3581,6 +3743,39 @@ function setupAdminActions() {
       return;
     }
     rerenderAdminWithCache();
+  });
+
+  adminGenerateReportBtn?.addEventListener("click", async () => {
+    if (!adminMetricsFromApi) {
+      try {
+        const metricsFromApi = await fetchAdminMetricsFromApi({ range: adminMetricsRange });
+        if (metricsFromApi) {
+          adminMetricsSummary = enrichAdminMetrics(metricsFromApi);
+          adminMetricsFromApi = true;
+          rerenderAdminWithCache();
+        }
+      } catch (error) {
+        console.warn("Falha ao atualizar métricas para o relatório:", error);
+      }
+    }
+
+    const metrics = enrichAdminMetrics(adminMetricsSummary || computeAdminMetrics({
+      users: adminUsersCache,
+      evaluations: adminMetricsData.evaluations,
+      transactions: adminMetricsData.transactions,
+      range: adminMetricsRange
+    }));
+    const isAllZero =
+      Number(metrics?.totalUsersCurrent || 0) === 0 &&
+      Number(metrics?.evaluationsCompleted || 0) === 0 &&
+      Number(metrics?.sessionsTotal || 0) === 0 &&
+      Number(metrics?.totalQuestions || 0) === 0;
+    if (isAllZero && !adminMetricsFromApi) {
+      showToast("Não consegui carregar métricas reais agora. Tente atualizar Métricas e gerar novamente.", "error");
+      return;
+    }
+    downloadAdminGeneralReport(metrics, adminMetricsRange);
+    showToast("Relatório geral gerado.", "success");
   });
 
   exportBtn?.addEventListener("click", () => {
@@ -3652,7 +3847,7 @@ function setupAdminActions() {
     if (!btn) return;
     const raw = String(btn.getAttribute("data-session-toggle") || "");
     const [, mode] = raw.split(":");
-    const modeLabel = mode === "evaluation" ? "Avaliação" : "Treino";
+    const modeLabel = mode === "evaluation" ? "Avaliação" : mode === "enabled" ? "Simulado" : "Treino";
     const isEnabled = !!enabled;
     btn.setAttribute("data-enabled", isEnabled ? "1" : "0");
     btn.setAttribute("aria-pressed", isEnabled ? "true" : "false");
@@ -3677,16 +3872,16 @@ function setupAdminActions() {
   };
 
   sessionSaveBtn?.addEventListener("click", async () => {
-    const nextAvailability = normalizeSessionAvailability({
-      sigwx: {
-        training: readSessionToggle("sigwx", "training"),
-        evaluation: readSessionToggle("sigwx", "evaluation")
-      },
-      metar_taf: {
-        training: readSessionToggle("metar_taf", "training"),
-        evaluation: readSessionToggle("metar_taf", "evaluation")
-      }
-    });
+    const nextAvailability = normalizeSessionAvailability(
+      SESSION_SIMULADO_KEYS.reduce((acc, simulado) => {
+        acc[simulado] = {
+          enabled: readSessionToggle(simulado, "enabled"),
+          training: readSessionToggle(simulado, "training"),
+          evaluation: readSessionToggle(simulado, "evaluation")
+        };
+        return acc;
+      }, {})
+    );
 
     sessionSaveBtn.disabled = true;
     const prev = sessionSaveBtn.innerText;
@@ -4414,6 +4609,7 @@ observeAuthState((user) => {
   creditHistoryLoadingMore = false;
   creditHistoryError = "";
   startingSessionLock = false;
+  adminMetricsFromApi = false;
   if (!currentUser) {
     authInitialRouteDone = false;
     questionBanksCache = {
@@ -5015,9 +5211,47 @@ function setupDashboardActions() {
         startMetarTafWithCredit("training");
       } else if (action === "metar-taf-eval") {
         startMetarTafWithCredit("evaluation");
+      } else if (
+        action === "notam-training" ||
+        action === "notam-eval" ||
+        action === "rotaer-training" ||
+        action === "rotaer-eval" ||
+        action === "nuvens-training" ||
+        action === "nuvens-eval" ||
+        action === "sinais-luminosos-training" ||
+        action === "sinais-luminosos-eval" ||
+        action === "espacos-aereos-training" ||
+        action === "espacos-aereos-eval"
+      ) {
+        showToast("Este simulado ainda está em desenvolvimento.", "info");
       }
     };
   }
+}
+
+function setupMetarTafHubActions() {
+  const page = document.querySelector(".metar-taf-page");
+  const backBtn = document.getElementById("metarTafBackDashboard");
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
+      renderDashboard();
+    });
+  }
+
+  if (!page) return;
+  page.addEventListener("click", (e) => {
+    const target = e.target instanceof Element ? e.target.closest("[data-action]") : null;
+    if (!target || target.hasAttribute("disabled")) return;
+
+    const action = target.getAttribute("data-action");
+    if (action === "metar-training" || action === "taf-training") {
+      startMetarTafWithCredit("training");
+      return;
+    }
+    if (action === "metar-eval" || action === "taf-eval") {
+      startMetarTafWithCredit("evaluation");
+    }
+  });
 }
 
 // ===============================

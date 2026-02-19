@@ -440,16 +440,24 @@ function normalizeSessionAvailabilityConfig(raw = null) {
     return typeof value === "boolean" ? value : true;
   };
 
-  return {
-    sigwx: {
-      training: readFlag("sigwx", "training"),
-      evaluation: readFlag("sigwx", "evaluation")
-    },
-    metar_taf: {
-      training: readFlag("metar_taf", "training"),
-      evaluation: readFlag("metar_taf", "evaluation")
-    }
-  };
+  const simulados = [
+    "sigwx",
+    "metar_taf",
+    "notam",
+    "rotaer",
+    "nuvens",
+    "sinais_luminosos",
+    "espacos_aereos"
+  ];
+
+  return simulados.reduce((acc, simulado) => {
+    acc[simulado] = {
+      enabled: readFlag(simulado, "enabled"),
+      training: readFlag(simulado, "training"),
+      evaluation: readFlag(simulado, "evaluation")
+    };
+    return acc;
+  }, {});
 }
 
 async function getSessionAvailability({ forceRefresh = false } = {}) {

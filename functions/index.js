@@ -124,6 +124,14 @@ function getRangeStartMs(range = "30d") {
   return now.getTime() - 30 * 24 * 60 * 60 * 1000;
 }
 
+function normalizeSimuladoKey(value = "") {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return "unknown";
+  if (text.includes("metar")) return "metar_taf";
+  if (text.includes("sigwx")) return "sigwx";
+  return "unknown";
+}
+
 // ===============================
 // CREATE CHECKOUT PREFERENCE
 // ===============================
@@ -429,10 +437,18 @@ app.get("/admin/metrics", async (req, res) => {
     const currentUserIds = new Set(usersSnap.docs.map((d) => d.id));
     let creditsConsumed = 0;
     let creditsPurchased = 0;
+    let sessionsTraining = 0;
+    let sessionsEvaluation = 0;
+    const evaluationsBySimulado = {
+      sigwx: 0,
+      metar_taf: 0,
+      unknown: 0
+    };
 
     txPeriodSnap.docs.forEach((doc) => {
       const data = doc.data() || {};
       const type = String(data.type || "").toLowerCase();
+      const mode = String(data.mode || "").toLowerCase();
       const amount = Number.isFinite(Number(data.amount)) ? Math.trunc(Number(data.amount)) : 0;
 
       if (type === "consume" || amount < 0) {
@@ -441,18 +457,36 @@ app.get("/admin/metrics", async (req, res) => {
       if (type === "purchase" || type === "reprocess" || amount > 0) {
         creditsPurchased += Math.max(0, amount);
       }
+      if (type === "consume") {
+        if (mode === "training") sessionsTraining += 1;
+        if (mode === "evaluation") sessionsEvaluation += 1;
+      }
     });
 
     const evalDocs = evalPeriodSnap.docs.map((d) => d.data() || {});
+    evalDocs.forEach((item) => {
+      const simuladoKey = normalizeSimuladoKey(item?.simulado || "");
+      evaluationsBySimulado[simuladoKey] = Number(evaluationsBySimulado[simuladoKey] || 0) + 1;
+    });
 
     const evaluationsCompleted = evalDocs.length;
+    const topSimuladoEntry = Object.entries(evaluationsBySimulado)
+      .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))[0] || ["unknown", 0];
 
     const metrics = {
       totalUsersCurrent: currentUserIds.size,
       totalUsersHistorical: currentUserIds.size,
       evaluationsCompleted,
       creditsConsumed,
-      creditsPurchased
+      creditsPurchased,
+      sessionsTraining,
+      sessionsEvaluation,
+      sessionsTotal: sessionsTraining + sessionsEvaluation,
+      evaluationsBySimulado,
+      topSimulado: {
+        key: topSimuladoEntry[0],
+        count: Number(topSimuladoEntry[1] || 0)
+      }
     };
     const readEstimate = Number(usersSnap.size || 0) + Number(evalPeriodSnap.size || 0) + Number(txPeriodSnap.size || 0);
 

@@ -1280,6 +1280,10 @@ textarea:focus-visible {
   gap: 12px;
 }
 
+.simulado-actions--single {
+  grid-template-columns: 1fr;
+}
+
 .simulado-btn {
   padding: 10px 0;
   border-radius: 10px;
@@ -1302,6 +1306,56 @@ textarea:focus-visible {
 .simulado-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.metar-taf-page {
+  margin-top: 40px;
+}
+
+.metar-taf-support-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.metar-taf-support-card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  padding: 16px;
+}
+
+.metar-taf-support-card h3 {
+  color: #0f2f5a;
+  margin-bottom: 8px;
+}
+
+.metar-taf-support-card p {
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.metar-taf-page-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .metar-taf-support-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metar-taf-page-actions {
+    justify-content: stretch;
+  }
+
+  .metar-taf-page-actions .simulado-btn {
+    width: 100%;
+  }
 }
 /* ===============================
    SIMULADO SIGWX - LAYOUT
