@@ -25,8 +25,6 @@ const GLOBAL_NOTICE_REF = doc(db, "settings", "global_notice");
 const SESSION_AVAILABILITY_REF = doc(db, "settings", "session_availability");
 const userProfileCache = new Map();
 const userCreditsCache = new Map();
-let allUsersCache = null;
-let allCreditsCache = null;
 let globalNoticeCacheLoaded = false;
 let globalNoticeCacheValue = null;
 let sessionAvailabilityCacheLoaded = false;
@@ -43,8 +41,6 @@ function clearUserFirestoreCaches(userId = "") {
 
   userProfileCache.clear();
   userCreditsCache.clear();
-  allUsersCache = null;
-  allCreditsCache = null;
   globalNoticeCacheLoaded = false;
   globalNoticeCacheValue = null;
   sessionAvailabilityCacheLoaded = false;
@@ -77,7 +73,6 @@ async function saveUserProfile(userId, data) {
     { merge: true }
   );
   userProfileCache.set(String(userId || "").trim(), { ...(userProfileCache.get(String(userId || "").trim()) || {}), ...data });
-  allUsersCache = null;
 }
 
 async function getUserProfile(userId, { forceRefresh = false } = {}) {
@@ -92,22 +87,6 @@ async function getUserProfile(userId, { forceRefresh = false } = {}) {
   const data = snap.exists() ? snap.data() : null;
   userProfileCache.set(safeUserId, data);
   return data;
-}
-
-async function getAllUsers({ forceRefresh = false } = {}) {
-  if (!forceRefresh && Array.isArray(allUsersCache)) {
-    return allUsersCache;
-  }
-
-  const snap = await getDocs(collection(db, "users"));
-  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  items.sort((a, b) => {
-    const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-    const dbt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-    return dbt - da;
-  });
-  allUsersCache = items;
-  return items;
 }
 
 async function getUsersPage({ pageSize = 20, cursor = null } = {}) {
@@ -133,29 +112,16 @@ async function getUsersPage({ pageSize = 20, cursor = null } = {}) {
   };
 }
 
-async function getAllCredits({ forceRefresh = false } = {}) {
-  if (!forceRefresh && Array.isArray(allCreditsCache)) {
-    return allCreditsCache;
-  }
-
-  const snap = await getDocs(collection(db, "credits"));
-  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  allCreditsCache = items;
-  return items;
-}
-
 async function deleteUserProfile(userId) {
   const ref = doc(db, "users", userId);
   await deleteDoc(ref);
   userProfileCache.delete(String(userId || "").trim());
-  allUsersCache = null;
 }
 
 async function deleteUserCredits(userId) {
   const ref = doc(db, "credits", userId);
   await deleteDoc(ref);
   userCreditsCache.delete(String(userId || "").trim());
-  allCreditsCache = null;
 }
 
 async function getUserCredits(userId, { forceRefresh = false } = {}) {
@@ -183,44 +149,10 @@ async function setUserCredits(userId, balance) {
     { merge: true }
   );
   setCachedUserCredits(userId, balance);
-  allCreditsCache = null;
 }
 
 function buildUserConsumeTransactionRef(userId, requestId) {
   return doc(db, "users", userId, "credit_transactions", `consume_${userId}_${requestId}`);
-}
-
-async function recordConsumeCreditTransaction(
-  userId,
-  {
-    mode = "training",
-    requestId = "",
-    balanceBefore = null,
-    balanceAfter = 0
-  } = {}
-) {
-  const normalizedMode = String(mode || "").trim().toLowerCase();
-  const normalizedRequestId = String(requestId || `fallback_${Date.now()}`).trim();
-  const parsedAfter = Number(balanceAfter);
-  const safeAfter = Number.isFinite(parsedAfter) ? Math.max(0, Math.floor(parsedAfter)) : 0;
-  const parsedBefore = Number(balanceBefore);
-  const safeBefore = Number.isFinite(parsedBefore) ? Math.max(0, Math.floor(parsedBefore)) : safeAfter + 1;
-  const txRef = buildUserConsumeTransactionRef(userId, normalizedRequestId);
-
-  await setDoc(
-    txRef,
-    {
-      userId,
-      type: "consume",
-      mode: normalizedMode,
-      amount: -1,
-      requestId: normalizedRequestId,
-      balanceBefore: safeBefore,
-      balanceAfter: safeAfter,
-      createdAt: serverTimestamp()
-    },
-    { merge: false }
-  );
 }
 
 async function consumeUserCredit(userId, mode = "training", requestId = "") {
@@ -505,14 +437,11 @@ async function setGlobalNotice(message, updatedBy = "") {
 export {
   saveUserProfile,
   getUserProfile,
-  getAllUsers,
   getUsersPage,
-  getAllCredits,
   deleteUserProfile,
   deleteUserCredits,
   getUserCredits,
   setUserCredits,
-  recordConsumeCreditTransaction,
   consumeUserCredit,
   getUserCreditTransactionsPage,
   getUserSessionCounts,

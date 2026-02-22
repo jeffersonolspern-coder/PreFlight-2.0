@@ -12,17 +12,110 @@ let activeQuestions = [];
 let state = [];
 const DESKTOP_HOVER_QUERY = "(hover: hover) and (pointer: fine)";
 
+function normalizeRuntimeImagePath(rawPath = "") {
+  const safePath = String(rawPath || "").trim().replace(/\\/g, "/");
+  if (!safePath) return "";
+  if (/^(https?:|data:|blob:|\/\/)/i.test(safePath)) return safePath;
+  if (safePath.startsWith("/")) return safePath;
+  const withoutRelativePrefix = safePath.replace(/^(\.\.\/|\.\/)+/, "");
+  return `/${withoutRelativePrefix}`;
+}
+
+function sanitizeQuestionHtml(html = "") {
+  const template = document.createElement("template");
+  template.innerHTML = String(html || "");
+  const allowedTags = new Set(["B", "STRONG", "I", "EM", "U", "BR", "SPAN", "DIV", "P"]);
+  const allowedTextAlign = new Set(["left", "center", "right", "justify"]);
+  const colorRegex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+  const rgbColorRegex = /^rgba?\(\s*\d{1,3}\s*(,\s*\d{1,3}\s*){2}(,\s*(0|1|0?\.\d+)\s*)?\)$/i;
+
+  const walk = (node) => {
+    Array.from(node.childNodes).forEach((child) => {
+      if (child.nodeType === Node.TEXT_NODE) return;
+      if (child.nodeType !== Node.ELEMENT_NODE) {
+        child.remove();
+        return;
+      }
+
+      const el = child;
+      if (!allowedTags.has(el.tagName)) {
+        const fragment = document.createDocumentFragment();
+        while (el.firstChild) {
+          fragment.appendChild(el.firstChild);
+        }
+        el.replaceWith(fragment);
+        return;
+      }
+
+      Array.from(el.attributes).forEach((attr) => {
+        if (attr.name !== "style") {
+          el.removeAttribute(attr.name);
+        }
+      });
+
+      const style = String(el.getAttribute("style") || "");
+      if (style) {
+        const nextStyles = [];
+        style.split(";").forEach((rule) => {
+          const [rawProp, rawValue] = String(rule).split(":");
+          const prop = String(rawProp || "").trim().toLowerCase();
+          const value = String(rawValue || "").trim().toLowerCase();
+          if (!prop || !value) return;
+          if (prop === "text-align" && allowedTextAlign.has(value)) {
+            nextStyles.push(`text-align:${value}`);
+            return;
+          }
+          if (prop === "color" && colorRegex.test(value)) {
+            nextStyles.push(`color:${value}`);
+            return;
+          }
+          if (prop === "color" && rgbColorRegex.test(value)) {
+            nextStyles.push(`color:${value}`);
+            return;
+          }
+          // tamanho da fonte é controlado por questionFontSize
+        });
+        if (nextStyles.length) {
+          el.setAttribute("style", nextStyles.join(";"));
+        } else {
+          el.removeAttribute("style");
+        }
+      }
+
+      walk(el);
+    });
+  };
+
+  walk(template.content);
+  return template.innerHTML.trim();
+}
+
 function getCurrentSimuladoLabel() {
   const rawKey = String(document.body?.dataset?.simuladoKey || "").toLowerCase();
   if (rawKey === "metar_taf") return "METAR/TAF";
+  if (rawKey === "sinais_luminosos") return "Sinais luminosos";
   return "SIGWX";
 }
 
 function getCurrentModeLabel() {
-  return document.body?.dataset?.simuladoMode === "evaluation" ? "AvaliaÃ§Ã£o" : "Treinamento";
+  return document.body?.dataset?.simuladoMode === "evaluation" ? "Avaliação" : "Treinamento";
 }
 
-function openQuestionReportModal({ questionIndex, questionId, questionText, selectedText = "" }) {
+function isSinaisLuminososEvaluationMode() {
+  const mode = String(document.body?.dataset?.simuladoMode || "").toLowerCase();
+  const key = String(document.body?.dataset?.simuladoKey || "").toLowerCase();
+  return mode === "evaluation" && key === "sinais_luminosos";
+}
+
+function buildRuntimeQuestionControlCode(questionId = 0) {
+  const simuladoKey = String(document.body?.dataset?.simuladoKey || "sigwx")
+    .replace(/[^a-z0-9]+/gi, "_")
+    .toUpperCase();
+  const safeId = Number.isFinite(Number(questionId)) ? Math.max(1, Math.floor(Number(questionId))) : 1;
+  return `${simuladoKey}-Q${String(safeId).padStart(4, "0")}`;
+}
+
+function openQuestionReportModal({ questionIndex, questionId, controlCode = "", questionText, selectedText = "" }) {
   const modal = document.getElementById("contactModal");
   const subjectInput = document.getElementById("contactSubject");
   const messageInput = document.getElementById("contactMessage");
@@ -30,14 +123,15 @@ function openQuestionReportModal({ questionIndex, questionId, questionText, sele
   const modeLabel = getCurrentModeLabel();
 
   if (subjectInput) {
-    subjectInput.value = `Erro na questÃ£o ${questionIndex} (ID ${questionId}) (${simuladoLabel} - ${modeLabel})`;
+    const safeControlCode = String(controlCode || "").trim() || buildRuntimeQuestionControlCode(questionId);
+    subjectInput.value = `Erro na questão ${questionIndex} (${safeControlCode}) (${simuladoLabel} - ${modeLabel})`;
   }
   if (messageInput) {
     const selectedLine = selectedText
       ? `Minha resposta: ${selectedText}\n`
-      : "Minha resposta: (ainda nÃ£o respondida)\n";
+      : "Minha resposta: (ainda não respondida)\n";
     messageInput.value =
-      `QuestÃ£o ${questionIndex} (ID ${questionId}):\n${questionText}\n\n` +
+      `Questão ${questionIndex} (ID ${questionId}) [${String(controlCode || "").trim() || buildRuntimeQuestionControlCode(questionId)}]:\n${questionText}\n\n` +
       `${selectedLine}\n` +
       "Descreva o erro abaixo:";
   }
@@ -62,7 +156,12 @@ function resetSessionState() {
     ? currentQuestionBank
     : sigwxQuestions;
   const sessionSize = Math.min(QUESTIONS_PER_SESSION, sourceQuestions.length);
-  activeQuestions = shuffleArray(sourceQuestions).slice(0, sessionSize);
+  activeQuestions = shuffleArray(sourceQuestions)
+    .slice(0, sessionSize)
+    .map((question) => ({
+      ...question,
+      image: normalizeRuntimeImagePath(question?.image || "")
+    }));
   state = activeQuestions.map(() => ({
     selected: null,
     isCorrect: null,
@@ -151,6 +250,7 @@ function createMagnifiedImageNode({ imageUrl, alt }) {
 export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = "training" } = {}) {
   currentQuestionBank = Array.isArray(questions) && questions.length ? questions : sigwxQuestions;
   const progress = document.getElementById("sigwxProgress");
+  const headerCodeEl = document.getElementById("sigwxQuestionCode");
   const questionEl = document.getElementById("sigwxQuestion");
   const optionsEl = document.getElementById("sigwxOptions");
   const navEl = document.getElementById("sigwxNav");
@@ -169,8 +269,8 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
 
   btnFinalizar?.addEventListener("click", () => finalizarSimulado());
 
-  if (!progress || !questionEl || !optionsEl || !navEl) {
-    console.error("SIGWX: elementos nÃ£o encontrados");
+  if (!questionEl || !optionsEl || !navEl) {
+    console.error("SIGWX: elementos não encontrados");
     return;
   }
 
@@ -232,16 +332,28 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
 
   function render() {
     renderProgress();
+    renderQuestionCode();
     renderImage();
     renderOptions();
     renderNav();
     renderControls();
   }
 
+  function renderQuestionCode() {
+    if (!headerCodeEl) return;
+    const q = activeQuestions[currentQuestionIndex];
+    if (!q) {
+      headerCodeEl.textContent = "";
+      return;
+    }
+    const questionControlCode = String(q?.controlCode || "").trim() || buildRuntimeQuestionControlCode(q?.id);
+    headerCodeEl.textContent = `Código: ${questionControlCode}`;
+  }
+
   function renderProgress() {
     const total = activeQuestions.length;
     if (!total) {
-      progress.innerText = "Nenhuma questÃ£o disponÃ­vel neste banco.";
+      if (progress) progress.innerText = "";
       if (progressBar) progressBar.style.width = "0%";
       if (progressText) progressText.innerText = "0 de 0 respondidas (0%)";
       return;
@@ -249,7 +361,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
     const answered = state.filter((q) => q.selected !== null).length;
     const percent = Math.round((answered / total) * 100);
 
-    progress.innerText = `QuestÃ£o ${currentQuestionIndex + 1} de ${total} . Respondidas ${answered}/${total}`;
+    if (progress) progress.innerText = "";
 
     if (progressBar) {
       progressBar.style.width = `${percent}%`;
@@ -266,6 +378,19 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
       return;
     }
     questionEl.innerHTML = "";
+
+    const isQuestionTextOnImageCard = q?.textOnImageCard === true;
+    if (isSinaisLuminososEvaluationMode() || isQuestionTextOnImageCard) {
+      const textBlock = document.createElement("div");
+      textBlock.className = "simulado-image-text-only";
+      textBlock.innerHTML = sanitizeQuestionHtml(q.question || "");
+      const questionFontSize = Number(q?.questionFontSize);
+      if (Number.isFinite(questionFontSize)) {
+        textBlock.style.fontSize = `${Math.max(10, Math.min(36, Math.floor(questionFontSize)))}px`;
+      }
+      questionEl.appendChild(textBlock);
+      return;
+    }
 
     if (shouldEnableImageMagnifier()) {
       questionEl.appendChild(
@@ -287,7 +412,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
     const q = activeQuestions[currentQuestionIndex];
     const qState = state[currentQuestionIndex];
     if (!q || !qState) {
-      optionsEl.innerHTML = `<h2>Nenhuma questÃ£o disponÃ­vel para este modo.</h2>`;
+      optionsEl.innerHTML = `<h2>Nenhuma questão disponível para este modo.</h2>`;
       return;
     }
 
@@ -296,7 +421,18 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
     }
 
     const isEvaluation = document.body.dataset.simuladoMode === "evaluation";
-    optionsEl.innerHTML = `<h2>${q.question}</h2>`;
+    const showQuestionHeading = !(isEvaluation && (isSinaisLuminososEvaluationMode() || q?.textOnImageCard === true));
+    if (showQuestionHeading) {
+      const questionFontSize = Number(q?.questionFontSize);
+      const safeQuestionFontSize = Number.isFinite(questionFontSize)
+        ? Math.max(10, Math.min(36, Math.floor(questionFontSize)))
+        : null;
+      optionsEl.innerHTML = `
+        <h2${safeQuestionFontSize ? ` style="font-size:${safeQuestionFontSize}px;"` : ""}>${sanitizeQuestionHtml(q.question || "")}</h2>
+      `;
+    } else {
+      optionsEl.innerHTML = "";
+    }
 
     qState.shuffledOptions.forEach((opt, index) => {
       const btn = document.createElement("button");
@@ -341,7 +477,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
       const reportBtn = document.createElement("button");
       reportBtn.type = "button";
       reportBtn.className = "simulado-report-link";
-      reportBtn.innerText = "Reportar erro nesta questÃ£o";
+      reportBtn.innerText = "Reportar erro nesta questão";
       reportBtn.addEventListener("click", () => {
         const selectedText = qState.selected !== null
           ? String(qState.shuffledOptions[qState.selected]?.text || "").trim()
@@ -349,6 +485,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
         openQuestionReportModal({
           questionIndex: currentQuestionIndex + 1,
           questionId: q.id,
+          controlCode: q?.controlCode,
           questionText: q.question,
           selectedText
         });
@@ -408,7 +545,7 @@ export function startSigwxSimulado({ questions = sigwxQuestions, questionBank = 
   function finalizarSimulado({ force = false } = {}) {
     if (isFinished) return;
     if (!force && document.body.dataset.simuladoMode === "evaluation") {
-      const confirmed = confirm("Finalizar avaliaÃ§Ã£o? VocÃª nÃ£o poderÃ¡ voltar para responder.");
+      const confirmed = confirm("Finalizar avaliação? Você não poderá voltar para responder.");
       if (!confirmed) return;
     }
     isFinished = true;

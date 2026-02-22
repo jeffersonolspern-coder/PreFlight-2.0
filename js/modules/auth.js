@@ -9,7 +9,6 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   updateProfile,
-  deleteUser,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -53,11 +52,6 @@ function logout() {
 // ===============================
 // EXCLUIR CONTA
 // ===============================
-function deleteAccount() {
-  if (!auth.currentUser) return Promise.reject(new Error("No user"));
-  return deleteUser(auth.currentUser);
-}
-
 // ===============================
 // LISTENER DE SESSÃO
 // ===============================
@@ -76,7 +70,6 @@ export {
   loginWithGoogle,
   register,
   logout,
-  deleteAccount,
   observeAuthState,
   currentUser
 };

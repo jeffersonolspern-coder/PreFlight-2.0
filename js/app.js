@@ -7,13 +7,14 @@ import {
   loginView,
   registerView,
   dashboardView,
-  metarTafHubView,
+  simuladoModuleView,
   sigwxView,
   sigwxEvaluationView,
   sigwxEvaluationResultView,
   profileView,
   profileEvaluationView,
   adminView,
+  adminReportView,
   adminQuestionHubView,
   adminQuestionEditorView,
   creditsView,
@@ -22,6 +23,7 @@ import {
   privacyView,
   cookiesView
 } from "./views/views.js";
+import { buildReportData, downloadReportCsvFiles } from "./modules/report.js";
 
 import {
   login,
@@ -60,11 +62,16 @@ import {
   saveQuestion as saveQuestionDefinition,
   deleteQuestion as deleteQuestionDefinition
 } from "./modules/questions.js";
+import { getModuleByKey, getModuleBySlug } from "../modulos/index.js";
 import { startSigwxSimulado } from "./simulados/sigwx/simulado.js";
 import { sigwxQuestions } from "./simulados/sigwx/data.js";
 import { sigwxEvaluationQuestions } from "./simulados/sigwx/data-evaluation.js";
 import { metarTafQuestions } from "./simulados/metar-taf/data.js";
 import { metarTafEvaluationQuestions } from "./simulados/metar-taf/data-evaluation.js";
+import { nuvensQuestions } from "./simulados/nuvens/data.js";
+import { nuvensEvaluationQuestions } from "./simulados/nuvens/data-evaluation.js";
+import { sinaisLuminososQuestions } from "./simulados/sinais-luminosos/data.js";
+import { sinaisLuminososEvaluationQuestions } from "./simulados/sinais-luminosos/data-evaluation.js";
 
 import "./simulados/sigwx/painel.js";
 
@@ -106,12 +113,58 @@ const QUESTION_BANKS = [
     id: "metar_taf_evaluation",
     label: "METAR/TAF • Avaliação",
     imageBasePath: "assets/questions/metar-taf/evaluation"
+  },
+  {
+    id: "nuvens_training",
+    label: "Nuvens • Treinamento",
+    imageBasePath: "assets/questions/nuvens/training"
+  },
+  {
+    id: "nuvens_evaluation",
+    label: "Nuvens • Avaliação",
+    imageBasePath: "assets/questions/nuvens/evaluation"
+  },
+  {
+    id: "sinais_luminosos_training",
+    label: "Sinais luminosos • Treinamento",
+    imageBasePath: "assets/questions/sinais-luminosos/training"
+  },
+  {
+    id: "sinais_luminosos_evaluation",
+    label: "Sinais luminosos • Avaliação",
+    imageBasePath: "assets/questions/sinais-luminosos/evaluation"
   }
 ];
 const QUESTION_BANK_BY_ID = new Map(QUESTION_BANKS.map((bank) => [bank.id, bank]));
 const SIMULADO_BANKS = {
   sigwx: { training: "sigwx_training", evaluation: "sigwx_evaluation", label: "SIGWX" },
-  metar_taf: { training: "metar_taf_training", evaluation: "metar_taf_evaluation", label: "METAR/TAF" }
+  metar_taf: { training: "metar_taf_training", evaluation: "metar_taf_evaluation", label: "METAR/TAF" },
+  nuvens: { training: "nuvens_training", evaluation: "nuvens_evaluation", label: "Nuvens" },
+  sinais_luminosos: {
+    training: "sinais_luminosos_training",
+    evaluation: "sinais_luminosos_evaluation",
+    label: "Sinais luminosos"
+  },
+  notam: { training: "notam_training", evaluation: "notam_evaluation", label: "NOTAM" },
+  rotaer: { training: "rotaer_training", evaluation: "rotaer_evaluation", label: "ROTAER" },
+  espacos_aereos: {
+    training: "espacos_aereos_training",
+    evaluation: "espacos_aereos_evaluation",
+    label: "Espaços Aéreos"
+  }
+};
+const APP_ROUTES = {
+  home: "/",
+  dashboard: "/simulados"
+};
+const MODULE_ROUTE_BY_KEY = {
+  sigwx: "/modulos/sigwx",
+  metar_taf: "/modulos/metar-taf",
+  nuvens: "/modulos/nuvens",
+  sinais_luminosos: "/modulos/sinais-luminosos",
+  notam: "/modulos/notam",
+  rotaer: "/modulos/rotaer",
+  espacos_aereos: "/modulos/espacos-aereos"
 };
 const SESSION_SIMULADO_KEYS = [
   "sigwx",
@@ -122,11 +175,26 @@ const SESSION_SIMULADO_KEYS = [
   "sinais_luminosos",
   "espacos_aereos"
 ];
+const ADMIN_SIMULADO_CATALOG = [
+  { key: "sigwx", label: "SIGWX" },
+  { key: "metar_taf", label: "METAR/TAF" },
+  { key: "notam", label: "NOTAM" },
+  { key: "rotaer", label: "ROTAER" },
+  { key: "nuvens", label: "Nuvens" },
+  { key: "sinais_luminosos", label: "Sinais luminosos" },
+  { key: "espacos_aereos", label: "Espaços Aéreos" }
+];
 const DEFAULT_QUESTION_BANKS = {
   sigwx_training: Array.isArray(sigwxQuestions) ? sigwxQuestions.map((q) => ({ ...q })) : [],
   sigwx_evaluation: Array.isArray(sigwxEvaluationQuestions) ? sigwxEvaluationQuestions.map((q) => ({ ...q })) : [],
   metar_taf_training: Array.isArray(metarTafQuestions) ? metarTafQuestions.map((q) => ({ ...q })) : [],
-  metar_taf_evaluation: Array.isArray(metarTafEvaluationQuestions) ? metarTafEvaluationQuestions.map((q) => ({ ...q })) : []
+  metar_taf_evaluation: Array.isArray(metarTafEvaluationQuestions) ? metarTafEvaluationQuestions.map((q) => ({ ...q })) : [],
+  nuvens_training: Array.isArray(nuvensQuestions) ? nuvensQuestions.map((q) => ({ ...q })) : [],
+  nuvens_evaluation: Array.isArray(nuvensEvaluationQuestions) ? nuvensEvaluationQuestions.map((q) => ({ ...q })) : [],
+  sinais_luminosos_training: Array.isArray(sinaisLuminososQuestions) ? sinaisLuminososQuestions.map((q) => ({ ...q })) : [],
+  sinais_luminosos_evaluation: Array.isArray(sinaisLuminososEvaluationQuestions)
+    ? sinaisLuminososEvaluationQuestions.map((q) => ({ ...q }))
+    : []
 };
 const CREDIT_PACKS = {
   bronze: { id: "bronze", name: "Bronze", credits: 10, price: 9.9 },
@@ -157,7 +225,8 @@ let adminMetricsRange = "30d";
 let adminMetricsData = { evaluations: [], transactions: [] };
 let adminMetricsSummary = null;
 let adminMetricsFromApi = false;
-let adminPanelScreen = "summary";
+let adminPanelScreen = "dashboard";
+let adminReportData = null;
 let adminLightMode = localStorage.getItem(ADMIN_LIGHT_MODE_KEY) !== "0";
 let activeSimuladoKey = "sigwx";
 let profileEvaluationsCache = [];
@@ -196,22 +265,32 @@ let mobileHeaderResizeHandler = null;
 let homeSimuladosResizeHandler = null;
 let simuladoNavResizeHandler = null;
 let homeModeCarouselCleanupFns = [];
+let pendingEvaluationRetryFilter = null;
 const INSUFFICIENT_CREDITS_MESSAGE = "Você não possui créditos suficientes.";
 const SESSION_BLOCKED_MESSAGE = "Este modo está temporariamente desabilitado no momento.";
 let userMenuDocumentClickHandler = null;
 let userMenuDocumentKeydownHandler = null;
+let adminQuestionEditorKeydownHandler = null;
 let apiWarmupDone = false;
 let questionBanksCache = {
   sigwx_training: DEFAULT_QUESTION_BANKS.sigwx_training.map((q) => ({ ...q })),
   sigwx_evaluation: DEFAULT_QUESTION_BANKS.sigwx_evaluation.map((q) => ({ ...q })),
   metar_taf_training: DEFAULT_QUESTION_BANKS.metar_taf_training.map((q) => ({ ...q })),
-  metar_taf_evaluation: DEFAULT_QUESTION_BANKS.metar_taf_evaluation.map((q) => ({ ...q }))
+  metar_taf_evaluation: DEFAULT_QUESTION_BANKS.metar_taf_evaluation.map((q) => ({ ...q })),
+  nuvens_training: DEFAULT_QUESTION_BANKS.nuvens_training.map((q) => ({ ...q })),
+  nuvens_evaluation: DEFAULT_QUESTION_BANKS.nuvens_evaluation.map((q) => ({ ...q })),
+  sinais_luminosos_training: DEFAULT_QUESTION_BANKS.sinais_luminosos_training.map((q) => ({ ...q })),
+  sinais_luminosos_evaluation: DEFAULT_QUESTION_BANKS.sinais_luminosos_evaluation.map((q) => ({ ...q }))
 };
 let questionBankLoadedFlags = {
   sigwx_training: false,
   sigwx_evaluation: false,
   metar_taf_training: false,
-  metar_taf_evaluation: false
+  metar_taf_evaluation: false,
+  nuvens_training: false,
+  nuvens_evaluation: false,
+  sinais_luminosos_training: false,
+  sinais_luminosos_evaluation: false
 };
 let adminQuestionBank = "sigwx_training";
 let adminQuestionEditor = null;
@@ -317,6 +396,34 @@ function isSessionModeAvailable(simuladoKey = "sigwx", mode = "training") {
   const safeMode = mode === "evaluation" ? "evaluation" : "training";
   const value = sessionAvailability?.[safeKey]?.[safeMode];
   return typeof value === "boolean" ? value : true;
+}
+
+function normalizePathname(pathname = window.location.pathname) {
+  const path = String(pathname || "").trim();
+  if (!path || path === "/") return "/";
+  const withoutTrailing = path.endsWith("/") ? path.slice(0, -1) : path;
+  return withoutTrailing || "/";
+}
+
+function updateBrowserPath(pathname, { replace = false } = {}) {
+  const safePath = normalizePathname(pathname);
+  if (normalizePathname(window.location.pathname) === safePath) return;
+  if (replace) {
+    window.history.replaceState({}, "", safePath);
+    return;
+  }
+  window.history.pushState({}, "", safePath);
+}
+
+function getModulePathByKey(simuladoKey = "sigwx") {
+  return MODULE_ROUTE_BY_KEY[simuladoKey] || MODULE_ROUTE_BY_KEY.sigwx;
+}
+
+function getModuleSlugFromPath(pathname = window.location.pathname) {
+  const safePath = normalizePathname(pathname);
+  if (!safePath.startsWith("/modulos/")) return "";
+  const slug = safePath.slice("/modulos/".length);
+  return slug || "";
 }
 
 function getTelemetryReport(days = TELEMETRY_RETENTION_DAYS) {
@@ -568,22 +675,44 @@ function normalizeQuestionId(rawId, fallback = 1) {
   return Math.max(1, Math.floor(parsed));
 }
 
+function buildQuestionControlCode(bankId = "", questionId = 0) {
+  const safeBankId = String(getQuestionBankConfig(bankId).id || "sigwx_training")
+    .replace(/[^a-z0-9]+/gi, "_")
+    .toUpperCase();
+  const safeId = normalizeQuestionId(questionId, 1);
+  return `${safeBankId}-Q${String(safeId).padStart(4, "0")}`;
+}
+
 function normalizeQuestionForBank(bankId, rawQuestion = {}, index = 0) {
   const safeBankId = getQuestionBankConfig(bankId).id;
   const id = normalizeQuestionId(rawQuestion?.id, index + 1);
   const bankConfig = getQuestionBankConfig(safeBankId);
-  const fallbackImage = String(bankConfig?.defaultImagePath || `${bankConfig.imageBasePath}/${id}.webp`);
+  const isTextOnlyEvaluationBank = safeBankId === "sinais_luminosos_evaluation";
+  const fallbackImage = isTextOnlyEvaluationBank
+    ? ""
+    : String(bankConfig?.defaultImagePath || `${bankConfig.imageBasePath}/${id}.webp`);
   const sourceOptions = Array.isArray(rawQuestion?.options) ? rawQuestion.options : [];
   const options = [0, 1, 2, 3].map((pos) => String(sourceOptions[pos] ?? "").trim());
   const parsedCorrect = Number(rawQuestion?.correctIndex);
+  const parsedFontSize = Number(rawQuestion?.questionFontSize);
+  const rawControlCode = String(rawQuestion?.controlCode || "").trim();
+  const sourceImage = String(rawQuestion?.image || "").trim();
+  const textOnImageCard = rawQuestion?.textOnImageCard === true || isTextOnlyEvaluationBank;
+  const normalizedImage = isTextOnlyEvaluationBank
+    ? sourceImage
+    : (sourceImage || fallbackImage);
 
   return {
     id,
-    image: String(rawQuestion?.image || fallbackImage).trim() || fallbackImage,
+    image: normalizedImage,
     question: String(rawQuestion?.question || "").trim(),
     options,
     correctIndex: Number.isFinite(parsedCorrect) ? Math.min(3, Math.max(0, Math.floor(parsedCorrect))) : 0,
-    explanation: String(rawQuestion?.explanation || "").trim()
+    explanation: String(rawQuestion?.explanation || "").trim(),
+    textOnImageCard,
+    questionFontSize: Number.isFinite(parsedFontSize) ? Math.max(10, Math.min(36, Math.floor(parsedFontSize))) : 18,
+    controlCode: rawControlCode || buildQuestionControlCode(safeBankId, id),
+    deleted: rawQuestion?.deleted === true
   };
 }
 
@@ -593,6 +722,27 @@ function normalizeQuestionList(bankId, list = []) {
   );
   normalized.sort((a, b) => a.id - b.id);
   return normalized;
+}
+
+function escapeRegExp(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function renumberQuestionImagePath(imagePath = "", bankId = "", oldId = 0, newId = 0) {
+  const safePath = String(imagePath || "").trim();
+  if (!safePath) return safePath;
+  const bank = getQuestionBankConfig(bankId);
+  const basePath = String(bank?.imageBasePath || "").trim();
+  if (!basePath) return safePath;
+  const pattern = new RegExp(`^${escapeRegExp(basePath)}/(\\d+)(\\.[a-zA-Z0-9]+)$`);
+  const match = safePath.match(pattern);
+  if (!match) return safePath;
+
+  const currentIdFromPath = Number(match[1]);
+  if (Number.isFinite(currentIdFromPath) && Number(currentIdFromPath) !== Number(oldId)) {
+    return safePath;
+  }
+  return `${basePath}/${newId}${match[2]}`;
 }
 
 function mergeQuestionLists(baseList = [], overrideList = []) {
@@ -605,9 +755,61 @@ function mergeQuestionLists(baseList = [], overrideList = []) {
   (Array.isArray(overrideList) ? overrideList : []).forEach((item) => {
     const id = normalizeQuestionId(item?.id, 0);
     if (!id) return;
+    if (item?.deleted === true) {
+      mergedById.delete(id);
+      return;
+    }
     mergedById.set(id, item);
   });
   return Array.from(mergedById.values()).sort((a, b) => a.id - b.id);
+}
+
+async function reindexQuestionBankSequentialIds(bankId) {
+  const safeBankId = getQuestionBankConfig(bankId).id;
+  await ensureQuestionBankLoaded(safeBankId, { force: true, silent: true });
+  const currentItems = getQuestionBankCache(safeBankId)
+    .slice()
+    .sort((a, b) => normalizeQuestionId(a?.id, 0) - normalizeQuestionId(b?.id, 0));
+
+  if (!currentItems.length) return;
+
+  const oldIds = currentItems.map((item) => normalizeQuestionId(item?.id, 0)).filter(Boolean);
+  const newIds = currentItems.map((_, index) => index + 1);
+  const needsReindex = oldIds.some((oldId, index) => oldId !== newIds[index]);
+  if (!needsReindex) return;
+
+  const updatedBy = currentUser?.email || "";
+  for (let index = 0; index < currentItems.length; index += 1) {
+    const item = currentItems[index];
+    const oldId = normalizeQuestionId(item?.id, index + 1);
+    const newId = index + 1;
+    await saveQuestionDefinition(
+      safeBankId,
+      String(newId),
+      {
+        id: newId,
+        image: renumberQuestionImagePath(item?.image, safeBankId, oldId, newId),
+        question: String(item?.question || "").trim(),
+        options: Array.isArray(item?.options) ? item.options.slice(0, 4) : ["", "", "", ""],
+        correctIndex: Number.isFinite(Number(item?.correctIndex)) ? Number(item.correctIndex) : 0,
+        explanation: String(item?.explanation || "").trim(),
+        textOnImageCard: item?.textOnImageCard === true,
+        questionFontSize: Number.isFinite(Number(item?.questionFontSize))
+          ? Math.max(10, Math.min(36, Math.floor(Number(item.questionFontSize))))
+          : 18,
+        controlCode: String(item?.controlCode || "").trim() || buildQuestionControlCode(safeBankId, newId)
+      },
+      updatedBy
+    );
+  }
+
+  const nextIdSet = new Set(newIds);
+  const obsoleteOldIds = oldIds.filter((id) => !nextIdSet.has(id));
+  for (const oldId of obsoleteOldIds) {
+    await deleteQuestionDefinition(safeBankId, String(oldId), updatedBy);
+  }
+
+  await ensureQuestionBankLoaded(safeBankId, { force: true, silent: true });
 }
 
 function getQuestionBankCache(bankId) {
@@ -633,11 +835,15 @@ function createAdminQuestionDraft(bankId, base = {}) {
 function createNewAdminQuestionDraft(bankId) {
   const safeBankId = getQuestionBankConfig(bankId).id;
   const nextId = getNextQuestionIdForBank(safeBankId);
+  const isTextOnlyEvaluationBank = safeBankId === "sinais_luminosos_evaluation";
   return createAdminQuestionDraft(safeBankId, {
     id: nextId,
-    image: `${getQuestionBankConfig(safeBankId).imageBasePath}/${nextId}.webp`,
+    image: isTextOnlyEvaluationBank ? "" : `${getQuestionBankConfig(safeBankId).imageBasePath}/${nextId}.webp`,
     options: ["", "", "", ""],
-    correctIndex: 0
+    correctIndex: 0,
+    textOnImageCard: isTextOnlyEvaluationBank,
+    questionFontSize: 18,
+    controlCode: buildQuestionControlCode(safeBankId, nextId)
   });
 }
 
@@ -726,6 +932,21 @@ function getQuestionsForSimuladoMode(simuladoKey = "sigwx", mode = "training") {
 function getSimuladoLabel(simuladoKey = "sigwx") {
   const safeSimuladoKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
   return SIMULADO_BANKS[safeSimuladoKey].label || "Simulado";
+}
+
+function consumePendingEvaluationQuestions(simuladoKey = "sigwx", questions = []) {
+  if (!Array.isArray(questions) || !questions.length) return [];
+  const safeSimuladoKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
+  const pending = pendingEvaluationRetryFilter;
+  if (!pending || pending.simuladoKey !== safeSimuladoKey) {
+    return questions;
+  }
+
+  pendingEvaluationRetryFilter = null;
+  const ids = Array.isArray(pending.questionIds) ? pending.questionIds : [];
+  const idSet = new Set(ids.map((id) => String(id)));
+  const filtered = questions.filter((question) => idSet.has(String(question?.id)));
+  return filtered.length ? filtered : questions;
 }
 
 function normalizeApiBase(baseUrl) {
@@ -1078,8 +1299,17 @@ function getFirebaseAuthMessage(error, fallback = "Não foi possível concluir a
   if (code.includes("invalid-credential") || code.includes("wrong-password")) {
     return "Email ou senha inválidos.";
   }
+  if (code.includes("user-not-found")) {
+    return "Conta não encontrada para este email.";
+  }
   if (code.includes("invalid-email")) {
     return "Email inválido.";
+  }
+  if (code.includes("operation-not-allowed")) {
+    return "Login por email/senha não está habilitado no Firebase Auth.";
+  }
+  if (code.includes("network-request-failed")) {
+    return "Falha de conexão. Verifique a internet e tente novamente.";
   }
   if (code.includes("too-many-requests")) {
     return "Muitas tentativas. Tente novamente em alguns minutos.";
@@ -1313,11 +1543,6 @@ function writeLocalCreditsState(userId, state) {
   }
 }
 
-function readLocalCreditsBalance(userId) {
-  const state = readLocalCreditsState(userId);
-  return state ? state.balance : null;
-}
-
 function writeLocalCreditsBalance(userId, balance, syncServer = false) {
   if (!IS_LOCAL_DEV_HOST || !userId) return;
   const parsed = parseCreditsBalance(balance);
@@ -1403,12 +1628,6 @@ function getCreditsBalanceValue(source = currentCredits) {
   return parseCreditsBalance(source.balance);
 }
 
-function canStartSessionByLocalCredits() {
-  const balance = getCreditsBalanceValue();
-  if (balance === null) return true;
-  return balance > 0;
-}
-
 function consumeOneLocalCreditIfPossible() {
   if (!currentUser) return false;
   const directBalance = getCreditsBalanceValue();
@@ -1426,15 +1645,6 @@ function consumeOneLocalCreditIfPossible() {
   writeLocalCreditsBalance(currentUser.uid, nextBalance);
   updateVisibleCreditsLabel();
   return true;
-}
-
-function setDashboardStartButtonsDisabled(disabled) {
-  document
-    .querySelectorAll('[data-action="sigwx"], [data-action="sigwx-eval"]')
-    .forEach((button) => {
-      button.disabled = !!disabled;
-      button.setAttribute("aria-disabled", disabled ? "true" : "false");
-    });
 }
 
 async function refreshCurrentUserCredits() {
@@ -1623,6 +1833,11 @@ async function startSimuladoWithCredit(simuladoKey = "sigwx", mode = "training")
   }
   const safeKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
   const safeMode = mode === "evaluation" ? "evaluation" : "training";
+  const runnableKeys = new Set(["sigwx", "metar_taf", "nuvens", "sinais_luminosos"]);
+  if (!runnableKeys.has(safeKey)) {
+    showToast("Este simulado ainda está em desenvolvimento.", "info");
+    return;
+  }
   if (!isSessionModeAvailable(safeKey, safeMode)) {
     showToast(SESSION_BLOCKED_MESSAGE, "info");
     return;
@@ -1633,6 +1848,22 @@ async function startSimuladoWithCredit(simuladoKey = "sigwx", mode = "training")
       return;
     }
     renderSigwx();
+    return;
+  }
+  if (safeKey === "sinais_luminosos") {
+    if (safeMode === "evaluation") {
+      renderSinaisLuminososEvaluation();
+      return;
+    }
+    renderSinaisLuminosos();
+    return;
+  }
+  if (safeKey === "nuvens") {
+    if (safeMode === "evaluation") {
+      renderNuvensEvaluation();
+      return;
+    }
+    renderNuvens();
     return;
   }
   if (safeMode === "evaluation") {
@@ -1654,6 +1885,10 @@ function setupTrainingStartModal({ onStart } = {}) {
   if (cancelBtn) {
     cancelBtn.onclick = () => {
       if (currentUser) {
+        if (getModuleByKey(activeSimuladoKey)) {
+          renderModuleHub(activeSimuladoKey);
+          return;
+        }
         renderDashboard();
       } else {
         renderHomePublic();
@@ -1751,8 +1986,9 @@ function setupTrainingStartModal({ onStart } = {}) {
 // ===============================
 // RENDERIZAÇÕES
 // ===============================
-async function renderHomePublic() {
+async function renderHomePublic({ replacePath = false } = {}) {
   cleanupEvaluationFlow();
+  updateBrowserPath(APP_ROUTES.home, { replace: replacePath });
   try {
     const availability = await getSessionAvailability().catch(() => null);
     trackTelemetry("session_availability_fetch", { reads: 1 });
@@ -1780,8 +2016,9 @@ async function renderHomePublic() {
   setupFooterLinks();
 }
 
-function renderLogin() {
+function renderLogin({ replacePath = false } = {}) {
   cleanupEvaluationFlow();
+  updateBrowserPath(APP_ROUTES.home, { replace: replacePath });
   app.innerHTML = loginView({ isAdmin: isAdminUser(), userLabel: getUserLabel() });
   setupGlobalMenu();
   setupHeaderLogin();
@@ -1791,8 +2028,9 @@ function renderLogin() {
   setupFooterLinks();
 }
 
-function renderRegister() {
+function renderRegister({ replacePath = false } = {}) {
   cleanupEvaluationFlow();
+  updateBrowserPath(APP_ROUTES.home, { replace: replacePath });
   app.innerHTML = registerView({ isAdmin: isAdminUser(), userLabel: getUserLabel() });
   setupGlobalMenu();
   setupHeaderLogin();
@@ -1802,8 +2040,9 @@ function renderRegister() {
   setupFooterLinks();
 }
 
-async function renderDashboard() {
+async function renderDashboard({ replacePath = false } = {}) {
   cleanupEvaluationFlow();
+  updateBrowserPath(APP_ROUTES.dashboard, { replace: replacePath });
   try {
     const availability = await getSessionAvailability().catch(() => null);
     trackTelemetry("session_availability_fetch", { reads: 1 });
@@ -1827,8 +2066,19 @@ async function renderDashboard() {
   warmupApi();
 }
 
-async function renderMetarTafHub() {
+async function renderModuleHub(simuladoKey = "sigwx", { replacePath = false } = {}) {
   cleanupEvaluationFlow();
+  const safeKey = getModuleByKey(simuladoKey) ? simuladoKey : (SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx");
+  const moduleConfig = getModuleByKey(safeKey);
+  if (!moduleConfig) {
+    await renderDashboard({ replacePath });
+    return;
+  }
+  const runnableKeys = new Set(["sigwx", "metar_taf", "nuvens", "sinais_luminosos"]);
+  const canStartRealSession = runnableKeys.has(safeKey);
+
+  updateBrowserPath(getModulePathByKey(safeKey), { replace: replacePath });
+
   try {
     const availability = await getSessionAvailability().catch(() => null);
     trackTelemetry("session_availability_fetch", { reads: 1 });
@@ -1837,15 +2087,17 @@ async function renderMetarTafHub() {
     sessionAvailability = normalizeSessionAvailability(sessionAvailability);
   }
 
-  app.innerHTML = metarTafHubView({
+  app.innerHTML = simuladoModuleView(moduleConfig, {
     isAdmin: isAdminUser(),
     userLabel: getUserLabel(),
     credits: getCreditsLabel(),
-    canStartSessions: true,
-    sessionAvailability
+    trainingEnabled: canStartRealSession && isSessionModeAvailable(safeKey, "training"),
+    evaluationEnabled: canStartRealSession && isSessionModeAvailable(safeKey, "evaluation")
   });
+
   setupLogout();
-  setupMetarTafHubActions();
+  setupModuleHubActions(safeKey);
+  setupHomeModeCarousels();
   setupGlobalMenu();
   setupContact();
   setupFooterLinks();
@@ -1901,6 +2153,7 @@ function renderSigwxEvaluation() {
     } else if (!LOW_COST_MODE) {
       ensureQuestionBankLoaded("sigwx_evaluation", { force: false, silent: true }).catch(() => {});
     }
+    questions = consumePendingEvaluationQuestions("sigwx", questions);
     startSigwxSimulado({ questions, questionBank: "evaluation" });
   });
 
@@ -1964,7 +2217,8 @@ function renderMetarTafEvaluation() {
 
   requestAnimationFrame(async () => {
     await ensureQuestionBankLoaded("metar_taf_evaluation", { force: false, silent: true });
-    const questions = getQuestionsForSimuladoMode("metar_taf", "evaluation");
+    const allQuestions = getQuestionsForSimuladoMode("metar_taf", "evaluation");
+    const questions = consumePendingEvaluationQuestions("metar_taf", allQuestions);
     startSigwxSimulado({ questions, questionBank: "evaluation" });
   });
 
@@ -1978,6 +2232,136 @@ function renderMetarTafEvaluation() {
       evaluationFinishHandler = null;
     }
     renderSimuladoEvaluationResults(e.detail, { simuladoKey: "metar_taf" });
+  };
+  document.addEventListener("sigwx:finish", evaluationFinishHandler);
+
+  setupEvaluationAutoNext();
+  setupEvaluationTimer();
+  setupLogout();
+  setupGlobalMenu();
+  setupSimuladoNavToggle();
+  setupContact();
+  setupFooterLinks();
+}
+
+function renderNuvens() {
+  cleanupEvaluationFlow();
+  activeSimuladoKey = "nuvens";
+  setSimuladoMode("training");
+  app.innerHTML = sigwxView({
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    simuladoLabel: getSimuladoLabel("nuvens")
+  });
+
+  requestAnimationFrame(async () => {
+    await ensureQuestionBankLoaded("nuvens_training", { force: false, silent: true });
+    const questions = getQuestionsForSimuladoMode("nuvens", "training");
+    startSigwxSimulado({ questions, questionBank: "training" });
+    setupTrainingStartModal();
+  });
+
+  setupLogout();
+  setupGlobalMenu();
+  setupSimuladoNavToggle();
+  setupContact();
+  setupFooterLinks();
+}
+
+function renderNuvensEvaluation() {
+  cleanupEvaluationFlow();
+  activeSimuladoKey = "nuvens";
+  setSimuladoMode("evaluation");
+  app.innerHTML = sigwxEvaluationView({
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    simuladoLabel: getSimuladoLabel("nuvens")
+  });
+
+  requestAnimationFrame(async () => {
+    await ensureQuestionBankLoaded("nuvens_evaluation", { force: false, silent: true });
+    const allQuestions = getQuestionsForSimuladoMode("nuvens", "evaluation");
+    const questions = consumePendingEvaluationQuestions("nuvens", allQuestions);
+    startSigwxSimulado({ questions, questionBank: "evaluation" });
+  });
+
+  evaluationFinishHandler = (e) => {
+    const isEvaluationMode = document.body.dataset.simuladoMode === "evaluation";
+    const isEvaluationFinish = e?.detail?.questionBank === "evaluation";
+    if (!isEvaluationMode || !isEvaluationFinish) return;
+
+    if (typeof evaluationFinishHandler === "function") {
+      document.removeEventListener("sigwx:finish", evaluationFinishHandler);
+      evaluationFinishHandler = null;
+    }
+    renderSimuladoEvaluationResults(e.detail, { simuladoKey: "nuvens" });
+  };
+  document.addEventListener("sigwx:finish", evaluationFinishHandler);
+
+  setupEvaluationAutoNext();
+  setupEvaluationTimer();
+  setupLogout();
+  setupGlobalMenu();
+  setupSimuladoNavToggle();
+  setupContact();
+  setupFooterLinks();
+}
+
+function renderSinaisLuminosos() {
+  cleanupEvaluationFlow();
+  activeSimuladoKey = "sinais_luminosos";
+  setSimuladoMode("training");
+  app.innerHTML = sigwxView({
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    simuladoLabel: getSimuladoLabel("sinais_luminosos")
+  });
+
+  requestAnimationFrame(async () => {
+    await ensureQuestionBankLoaded("sinais_luminosos_training", { force: false, silent: true });
+    const questions = getQuestionsForSimuladoMode("sinais_luminosos", "training");
+    startSigwxSimulado({ questions, questionBank: "training" });
+    setupTrainingStartModal();
+  });
+
+  setupLogout();
+  setupGlobalMenu();
+  setupSimuladoNavToggle();
+  setupContact();
+  setupFooterLinks();
+}
+
+function renderSinaisLuminososEvaluation() {
+  cleanupEvaluationFlow();
+  activeSimuladoKey = "sinais_luminosos";
+  setSimuladoMode("evaluation");
+  app.innerHTML = sigwxEvaluationView({
+    isAdmin: isAdminUser(),
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    simuladoLabel: getSimuladoLabel("sinais_luminosos")
+  });
+
+  requestAnimationFrame(async () => {
+    await ensureQuestionBankLoaded("sinais_luminosos_evaluation", { force: false, silent: true });
+    const allQuestions = getQuestionsForSimuladoMode("sinais_luminosos", "evaluation");
+    const questions = consumePendingEvaluationQuestions("sinais_luminosos", allQuestions);
+    startSigwxSimulado({ questions, questionBank: "evaluation" });
+  });
+
+  evaluationFinishHandler = (e) => {
+    const isEvaluationMode = document.body.dataset.simuladoMode === "evaluation";
+    const isEvaluationFinish = e?.detail?.questionBank === "evaluation";
+    if (!isEvaluationMode || !isEvaluationFinish) return;
+
+    if (typeof evaluationFinishHandler === "function") {
+      document.removeEventListener("sigwx:finish", evaluationFinishHandler);
+      evaluationFinishHandler = null;
+    }
+    renderSimuladoEvaluationResults(e.detail, { simuladoKey: "sinais_luminosos" });
   };
   document.addEventListener("sigwx:finish", evaluationFinishHandler);
 
@@ -2043,6 +2427,8 @@ function renderSimuladoEvaluationResults(detail, { simuladoKey = "sigwx" } = {})
 
     return {
       index: index + 1,
+      questionId: q.id,
+      controlCode: String(q?.controlCode || "").trim() || buildQuestionControlCode(activeSimuladoKey, q?.id),
       image: q.image,
       question: q.question,
       selectedText,
@@ -2058,7 +2444,8 @@ function renderSimuladoEvaluationResults(detail, { simuladoKey = "sigwx" } = {})
     isAdmin: isAdminUser(),
     userLabel: getUserLabel(),
     credits: getCreditsLabel(),
-    simuladoLabel
+    simuladoLabel,
+    simuladoKey: activeSimuladoKey
   });
 
   saveEvaluationResult({
@@ -2107,13 +2494,79 @@ function setupEvaluationResultsActions(items, { simuladoKey = "sigwx" } = {}) {
   const safeKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
   const toTrainingBtn = document.getElementById("evalToTraining");
   const retryBtn = document.getElementById("evalRetry");
+  const retryWrongBtn = document.getElementById("evalRetryWrong");
+  const backToSimuladoBtn = document.getElementById("evalBackToSimulado");
+
+  const applyNoMediaState = (imgEl) => {
+    const mediaEl = imgEl?.closest(".eval-item-media");
+    const itemEl = imgEl?.closest(".eval-item");
+    if (mediaEl) {
+      mediaEl.style.display = "none";
+    }
+    if (itemEl) {
+      itemEl.classList.remove("has-media");
+      itemEl.classList.add("no-media");
+    }
+  };
+
+  document.querySelectorAll(".eval-item-media img").forEach((img) => {
+    img.addEventListener("error", () => applyNoMediaState(img));
+    if (img.complete && (!Number.isFinite(img.naturalWidth) || img.naturalWidth <= 0)) {
+      applyNoMediaState(img);
+    }
+  });
 
   toTrainingBtn?.addEventListener("click", () => {
     startSimuladoWithCredit(safeKey, "training");
   });
 
   retryBtn?.addEventListener("click", () => {
+    pendingEvaluationRetryFilter = null;
     startSimuladoWithCredit(safeKey, "evaluation");
+  });
+
+  retryWrongBtn?.addEventListener("click", () => {
+    const wrongQuestionIds = (Array.isArray(items) ? items : [])
+      .filter((item) => item?.isWrong)
+      .map((item) => item?.questionId)
+      .filter((id) => id !== null && id !== undefined);
+
+    if (!wrongQuestionIds.length) {
+      showToast("Nenhuma questão errada para refazer.", "info");
+      return;
+    }
+
+    pendingEvaluationRetryFilter = {
+      simuladoKey: safeKey,
+      questionIds: wrongQuestionIds
+    };
+    startSimuladoWithCredit(safeKey, "evaluation");
+  });
+
+  backToSimuladoBtn?.addEventListener("click", () => {
+    if (getModuleByKey(safeKey)) {
+      renderModuleHub(safeKey);
+      return;
+    }
+    renderDashboard();
+  });
+
+  document.querySelectorAll(".eval-review").forEach((button) => {
+    button.addEventListener("click", () => {
+      const itemEl = button.closest(".eval-item");
+      const explanationEl = itemEl?.querySelector(".eval-explanation");
+      if (!explanationEl) return;
+      explanationEl.classList.add("is-focus");
+      explanationEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      try {
+        explanationEl.focus({ preventScroll: true });
+      } catch (_) {
+        // fallback silencioso quando o navegador não suporta focus options
+      }
+      window.setTimeout(() => {
+        explanationEl.classList.remove("is-focus");
+      }, 2000);
+    });
   });
 
   document.querySelectorAll(".eval-report").forEach((link) => {
@@ -2127,11 +2580,12 @@ function setupEvaluationResultsActions(items, { simuladoKey = "sigwx" } = {}) {
       const messageInput = document.getElementById("contactMessage");
 
       if (subjectInput) {
-        subjectInput.value = `Erro na questão ${index} (${getSimuladoLabel(safeKey)} - Avaliação)`;
+        const codeSuffix = item?.controlCode ? ` [${item.controlCode}]` : "";
+        subjectInput.value = `Erro na questão ${index}${codeSuffix} (${getSimuladoLabel(safeKey)} - Avaliação)`;
       }
       if (messageInput && item) {
         messageInput.value =
-          `Questão ${index}:\n${item.question}\n\n` +
+          `Questão ${index}${item.controlCode ? ` (${item.controlCode})` : ""}:\n${item.question}\n\n` +
           `Minha resposta: ${item.selectedText}\n` +
           `Resposta correta: ${item.correctText}\n\n` +
           `Descreva o erro abaixo:`;
@@ -2183,6 +2637,10 @@ function setupEvaluationTimer() {
   if (cancelBtn) {
     cancelBtn.onclick = () => {
       if (currentUser) {
+        if (getModuleByKey(activeSimuladoKey)) {
+          renderModuleHub(activeSimuladoKey);
+          return;
+        }
         renderDashboard();
       } else {
         renderHomePublic();
@@ -2638,11 +3096,12 @@ async function renderAdmin() {
     renderHomePublic();
     return;
   }
-  adminPanelScreen = "summary";
+  adminPanelScreen = "dashboard";
   adminUsersCursor = null;
   adminUsersHasMore = false;
   adminUsersLoadingMore = false;
   adminMetricsFromApi = false;
+  adminReportData = null;
 
   app.innerHTML = adminView({
     users: [],
@@ -2657,8 +3116,9 @@ async function renderAdmin() {
     lightMode: adminLightMode,
     usersHasMore: false,
     usersLoadingMore: false,
-    mode: "summary",
-    sessionAvailability
+    mode: "dashboard",
+    sessionAvailability,
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
   });
   setupGlobalMenu();
   setupLogout();
@@ -2673,12 +3133,56 @@ async function renderAdmin() {
     const availability = await getSessionAvailability().catch(() => null);
     trackTelemetry("session_availability_fetch", { reads: 1 });
     sessionAvailability = normalizeSessionAvailability(availability);
+    if (!adminMetricsSummary || !adminMetricsFromApi) {
+      const metrics = await fetchAdminMetricsFromApi({ range: adminMetricsRange }).catch(() => null);
+      if (metrics) {
+        adminMetricsSummary = enrichAdminMetrics(metrics);
+        adminMetricsFromApi = true;
+      }
+    }
     rerenderAdminWithCache();
   } catch (error) {
     console.error("Erro ao carregar aviso global:", error);
     sessionAvailability = normalizeSessionAvailability(sessionAvailability);
     rerenderAdminWithCache("Não foi possível carregar o aviso global agora.");
   }
+}
+
+function getAdminSimuladoQuestionCounts() {
+  return SESSION_SIMULADO_KEYS.reduce((acc, simuladoKey) => {
+    if (!SIMULADO_BANKS[simuladoKey]) {
+      acc[simuladoKey] = {
+        training: 0,
+        evaluation: 0,
+        total: 0
+      };
+      return acc;
+    }
+    const trainingCount = getQuestionsForSimuladoMode(simuladoKey, "training").length;
+    const evaluationCount = getQuestionsForSimuladoMode(simuladoKey, "evaluation").length;
+    acc[simuladoKey] = {
+      training: Number(trainingCount),
+      evaluation: Number(evaluationCount),
+      total: Number(trainingCount) + Number(evaluationCount)
+    };
+    return acc;
+  }, {});
+}
+
+function buildCurrentAdminReportData() {
+  const metrics = enrichAdminMetrics(adminMetricsSummary || computeAdminMetrics({
+    users: adminUsersCache,
+    evaluations: adminMetricsData.evaluations,
+    transactions: adminMetricsData.transactions,
+    range: adminMetricsRange
+  }));
+  return buildReportData({
+    period: adminMetricsRange,
+    metrics,
+    users: adminUsersCache,
+    generatedAt: new Date(),
+    simuladoLabels: ADMIN_SIMULADO_CATALOG
+  });
 }
 
 async function mapAdminUsersWithCredits(items = []) {
@@ -2731,7 +3235,8 @@ async function renderAdminUsers({ forceRefresh = false } = {}) {
     usersHasMore: adminUsersHasMore,
     usersLoadingMore: adminUsersLoadingMore,
     mode: "users",
-    sessionAvailability
+    sessionAvailability,
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
   });
   setupGlobalMenu();
   setupLogout();
@@ -2767,7 +3272,7 @@ async function renderAdminMetrics({ forceRefresh = false } = {}) {
     return;
   }
 
-  adminPanelScreen = "metrics";
+  adminPanelScreen = "dashboard";
   app.innerHTML = adminView({
     users: [],
     loading: false,
@@ -2781,8 +3286,9 @@ async function renderAdminMetrics({ forceRefresh = false } = {}) {
     lightMode: adminLightMode,
     usersHasMore: false,
     usersLoadingMore: false,
-    mode: "metrics",
-    sessionAvailability
+    mode: "dashboard",
+    sessionAvailability,
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
   });
   setupGlobalMenu();
   setupLogout();
@@ -2817,6 +3323,157 @@ async function renderAdminMetrics({ forceRefresh = false } = {}) {
     adminMetricsFromApi = false;
   }
 
+  rerenderAdminWithCache();
+}
+
+async function renderAdminSimulados() {
+  cleanupEvaluationFlow();
+  if (!isAdminUser()) {
+    renderHomePublic();
+    return;
+  }
+  adminPanelScreen = "simulados";
+  app.innerHTML = adminView({
+    users: [],
+    loading: false,
+    isAdmin: true,
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    notice: "",
+    globalNotice: globalNoticeMessage,
+    metrics: enrichAdminMetrics(adminMetricsSummary || {}),
+    metricsRange: adminMetricsRange,
+    lightMode: adminLightMode,
+    usersHasMore: false,
+    usersLoadingMore: false,
+    mode: "simulados",
+    sessionAvailability,
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
+  });
+  setupGlobalMenu();
+  setupLogout();
+  setupContact();
+  setupFooterLinks();
+  setupAdminActions();
+
+  try {
+    await preloadQuestionBanks();
+    rerenderAdminWithCache();
+  } catch (error) {
+    console.warn("Falha ao carregar bancos de questões para contagem no admin:", error);
+  }
+}
+
+async function renderAdminFinanceiro({ forceRefresh = false } = {}) {
+  cleanupEvaluationFlow();
+  if (!isAdminUser()) {
+    renderHomePublic();
+    return;
+  }
+
+  adminPanelScreen = "financeiro";
+  app.innerHTML = adminView({
+    users: [],
+    loading: false,
+    isAdmin: true,
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel(),
+    notice: "",
+    globalNotice: globalNoticeMessage,
+    metrics: enrichAdminMetrics(adminMetricsSummary || {}),
+    metricsRange: adminMetricsRange,
+    lightMode: adminLightMode,
+    usersHasMore: false,
+    usersLoadingMore: false,
+    mode: "financeiro",
+    sessionAvailability,
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
+  });
+  setupGlobalMenu();
+  setupLogout();
+  setupContact();
+  setupFooterLinks();
+  setupAdminActions();
+
+  if (adminMetricsSummary && adminMetricsFromApi && !forceRefresh) return;
+
+  try {
+    const metrics = await fetchAdminMetricsFromApi({ range: adminMetricsRange });
+    if (metrics) {
+      adminMetricsSummary = enrichAdminMetrics(metrics);
+      adminMetricsFromApi = true;
+    } else {
+      adminMetricsSummary = enrichAdminMetrics(computeAdminMetrics({
+        users: adminUsersCache,
+        evaluations: adminMetricsData.evaluations,
+        transactions: adminMetricsData.transactions,
+        range: adminMetricsRange
+      }));
+      adminMetricsFromApi = false;
+    }
+  } catch (error) {
+    console.warn("Admin financeiro API failed; usando cache local leve:", error);
+    adminMetricsSummary = enrichAdminMetrics(computeAdminMetrics({
+      users: adminUsersCache,
+      evaluations: adminMetricsData.evaluations,
+      transactions: adminMetricsData.transactions,
+      range: adminMetricsRange
+    }));
+    adminMetricsFromApi = false;
+  }
+
+  rerenderAdminWithCache();
+}
+
+async function renderAdminReport({ forceRefresh = false } = {}) {
+  cleanupEvaluationFlow();
+  if (!isAdminUser()) {
+    renderHomePublic();
+    return;
+  }
+
+  adminPanelScreen = "report";
+  adminReportData = null;
+  app.innerHTML = adminReportView({
+    reportData: {
+      meta: {
+        periodLabel: adminMetricsRange === "today" ? "Hoje" : adminMetricsRange === "7d" ? "7 dias" : "30 dias",
+        generatedAtText: "Gerando relatório...",
+        periodMode: "period"
+      },
+      resumo: {},
+      tabelas: { simulados: [], usuarios: [], questoesMaisErradas: [] }
+    },
+    isAdmin: true,
+    userLabel: getUserLabel(),
+    credits: getCreditsLabel()
+  });
+  setupGlobalMenu();
+  setupLogout();
+  setupContact();
+  setupFooterLinks();
+  setupAdminActions();
+
+  if (!adminMetricsSummary || forceRefresh) {
+    try {
+      const metrics = await fetchAdminMetricsFromApi({ range: adminMetricsRange });
+      if (metrics) {
+        adminMetricsSummary = enrichAdminMetrics(metrics);
+        adminMetricsFromApi = true;
+      }
+    } catch (error) {
+      console.warn("Relatório: falha ao atualizar métricas por período; usando fallback local.", error);
+      adminMetricsSummary = enrichAdminMetrics(computeAdminMetrics({
+        users: adminUsersCache,
+        evaluations: adminMetricsData.evaluations,
+        transactions: adminMetricsData.transactions,
+        range: adminMetricsRange
+      }));
+      adminMetricsFromApi = false;
+    }
+  }
+
+  adminReportData = buildCurrentAdminReportData();
   rerenderAdminWithCache();
 }
 
@@ -2929,6 +3586,24 @@ function rerenderAdminWithCache(notice = "") {
     return;
   }
 
+  if (adminPanelScreen === "report") {
+    if (!adminReportData) {
+      adminReportData = buildCurrentAdminReportData();
+    }
+    app.innerHTML = adminReportView({
+      reportData: adminReportData,
+      isAdmin: true,
+      userLabel: getUserLabel(),
+      credits: getCreditsLabel()
+    });
+    setupGlobalMenu();
+    setupLogout();
+    setupContact();
+    setupFooterLinks();
+    setupAdminActions();
+    return;
+  }
+
   syncAdminQuestionEditor(adminQuestionBank);
   const metrics = enrichAdminMetrics(adminMetricsSummary || computeAdminMetrics({
     users: adminUsersCache,
@@ -2936,9 +3611,9 @@ function rerenderAdminWithCache(notice = "") {
     transactions: adminMetricsData.transactions,
     range: adminMetricsRange
   }));
-  const mode = adminPanelScreen === "users" || adminPanelScreen === "metrics"
+  const mode = ["dashboard", "users", "simulados", "financeiro"].includes(adminPanelScreen)
     ? adminPanelScreen
-    : "summary";
+    : "dashboard";
   app.innerHTML = adminView({
     users: mode === "users" ? adminUsersCache : [],
     loading: mode === "users" ? adminUsersLoadingMore && !adminUsersCache.length : false,
@@ -2953,17 +3628,14 @@ function rerenderAdminWithCache(notice = "") {
     usersHasMore: mode === "users" ? adminUsersHasMore : false,
     usersLoadingMore: mode === "users" ? adminUsersLoadingMore : false,
     mode,
-    sessionAvailability
+    sessionAvailability,
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
   });
   setupGlobalMenu();
   setupLogout();
   setupContact();
   setupFooterLinks();
   setupAdminActions();
-}
-
-function pickFirstNonEmpty(values) {
-  return values.find((v) => String(v || "").trim() !== "") || "";
 }
 
 function parseDateValue(value) {
@@ -2989,97 +3661,12 @@ function getMetricsRangeStart(range = "30d") {
   return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 }
 
-function normalizeQuestionLabel(questionId = "") {
-  const text = String(questionId || "").trim();
-  if (!text) return "Questão";
-  const compact = text.replace(/[_\s]+/g, "-");
-  return compact.length > 24 ? `${compact.slice(0, 24)}...` : compact;
-}
-
 function normalizeSimuladoMetricKey(value = "") {
   const text = String(value || "").trim().toLowerCase();
   if (!text) return "unknown";
   if (text.includes("metar")) return "metar_taf";
   if (text.includes("sigwx")) return "sigwx";
   return "unknown";
-}
-
-function getMetricsRangeLabel(range = "30d") {
-  if (range === "today") return "Hoje";
-  if (range === "7d") return "Últimos 7 dias";
-  return "Últimos 30 dias";
-}
-
-function getSimuladoLabelFromMetricKey(key = "unknown") {
-  if (key === "sigwx") return "SIGWX";
-  if (key === "metar_taf") return "METAR/TAF";
-  return "Outros";
-}
-
-function buildAdminGeneralReportText(metrics = {}, range = "30d") {
-  const generatedAt = new Date().toLocaleString("pt-BR");
-  const hasSessionBreakdown =
-    Number.isFinite(Number(metrics?.sessionsTotal)) ||
-    Number.isFinite(Number(metrics?.sessionsTraining)) ||
-    Number.isFinite(Number(metrics?.sessionsEvaluation));
-  const hasSimuladoBreakdown = metrics?.evaluationsBySimulado && typeof metrics.evaluationsBySimulado === "object";
-  const bySimulado = hasSimuladoBreakdown ? metrics.evaluationsBySimulado : {};
-  const topSimulado = metrics?.topSimulado || { key: "unknown", count: 0 };
-  const sessionsTotalText = hasSessionBreakdown ? String(Number(metrics?.sessionsTotal || 0)) : "N/D";
-  const sessionsTrainingText = hasSessionBreakdown ? String(Number(metrics?.sessionsTraining || 0)) : "N/D";
-  const sessionsEvaluationText = hasSessionBreakdown ? String(Number(metrics?.sessionsEvaluation || 0)) : "N/D";
-  const sigwxEvalText = hasSimuladoBreakdown ? String(Number(bySimulado?.sigwx || 0)) : "N/D";
-  const metarEvalText = hasSimuladoBreakdown ? String(Number(bySimulado?.metar_taf || 0)) : "N/D";
-  const otherEvalText = hasSimuladoBreakdown ? String(Number(bySimulado?.unknown || 0)) : "N/D";
-  const topSimuladoText = hasSimuladoBreakdown
-    ? `${getSimuladoLabelFromMetricKey(topSimulado?.key)} (${Number(topSimulado?.count || 0)})`
-    : "N/D";
-  const lines = [
-    "PreFlight - Relatório Geral",
-    `Gerado em: ${generatedAt}`,
-    `Período: ${getMetricsRangeLabel(range)}`,
-    "",
-    "Resumo:",
-    `- Usuários cadastrados: ${Number(metrics?.totalUsersCurrent || 0)}`,
-    `- Avaliações concluídas: ${Number(metrics?.evaluationsCompleted || 0)}`,
-    `- Sessões totais (treino + avaliação): ${sessionsTotalText}`,
-    `- Sessões de treino: ${sessionsTrainingText}`,
-    `- Sessões de avaliação: ${sessionsEvaluationText}`,
-    `- Créditos consumidos: ${Number(metrics?.creditsConsumed || 0)}`,
-    `- Créditos comprados: ${Number(metrics?.creditsPurchased || 0)}`,
-    "",
-    "Avaliações por simulado:",
-    `- SIGWX: ${sigwxEvalText}`,
-    `- METAR/TAF: ${metarEvalText}`,
-    `- Outros: ${otherEvalText}`,
-    `- Simulado mais feito: ${topSimuladoText}`,
-    "",
-    "Catálogo de questões:",
-    `- Questões de treino: ${Number(metrics?.trainingQuestions || 0)}`,
-    `- Questões de avaliação: ${Number(metrics?.evaluationQuestions || 0)}`,
-    `- Total de questões: ${Number(metrics?.totalQuestions || 0)}`
-  ];
-  return lines.join("\n");
-}
-
-function downloadAdminGeneralReport(metrics = {}, range = "30d") {
-  const content = buildAdminGeneralReportText(metrics, range);
-  const now = new Date();
-  const stamp = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-    "-",
-    String(now.getHours()).padStart(2, "0"),
-    String(now.getMinutes()).padStart(2, "0")
-  ].join("");
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `relatorio-geral-${stamp}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 function computeQuestionCatalogMetrics() {
@@ -3194,68 +3781,6 @@ function computeAdminMetrics({
       count: Number(topSimuladoEntry[1] || 0)
     }
   };
-}
-
-async function normalizeDuplicateUsers(users, creditsList) {
-  const byEmail = new Map();
-  users.forEach((u, index) => {
-    const email = String(u.email || "").toLowerCase().trim();
-    if (!email) return;
-    if (!byEmail.has(email)) byEmail.set(email, []);
-    byEmail.get(email).push({ u, index });
-  });
-
-  const actions = [];
-  for (const [email, entries] of byEmail.entries()) {
-    if (entries.length <= 1) continue;
-
-    const enriched = entries.map(({ u, index }) => {
-      const credit = creditsList[index];
-      const rawBalance = credit?.balance ?? credit?.credits ?? credit?.saldo ?? 0;
-      const balance = Number(rawBalance);
-      const creditId = u.uid || u.id;
-      return { u, credit, balance, creditId };
-    });
-
-    const primary =
-      enriched.find((e) => Number.isFinite(e.balance) && e.balance > 0) ||
-      enriched.find((e) => e.u.uid && e.u.uid === e.u.id) ||
-      enriched.find((e) => e.u.uid) ||
-      enriched[0];
-
-    const primaryId = primary.creditId || primary.u.id;
-    const mergedName = pickFirstNonEmpty(enriched.map((e) => e.u.name));
-    const mergedRole = pickFirstNonEmpty(enriched.map((e) => e.u.role));
-    const mergedWhatsapp = pickFirstNonEmpty(enriched.map((e) => e.u.whatsapp));
-    const createdDates = enriched.map((e) => parseDateValue(e.u.createdAt)).filter(Boolean);
-    const earliest = createdDates.length ? new Date(Math.min(...createdDates.map((d) => d.getTime()))) : null;
-
-    actions.push(
-      saveUserProfile(primaryId, {
-        uid: primaryId,
-        email,
-        name: mergedName,
-        role: mergedRole,
-        whatsapp: mergedWhatsapp,
-        createdAt: earliest ? earliest.toISOString() : undefined
-      })
-    );
-
-    enriched.forEach((e) => {
-      if (e.u.id !== primaryId) {
-        actions.push(deleteUserProfile(e.u.id));
-      }
-    });
-  }
-
-  if (!actions.length) return false;
-  try {
-    await Promise.all(actions);
-    return true;
-  } catch (error) {
-    console.error("Falha ao normalizar duplicados:", error);
-    return false;
-  }
 }
 
 function renderCreditsScreen() {
@@ -3644,7 +4169,9 @@ function setupAdminActions() {
   const openUsersPageBtn = document.getElementById("adminOpenUsersPage");
   const openMetricsPageBtn = document.getElementById("adminOpenMetricsPage");
   const backSummaryBtn = document.getElementById("adminBackSummaryPage");
+  const tabButtons = document.querySelectorAll("[data-admin-tab]");
   const goAdminQuestionsPageBtn = document.getElementById("goAdminQuestionsPage");
+  const simuladoEditorButtons = document.querySelectorAll("[data-open-simulado-editor]");
   const adminQuestionEditorBackBtn = document.getElementById("adminQuestionEditorBack");
   const searchInput = document.getElementById("adminSearch");
   const roleSelect = document.getElementById("adminRole");
@@ -3655,6 +4182,9 @@ function setupAdminActions() {
   const noticeSaveBtn = document.getElementById("adminGlobalNoticeSave");
   const sessionSaveBtn = document.getElementById("adminSessionAvailabilitySave");
   const adminGenerateReportBtn = document.getElementById("adminGenerateReport");
+  const reportPrintBtn = document.getElementById("adminReportPrint");
+  const reportDownloadCsvBtn = document.getElementById("adminReportDownloadCsv");
+  const reportBackBtn = document.getElementById("adminReportBack");
   const sessionToggleButtons = document.querySelectorAll("[data-session-toggle]");
   const rangeButtons = document.querySelectorAll("[data-metrics-range]");
   const lightModeBtn = document.getElementById("adminLightModeToggle");
@@ -3667,12 +4197,46 @@ function setupAdminActions() {
     renderAdminMetrics({ forceRefresh: false });
   });
 
+  tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetTab = String(btn.getAttribute("data-admin-tab") || "").trim();
+      if (!targetTab) return;
+      if (targetTab === "users") {
+        renderAdminUsers({ forceRefresh: false });
+        return;
+      }
+      if (targetTab === "simulados") {
+        renderAdminSimulados();
+        return;
+      }
+      if (targetTab === "financeiro") {
+        renderAdminFinanceiro({ forceRefresh: false });
+        return;
+      }
+      renderAdminMetrics({ forceRefresh: false });
+    });
+  });
+
   backSummaryBtn?.addEventListener("click", () => {
     renderAdmin();
   });
 
   goAdminQuestionsPageBtn?.addEventListener("click", () => {
     renderAdminQuestionHub();
+  });
+
+  simuladoEditorButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const simuladoKey = String(btn.getAttribute("data-open-simulado-editor") || "").trim();
+      const mode = String(btn.getAttribute("data-editor-mode") || "training").trim().toLowerCase();
+      const config = SIMULADO_BANKS[simuladoKey];
+      const bankId = mode === "evaluation" ? config?.evaluation : config?.training;
+      if (bankId) {
+        renderAdminQuestionEditor(bankId);
+        return;
+      }
+      renderAdminQuestionHub();
+    });
   });
 
   adminQuestionEditorBackBtn?.addEventListener("click", () => {
@@ -3682,7 +4246,7 @@ function setupAdminActions() {
   const applyFilters = () => {
     const term = (searchInput?.value || "").toLowerCase().trim();
     const role = (roleSelect?.value || "").toLowerCase().trim();
-    const cards = document.querySelectorAll(".admin-card");
+    const cards = document.querySelectorAll(".admin-user-row");
 
     cards.forEach((card) => {
       const name = card.getAttribute("data-name") || "";
@@ -3738,44 +4302,43 @@ function setupAdminActions() {
       renderAdminUsers({ forceRefresh: true });
       return;
     }
-    if (adminPanelScreen === "metrics") {
-      renderAdminMetrics({ forceRefresh: true });
+    if (adminPanelScreen === "financeiro") {
+      renderAdminFinanceiro({ forceRefresh: true });
       return;
     }
-    rerenderAdminWithCache();
+    if (adminPanelScreen === "simulados") {
+      renderAdminSimulados();
+      return;
+    }
+    renderAdminMetrics({ forceRefresh: true });
   });
 
   adminGenerateReportBtn?.addEventListener("click", async () => {
-    if (!adminMetricsFromApi) {
-      try {
-        const metricsFromApi = await fetchAdminMetricsFromApi({ range: adminMetricsRange });
-        if (metricsFromApi) {
-          adminMetricsSummary = enrichAdminMetrics(metricsFromApi);
-          adminMetricsFromApi = true;
-          rerenderAdminWithCache();
-        }
-      } catch (error) {
-        console.warn("Falha ao atualizar métricas para o relatório:", error);
-      }
+    adminGenerateReportBtn.disabled = true;
+    const prevText = adminGenerateReportBtn.innerText;
+    adminGenerateReportBtn.innerText = "Gerando relatório...";
+    try {
+      await renderAdminReport({ forceRefresh: false });
+    } finally {
+      adminGenerateReportBtn.disabled = false;
+      adminGenerateReportBtn.innerText = prevText;
     }
+  });
 
-    const metrics = enrichAdminMetrics(adminMetricsSummary || computeAdminMetrics({
-      users: adminUsersCache,
-      evaluations: adminMetricsData.evaluations,
-      transactions: adminMetricsData.transactions,
-      range: adminMetricsRange
-    }));
-    const isAllZero =
-      Number(metrics?.totalUsersCurrent || 0) === 0 &&
-      Number(metrics?.evaluationsCompleted || 0) === 0 &&
-      Number(metrics?.sessionsTotal || 0) === 0 &&
-      Number(metrics?.totalQuestions || 0) === 0;
-    if (isAllZero && !adminMetricsFromApi) {
-      showToast("Não consegui carregar métricas reais agora. Tente atualizar Métricas e gerar novamente.", "error");
-      return;
+  reportPrintBtn?.addEventListener("click", () => {
+    window.print();
+  });
+
+  reportDownloadCsvBtn?.addEventListener("click", () => {
+    if (!adminReportData) {
+      adminReportData = buildCurrentAdminReportData();
     }
-    downloadAdminGeneralReport(metrics, adminMetricsRange);
-    showToast("Relatório geral gerado.", "success");
+    downloadReportCsvFiles(adminReportData);
+    showToast("CSV(s) do relatório gerados.", "success");
+  });
+
+  reportBackBtn?.addEventListener("click", () => {
+    renderAdmin();
   });
 
   exportBtn?.addEventListener("click", () => {
@@ -3814,11 +4377,15 @@ function setupAdminActions() {
       renderAdminUsers({ forceRefresh: true });
       return;
     }
-    if (adminPanelScreen === "metrics") {
-      renderAdminMetrics({ forceRefresh: true });
+    if (adminPanelScreen === "financeiro") {
+      renderAdminFinanceiro({ forceRefresh: true });
       return;
     }
-    renderAdmin();
+    if (adminPanelScreen === "simulados") {
+      renderAdminSimulados();
+      return;
+    }
+    renderAdminMetrics({ forceRefresh: true });
   });
 
   loadMoreBtn?.addEventListener("click", async () => {
@@ -3902,6 +4469,7 @@ function setupAdminActions() {
   const questionPdfBtn = document.getElementById("adminQuestionPdf");
   const questionReloadBtn = document.getElementById("adminQuestionReload");
   const questionNewBtn = document.getElementById("adminQuestionNew");
+  const questionDuplicateBtn = document.getElementById("adminQuestionDuplicate");
   const questionOnlyMarkedBtn = document.getElementById("adminQuestionOnlyMarked");
   const questionSaveBtn = document.getElementById("adminQuestionSave");
   const questionSaveAndNewBtn = document.getElementById("adminQuestionSaveAndNew");
@@ -3914,14 +4482,58 @@ function setupAdminActions() {
   const questionNextBtn = document.getElementById("adminQuestionNext");
   const questionIdInput = document.getElementById("adminQuestionId");
   const questionImageInput = document.getElementById("adminQuestionImage");
+  const questionImageRow = document.getElementById("adminQuestionImageRow");
   const questionTextInput = document.getElementById("adminQuestionText");
+  const questionTextRichInput = document.getElementById("adminQuestionTextRich");
+  const questionTextColorInput = document.getElementById("adminQuestionTextColor");
+  const questionFontSizeSelect = document.getElementById("adminQuestionFontSize");
+  const questionRichCmdButtons = document.querySelectorAll("[data-rich-cmd]");
+  const questionTextOnImageCardInput = document.getElementById("adminQuestionTextOnImageCard");
+  const questionPreviewTitle = document.getElementById("adminQuestionPreviewTitle");
+  const questionImagePreview = document.getElementById("adminQuestionImagePreview");
+  const questionImagePlaceholder = document.getElementById("adminQuestionImagePlaceholder");
+  const questionTextPreview = document.getElementById("adminQuestionTextPreview");
   const questionCorrectSelect = document.getElementById("adminQuestionCorrect");
   const questionExplanationInput = document.getElementById("adminQuestionExplanation");
+  const questionControlCodeInput = document.getElementById("adminQuestionControlCode");
   const questionOptionInputs = [0, 1, 2, 3].map((idx) =>
     document.getElementById(`adminQuestionOption${idx}`)
   );
   const questionListEl = document.querySelector(".admin-question-list");
+  const questionSearchCodeInput = document.getElementById("adminQuestionSearchCode");
+  const questionFindByCodeBtn = document.getElementById("adminQuestionFindByCode");
   const activeQuestionEl = questionListEl?.querySelector(".admin-question-item.active");
+  const questionProxyButtons = document.querySelectorAll("[data-qeditor-proxy]");
+
+  questionProxyButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetSelector = String(btn.getAttribute("data-qeditor-proxy") || "").trim();
+      if (!targetSelector) return;
+      const target = document.querySelector(targetSelector);
+      if (!target || target === btn || target.disabled) return;
+      target.click();
+    });
+  });
+
+  if (adminQuestionEditorKeydownHandler) {
+    document.removeEventListener("keydown", adminQuestionEditorKeydownHandler);
+    adminQuestionEditorKeydownHandler = null;
+  }
+  if (document.querySelector(".qeditor-v2") && questionSaveBtn) {
+    adminQuestionEditorKeydownHandler = (event) => {
+      const activeEditor = document.querySelector(".qeditor-v2");
+      const saveBtn = document.getElementById("adminQuestionSave");
+      if (!activeEditor || !saveBtn) return;
+      const isSaveShortcut =
+        (event.ctrlKey || event.metaKey) &&
+        String(event.key || "").toLowerCase() === "s";
+      if (!isSaveShortcut) return;
+      if (saveBtn.disabled) return;
+      event.preventDefault();
+      saveBtn.click();
+    };
+    document.addEventListener("keydown", adminQuestionEditorKeydownHandler);
+  }
 
   if (questionListEl && activeQuestionEl) {
     requestAnimationFrame(() => {
@@ -3932,22 +4544,290 @@ function setupAdminActions() {
     });
   }
 
+  const sanitizeQuestionRichHtml = (html = "") => {
+    const template = document.createElement("template");
+    template.innerHTML = String(html || "");
+
+    const allowedTags = new Set(["B", "STRONG", "I", "EM", "U", "BR", "SPAN", "DIV", "P"]);
+    const allowedTextAlign = new Set(["left", "center", "right", "justify"]);
+    const colorRegex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+    const rgbColorRegex = /^rgba?\(\s*\d{1,3}\s*(,\s*\d{1,3}\s*){2}(,\s*(0|1|0?\.\d+)\s*)?\)$/i;
+
+    const walk = (node) => {
+      const children = Array.from(node.childNodes);
+      children.forEach((child) => {
+        if (child.nodeType === Node.TEXT_NODE) return;
+        if (child.nodeType !== Node.ELEMENT_NODE) {
+          child.remove();
+          return;
+        }
+
+        const el = child;
+        if (!allowedTags.has(el.tagName)) {
+          const fragment = document.createDocumentFragment();
+          while (el.firstChild) {
+            fragment.appendChild(el.firstChild);
+          }
+          el.replaceWith(fragment);
+          return;
+        }
+
+        Array.from(el.attributes).forEach((attr) => {
+          if (attr.name !== "style") {
+            el.removeAttribute(attr.name);
+          }
+        });
+
+        const style = String(el.getAttribute("style") || "");
+        if (style) {
+          const nextStyles = [];
+          style.split(";").forEach((rule) => {
+            const [rawProp, rawValue] = String(rule).split(":");
+            const prop = String(rawProp || "").trim().toLowerCase();
+            const value = String(rawValue || "").trim().toLowerCase();
+            if (!prop || !value) return;
+            if (prop === "text-align" && allowedTextAlign.has(value)) {
+              nextStyles.push(`text-align:${value}`);
+              return;
+            }
+            if (prop === "color" && colorRegex.test(value)) {
+              nextStyles.push(`color:${value}`);
+              return;
+            }
+            if (prop === "color" && rgbColorRegex.test(value)) {
+              nextStyles.push(`color:${value}`);
+              return;
+            }
+            // tamanho da fonte é controlado pelo campo "Tamanho base"
+          });
+          if (nextStyles.length) {
+            el.setAttribute("style", nextStyles.join(";"));
+          } else {
+            el.removeAttribute("style");
+          }
+        }
+
+        walk(el);
+      });
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName !== "BR") {
+        while (node.lastChild && node.lastChild.nodeType === Node.TEXT_NODE && !node.lastChild.textContent.trim()) {
+          node.removeChild(node.lastChild);
+        }
+      }
+    };
+
+    walk(template.content);
+    return template.innerHTML.trim();
+  };
+
+  const normalizeQuestionRichHtml = (html = "") => {
+    const safeHtml = sanitizeQuestionRichHtml(html);
+    if (!safeHtml) return "";
+    return safeHtml
+      .replace(/<div><br><\/div>/gi, "<br>")
+      .replace(/<div>/gi, "<br>")
+      .replace(/<\/div>/gi, "")
+      .replace(/<p><br><\/p>/gi, "<br>")
+      .replace(/<p>/gi, "<br>")
+      .replace(/<\/p>/gi, "")
+      .replace(/^(<br>)+/i, "")
+      .replace(/(<br>)+$/i, "");
+  };
+
+  const syncQuestionTextInputFromRich = () => {
+    if (!questionTextInput || !questionTextRichInput) return;
+    questionTextInput.value = normalizeQuestionRichHtml(questionTextRichInput.innerHTML || "");
+  };
+
+  let richSelectionRange = null;
+  const saveRichSelection = () => {
+    if (!questionTextRichInput) return;
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    if (!questionTextRichInput.contains(range.commonAncestorContainer)) return;
+    richSelectionRange = range.cloneRange();
+  };
+
+  const restoreRichSelection = () => {
+    if (!questionTextRichInput || !richSelectionRange) return false;
+    const selection = window.getSelection();
+    if (!selection) return false;
+    try {
+      selection.removeAllRanges();
+      selection.addRange(richSelectionRange);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const applyInlineStyle = (styleProp = "", styleValue = "") => {
+    if (!questionTextRichInput || !styleProp || !styleValue) return;
+    questionTextRichInput.focus();
+    if (!restoreRichSelection()) {
+      const selection = window.getSelection();
+      if (!selection) return;
+      const fullRange = document.createRange();
+      fullRange.selectNodeContents(questionTextRichInput);
+      selection.removeAllRanges();
+      selection.addRange(fullRange);
+      richSelectionRange = fullRange.cloneRange();
+    }
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return;
+    let range = selection.getRangeAt(0);
+    const span = document.createElement("span");
+    span.style[styleProp] = styleValue;
+
+    if (range.collapsed) {
+      // Sem seleção: aplica ao enunciado inteiro para evitar inserir caractere invisível.
+      const fullRange = document.createRange();
+      fullRange.selectNodeContents(questionTextRichInput);
+      selection.removeAllRanges();
+      selection.addRange(fullRange);
+      range = selection.getRangeAt(0);
+    }
+
+    const content = range.extractContents();
+    span.appendChild(content);
+    range.insertNode(span);
+    const nextRange = document.createRange();
+    nextRange.selectNodeContents(span);
+    selection.removeAllRanges();
+    selection.addRange(nextRange);
+    richSelectionRange = nextRange.cloneRange();
+    syncQuestionTextInputFromRich();
+  };
+
+  const applyRichCommand = (command, value = null) => {
+    if (!questionTextRichInput) return;
+    questionTextRichInput.focus();
+    restoreRichSelection();
+    try {
+      document.execCommand(command, false, value);
+    } catch (_) {
+      // fallback silencioso
+    }
+    saveRichSelection();
+    syncQuestionTextInputFromRich();
+  };
+
   const readQuestionForm = () => {
     const parsedId = Number(questionIdInput?.value);
     const hasValidId = Number.isFinite(parsedId) && parsedId > 0;
     const safeId = hasValidId ? Math.floor(parsedId) : 0;
     const parsedCorrect = Number(questionCorrectSelect?.value);
+    const parsedFontSize = Number(String(questionFontSizeSelect?.value || "18").replace("px", ""));
+    const textOnImageCard = !!questionTextOnImageCardInput?.checked;
+    const fallbackControlCode = buildQuestionControlCode(adminQuestionBank, hasValidId ? safeId : getNextQuestionIdForBank(adminQuestionBank));
+    const controlCode = String(questionControlCodeInput?.value || "").trim() || fallbackControlCode;
     const draft = createAdminQuestionDraft(adminQuestionBank, {
       id: hasValidId ? safeId : getNextQuestionIdForBank(adminQuestionBank),
       image: String(questionImageInput?.value || "").trim(),
       question: String(questionTextInput?.value || "").trim(),
       options: questionOptionInputs.map((input) => String(input?.value || "").trim()),
       correctIndex: Number.isFinite(parsedCorrect) ? Math.max(0, Math.min(3, Math.floor(parsedCorrect))) : 0,
-      explanation: String(questionExplanationInput?.value || "").trim()
+      explanation: String(questionExplanationInput?.value || "").trim(),
+      textOnImageCard,
+      questionFontSize: Number.isFinite(parsedFontSize) ? Math.max(10, Math.min(36, Math.floor(parsedFontSize))) : 18,
+      controlCode
     });
     draft.id = safeId;
     return draft;
   };
+
+  if (questionTextInput || questionImageInput || questionTextOnImageCardInput || questionTextRichInput) {
+    const syncPreviewLayout = () => {
+      const textOnImageCard = !!questionTextOnImageCardInput?.checked;
+      const text = String(questionTextInput?.value || "").trim();
+      const image = String(questionImageInput?.value || "").trim();
+      const parsedFontSize = Number(String(questionFontSizeSelect?.value || "18").replace("px", ""));
+      const safeFontSize = Number.isFinite(parsedFontSize) ? Math.max(10, Math.min(36, Math.floor(parsedFontSize))) : 18;
+      const previewBox = document.querySelector(".admin-question-preview");
+
+      if (questionPreviewTitle) {
+        questionPreviewTitle.textContent = textOnImageCard ? "Preview do enunciado" : "Preview da imagem";
+      }
+      if (questionImageRow) {
+        questionImageRow.style.display = textOnImageCard ? "none" : "";
+      }
+      if (questionControlCodeInput) {
+        const parsedId = Number(questionIdInput?.value);
+        const safeId = Number.isFinite(parsedId) && parsedId > 0
+          ? Math.floor(parsedId)
+          : getNextQuestionIdForBank(adminQuestionBank);
+        questionControlCodeInput.value = String(questionControlCodeInput.value || "").trim() || buildQuestionControlCode(adminQuestionBank, safeId);
+      }
+      if (questionTextPreview) {
+        questionTextPreview.innerHTML = text ? sanitizeQuestionRichHtml(text) : "Digite o enunciado para visualizar aqui.";
+        questionTextPreview.style.setProperty("font-size", `${safeFontSize}px`, "important");
+        questionTextPreview.style.display = textOnImageCard ? "" : "none";
+      }
+      if (questionTextRichInput) {
+        questionTextRichInput.style.setProperty("font-size", `${safeFontSize}px`, "important");
+      }
+      if (questionImagePreview) {
+        questionImagePreview.src = image;
+        questionImagePreview.style.display = textOnImageCard ? "none" : (image ? "" : "none");
+      }
+      if (questionImagePlaceholder) {
+        questionImagePlaceholder.style.display = textOnImageCard || image ? "none" : "";
+      }
+      if (previewBox) {
+        previewBox.classList.toggle("is-empty", textOnImageCard ? !text : !image);
+      }
+    };
+
+    if (questionTextInput && questionTextRichInput) {
+      questionTextRichInput.innerHTML = sanitizeQuestionRichHtml(questionTextInput.value || "");
+      syncQuestionTextInputFromRich();
+      const trackSelection = () => saveRichSelection();
+      questionTextRichInput.addEventListener("keyup", trackSelection);
+      questionTextRichInput.addEventListener("mouseup", trackSelection);
+      questionTextRichInput.addEventListener("focus", trackSelection);
+      questionTextRichInput.addEventListener("input", () => {
+        syncQuestionTextInputFromRich();
+        syncPreviewLayout();
+        saveRichSelection();
+      });
+      questionTextRichInput.addEventListener("blur", () => {
+        syncQuestionTextInputFromRich();
+        syncPreviewLayout();
+      });
+      questionRichCmdButtons.forEach((button) => {
+        button.addEventListener("mousedown", (event) => {
+          saveRichSelection();
+          event.preventDefault();
+        });
+        button.addEventListener("click", () => {
+          const cmd = String(button.getAttribute("data-rich-cmd") || "").trim();
+          if (!cmd) return;
+          applyRichCommand(cmd);
+          questionTextRichInput.innerHTML = sanitizeQuestionRichHtml(questionTextRichInput.innerHTML || "");
+          syncQuestionTextInputFromRich();
+          syncPreviewLayout();
+        });
+      });
+      questionFontSizeSelect?.addEventListener("change", () => {
+        syncPreviewLayout();
+      });
+      questionTextColorInput?.addEventListener("mousedown", () => {
+        saveRichSelection();
+      });
+      questionTextColorInput?.addEventListener("input", () => {
+        const color = String(questionTextColorInput.value || "").trim();
+        if (!color) return;
+        applyInlineStyle("color", color);
+        syncPreviewLayout();
+      });
+    }
+
+    questionTextInput?.addEventListener("input", syncPreviewLayout);
+    questionImageInput?.addEventListener("input", syncPreviewLayout);
+    questionTextOnImageCardInput?.addEventListener("change", syncPreviewLayout);
+    syncPreviewLayout();
+  }
 
   const getVisibleQuestionList = () => {
     const allItems = getQuestionBankCache(adminQuestionBank);
@@ -3967,6 +4847,38 @@ function setupAdminActions() {
     adminQuestionEditorDraftMode = false;
     adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, target);
     rerenderAdminWithCache();
+  };
+
+  const normalizeControlCodeSearch = (value = "") =>
+    String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+  const findQuestionByControlCode = () => {
+    const raw = String(questionSearchCodeInput?.value || "").trim();
+    if (!raw) {
+      showToast("Informe um código para buscar.", "info");
+      return;
+    }
+
+    const targetKey = normalizeControlCodeSearch(raw);
+    const bankList = getQuestionBankCache(adminQuestionBank);
+    const target = bankList.find((item) => {
+      const code = String(item?.controlCode || buildQuestionControlCode(adminQuestionBank, item?.id)).trim();
+      return normalizeControlCodeSearch(code) === targetKey;
+    });
+
+    if (!target) {
+      showToast("Código não encontrado neste banco.", "error");
+      return;
+    }
+
+    const safeBankId = getQuestionBankConfig(adminQuestionBank).id;
+    if (isShowOnlyMarkedEnabled(safeBankId)) {
+      adminShowOnlyMarkedByBank[safeBankId] = false;
+    }
+    adminQuestionEditorDraftMode = false;
+    adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, target);
+    rerenderAdminWithCache();
+    showToast(`Questão ${target.controlCode || buildQuestionControlCode(adminQuestionBank, target.id)} aberta.`, "success");
   };
 
   const goToRelativeQuestion = (direction = 1) => {
@@ -4031,6 +4943,35 @@ function setupAdminActions() {
     rerenderAdminWithCache();
   });
 
+  questionDuplicateBtn?.addEventListener("click", () => {
+    const source = readQuestionForm();
+    const sourceId = normalizeQuestionId(source?.id, 0);
+    if (!sourceId) {
+      showToast("Não foi possível duplicar: questão sem ID válido.", "error");
+      return;
+    }
+
+    const nextId = getNextQuestionIdForBank(adminQuestionBank);
+    const bankConfig = getQuestionBankConfig(adminQuestionBank);
+    const nextImage = source?.textOnImageCard === true
+      ? ""
+      : (() => {
+          const renumbered = renumberQuestionImagePath(String(source?.image || ""), adminQuestionBank, sourceId, nextId);
+          if (renumbered) return renumbered;
+          return `${bankConfig.imageBasePath}/${nextId}.webp`;
+        })();
+
+    adminQuestionEditorDraftMode = true;
+    adminQuestionEditor = createAdminQuestionDraft(adminQuestionBank, {
+      ...source,
+      id: nextId,
+      image: nextImage,
+      controlCode: buildQuestionControlCode(adminQuestionBank, nextId)
+    });
+    rerenderAdminWithCache();
+    showToast(`Questão duplicada como #${nextId}. Salve para confirmar.`, "success");
+  });
+
   questionMarkToggleBtn?.addEventListener("click", () => {
     const draft = readQuestionForm();
     const safeId = normalizeQuestionId(draft?.id, 0);
@@ -4086,6 +5027,16 @@ function setupAdminActions() {
     goToRelativeQuestion(1);
   });
 
+  questionFindByCodeBtn?.addEventListener("click", () => {
+    findQuestionByControlCode();
+  });
+
+  questionSearchCodeInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    findQuestionByControlCode();
+  });
+
   document.querySelectorAll("[data-question-edit]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const questionId = btn.getAttribute("data-question-edit") || "";
@@ -4132,7 +5083,12 @@ function setupAdminActions() {
           question: draft.question,
           options: draft.options,
           correctIndex: draft.correctIndex,
-          explanation: draft.explanation
+          explanation: draft.explanation,
+          textOnImageCard: draft.textOnImageCard === true,
+          questionFontSize: Number.isFinite(Number(draft.questionFontSize))
+            ? Math.max(10, Math.min(36, Math.floor(Number(draft.questionFontSize))))
+            : 18,
+          controlCode: String(draft.controlCode || "").trim() || buildQuestionControlCode(adminQuestionBank, draft.id)
         },
         currentUser?.email || ""
       );
@@ -4186,7 +5142,8 @@ function setupAdminActions() {
     const prev = questionDeleteBtn.innerText;
     questionDeleteBtn.innerText = "Excluindo...";
     try {
-      await deleteQuestionDefinition(adminQuestionBank, String(draft.id));
+      await deleteQuestionDefinition(adminQuestionBank, String(draft.id), currentUser?.email || "");
+      await reindexQuestionBankSequentialIds(adminQuestionBank);
       setMarkedQuestionIds(
         adminQuestionBank,
         getMarkedQuestionIds(adminQuestionBank).filter((id) => id !== draft.id)
@@ -4213,7 +5170,7 @@ function setupAdminActions() {
     if (!userId) return;
     const input = document.querySelector(`.admin-credits-input[data-user-id="${userId}"]`);
     const btn = document.querySelector(`.admin-credits-save[data-user-id="${userId}"]`);
-    const card = document.querySelector(`.admin-card[data-user-id="${userId}"]`);
+    const card = document.querySelector(`.admin-user-row[data-user-id="${userId}"]`);
     const valueEl = card?.querySelector(".admin-credits-value");
     if (!input || !btn) return;
 
@@ -4246,7 +5203,7 @@ function setupAdminActions() {
       input.value = String(balance);
       alert("Créditos atualizados.");
     } catch (error) {
-      console.error("Erro ao salvar crÃ©ditos:", error);
+      console.error("Erro ao salvar créditos:", error);
       alert("Não foi possível atualizar os créditos.");
     } finally {
       btn.disabled = false;
@@ -4275,7 +5232,7 @@ function setupAdminActions() {
     if (!confirmed) return;
 
     const btn = document.querySelector(`.admin-user-delete[data-user-id="${userId}"]`);
-    const card = document.querySelector(`.admin-card[data-user-id="${userId}"]`);
+    const card = document.querySelector(`.admin-user-row[data-user-id="${userId}"]`);
     if (btn) {
       btn.disabled = true;
       btn.innerText = "Removendo...";
@@ -4469,43 +5426,6 @@ async function checkCreditsPaymentStatus({ showNoChangeToast = false } = {}) {
   }
 }
 
-function startCreditsPolling(initialBalance) {
-  if (LOW_COST_MODE) return;
-  if (!currentUser) return;
-  if (creditsPolling) return;
-
-  showCreditsStatus();
-  creditsPollingStart = Date.now();
-
-  creditsPolling = setTimeout(async () => {
-    try {
-      const credits = await getUserCredits(currentUser.uid, { forceRefresh: true });
-      const balance = credits?.balance ?? 0;
-      if (balance > initialBalance) {
-        currentCredits = applyLocalCreditsBalance(credits || { balance: balance }, true);
-        hasLoadedCreditsData = true;
-        setCachedUserCredits(currentUser.uid, currentCredits || { balance });
-        stopCreditsPolling();
-        showToast("Pagamento confirmado. Créditos liberados.", "success");
-        if (document.querySelector(".profile-page")) {
-          rerenderProfileFromCache();
-        } else if (document.querySelector(".credits-page")) {
-          rerenderCreditsFromCache();
-        } else {
-          updateVisibleCreditsLabel();
-        }
-        return;
-      }
-    } catch (error) {
-      console.warn("Credits polling failed:", error);
-    }
-
-    if (Date.now() - creditsPollingStart > CREDITS_POLLING_MAX_MS) {
-      stopCreditsPolling();
-    }
-  }, CREDITS_POLLING_INTERVAL_MS);
-}
-
 function stopCreditsPolling() {
   if (creditsPolling) {
     clearTimeout(creditsPolling);
@@ -4525,9 +5445,14 @@ function renderEvaluationHistory(evaluation) {
   const percentage = evaluation.percentage;
   const status = percentage >= 75 ? "Aprovado" : "Reprovado";
 
-  const evaluationSimulado = String(evaluation?.simulado || "").toLowerCase().includes("metar")
+  const simuladoText = String(evaluation?.simulado || "").toLowerCase();
+  const evaluationSimulado = simuladoText.includes("metar")
     ? "metar_taf"
-    : "sigwx";
+    : simuladoText.includes("nuvens")
+      ? "nuvens"
+    : simuladoText.includes("sinais")
+      ? "sinais_luminosos"
+      : "sigwx";
   const questionSource = evaluation?.questionBank === "evaluation"
     ? getQuestionsForSimuladoMode(evaluationSimulado, "evaluation")
     : getQuestionsForSimuladoMode(evaluationSimulado, "training");
@@ -4551,6 +5476,7 @@ function renderEvaluationHistory(evaluation) {
     return {
       index: index + 1,
       image: q.image,
+      controlCode: String(q?.controlCode || "").trim() || buildQuestionControlCode(evaluationSimulado, q?.id),
       question: q.question,
       selectedText,
       correctText,
@@ -4564,7 +5490,8 @@ function renderEvaluationHistory(evaluation) {
     items,
     isAdmin: isAdminUser(),
     userLabel: getUserLabel(),
-    simuladoLabel: getSimuladoLabel(evaluationSimulado)
+    simuladoLabel: getSimuladoLabel(evaluationSimulado),
+    simuladoKey: evaluationSimulado
   });
 
   const backBtn = document.getElementById("profileBack");
@@ -4582,6 +5509,43 @@ function renderEvaluationHistory(evaluation) {
 // ===============================
 // CONTROLE DE SESSÃO
 // ===============================
+function resolveCurrentRoute({ replacePath = false } = {}) {
+  const currentPath = normalizePathname(window.location.pathname);
+  const moduleSlug = getModuleSlugFromPath(currentPath);
+  const moduleConfig = moduleSlug ? getModuleBySlug(moduleSlug) : null;
+
+  if (currentUser && moduleConfig) {
+    renderModuleHub(moduleConfig.key, { replacePath });
+    return true;
+  }
+
+  if (currentPath === APP_ROUTES.dashboard && currentUser) {
+    renderDashboard({ replacePath });
+    return true;
+  }
+
+  if (currentPath === APP_ROUTES.home) {
+    if (currentUser) {
+      renderHomePublic({ replacePath });
+      return true;
+    }
+    renderHomePublic({ replacePath });
+    return true;
+  }
+
+  return false;
+}
+
+window.addEventListener("popstate", () => {
+  if (!resolveCurrentRoute({ replacePath: true })) {
+    if (currentUser) {
+      renderHomePublic({ replacePath: true });
+      return;
+    }
+    renderHomePublic({ replacePath: true });
+  }
+});
+
 observeAuthState((user) => {
   const previousUser = currentUser;
   if (previousUser?.uid && (!user || previousUser.uid !== user.uid)) {
@@ -4610,24 +5574,35 @@ observeAuthState((user) => {
   creditHistoryError = "";
   startingSessionLock = false;
   adminMetricsFromApi = false;
+  adminReportData = null;
   if (!currentUser) {
     authInitialRouteDone = false;
     questionBanksCache = {
       sigwx_training: DEFAULT_QUESTION_BANKS.sigwx_training.map((q) => ({ ...q })),
       sigwx_evaluation: DEFAULT_QUESTION_BANKS.sigwx_evaluation.map((q) => ({ ...q })),
       metar_taf_training: DEFAULT_QUESTION_BANKS.metar_taf_training.map((q) => ({ ...q })),
-      metar_taf_evaluation: DEFAULT_QUESTION_BANKS.metar_taf_evaluation.map((q) => ({ ...q }))
+      metar_taf_evaluation: DEFAULT_QUESTION_BANKS.metar_taf_evaluation.map((q) => ({ ...q })),
+      nuvens_training: DEFAULT_QUESTION_BANKS.nuvens_training.map((q) => ({ ...q })),
+      nuvens_evaluation: DEFAULT_QUESTION_BANKS.nuvens_evaluation.map((q) => ({ ...q })),
+      sinais_luminosos_training: DEFAULT_QUESTION_BANKS.sinais_luminosos_training.map((q) => ({ ...q })),
+      sinais_luminosos_evaluation: DEFAULT_QUESTION_BANKS.sinais_luminosos_evaluation.map((q) => ({ ...q }))
     };
     questionBankLoadedFlags = {
       sigwx_training: false,
       sigwx_evaluation: false,
       metar_taf_training: false,
-      metar_taf_evaluation: false
+      metar_taf_evaluation: false,
+      nuvens_training: false,
+      nuvens_evaluation: false,
+      sinais_luminosos_training: false,
+      sinais_luminosos_evaluation: false
     };
     adminQuestionEditor = null;
     adminQuestionEditorDraftMode = false;
-    renderHomePublic();
-    return;
+      if (!resolveCurrentRoute({ replacePath: true })) {
+        renderHomePublic({ replacePath: true });
+      }
+      return;
   }
 
   startPresenceTracking();
@@ -4684,7 +5659,9 @@ observeAuthState((user) => {
       }
 
       authInitialRouteDone = true;
-      renderHomePublic();
+      if (!resolveCurrentRoute({ replacePath: true })) {
+        renderHomePublic({ replacePath: true });
+      }
     });
 });
 
@@ -4944,8 +5921,10 @@ function setupLoginForm() {
   const passwordInput = document.getElementById("password");
 
   if (!loginBtn || !emailInput || !passwordInput) return;
+  let isSubmittingLogin = false;
 
   const submitLogin = async () => {
+    if (isSubmittingLogin) return;
     const email = emailInput.value.trim();
     const password = passwordInput.value.trim();
 
@@ -4954,16 +5933,30 @@ function setupLoginForm() {
       return;
     }
 
+    isSubmittingLogin = true;
     loginBtn.disabled = true;
     loginBtn.innerText = "Entrando...";
+    if (googleBtn) googleBtn.disabled = true;
 
     try {
-      await login(email, password);
+      await Promise.race([
+        login(email, password),
+        new Promise((_, reject) =>
+          setTimeout(() => {
+            const timeoutError = new Error("login_timeout");
+            timeoutError.code = "auth/login_timeout";
+            reject(timeoutError);
+          }, 15000)
+        )
+      ]);
     } catch (error) {
+      console.error("Erro no login por email/senha:", error);
       showToast(getFirebaseAuthMessage(error, "Erro ao fazer login."), "error");
     } finally {
+      isSubmittingLogin = false;
       loginBtn.disabled = false;
       loginBtn.innerText = "Entrar";
+      if (googleBtn) googleBtn.disabled = false;
     }
   };
 
@@ -5047,9 +6040,10 @@ function setupHomeModeCarousels() {
     const nextBtn = root.querySelector(".mode-carousel-btn.next");
     if (!track || !dots || !prevBtn || !nextBtn) return;
 
+    const moduleCarousel = root.closest(".module-decision-carousel");
     const card = root.closest(".mode-card");
-    const copyTitle = card?.querySelector(".mode-card-copy h3");
-    const copyParagraph = card?.querySelector(".mode-card-copy p");
+    const copyTitle = moduleCarousel?.querySelector("[data-carousel-title]") || card?.querySelector(".mode-card-copy h3");
+    const copyParagraph = moduleCarousel?.querySelector("[data-carousel-caption]") || card?.querySelector(".mode-card-copy p");
     const defaultTitle = copyTitle?.textContent || "";
     const defaultCaption = copyParagraph?.textContent || "";
 
@@ -5159,43 +6153,7 @@ function setupHomeModeCarousels() {
 // DASHBOARD
 // ===============================
 function setupDashboardActions() {
-  const trainingBtn = document.getElementById("dashboardSigwxTraining");
-  const evalBtn = document.getElementById("dashboardSigwxEval");
-  const metarTrainingBtn = document.getElementById("dashboardMetarTraining");
-  const metarEvalBtn = document.getElementById("dashboardMetarEval");
   const page = document.querySelector(".simulados-page");
-
-  if (trainingBtn) {
-    trainingBtn.onclick = (e) => {
-      e.stopPropagation();
-      if (trainingBtn.disabled) return;
-      startSigwxWithCredit("training");
-    };
-  }
-
-  if (evalBtn) {
-    evalBtn.onclick = (e) => {
-      e.stopPropagation();
-      if (evalBtn.disabled) return;
-      startSigwxWithCredit("evaluation");
-    };
-  }
-
-  if (metarTrainingBtn) {
-    metarTrainingBtn.onclick = (e) => {
-      e.stopPropagation();
-      if (metarTrainingBtn.disabled) return;
-      startMetarTafWithCredit("training");
-    };
-  }
-
-  if (metarEvalBtn) {
-    metarEvalBtn.onclick = (e) => {
-      e.stopPropagation();
-      if (metarEvalBtn.disabled) return;
-      startMetarTafWithCredit("evaluation");
-    };
-  }
 
   if (page) {
     page.onclick = (e) => {
@@ -5203,53 +6161,63 @@ function setupDashboardActions() {
       if (!target || target.hasAttribute("disabled")) return;
 
       const action = target.getAttribute("data-action");
-      if (action === "sigwx") {
-        startSigwxWithCredit("training");
-      } else if (action === "sigwx-eval") {
-        startSigwxWithCredit("evaluation");
-      } else if (action === "metar-taf") {
-        startMetarTafWithCredit("training");
-      } else if (action === "metar-taf-eval") {
-        startMetarTafWithCredit("evaluation");
+      if (action === "open-module-sigwx" || action === "sigwx" || action === "sigwx-eval") {
+        renderModuleHub("sigwx");
+      } else if (action === "open-module-metar-taf" || action === "metar-taf" || action === "metar-taf-eval") {
+        renderModuleHub("metar_taf");
+      } else if (action === "open-module-nuvens" || action === "nuvens-training" || action === "nuvens-eval") {
+        renderModuleHub("nuvens");
+      } else if (action === "open-module-notam" || action === "notam-training" || action === "notam-eval") {
+        renderModuleHub("notam");
+      } else if (action === "open-module-rotaer" || action === "rotaer-training" || action === "rotaer-eval") {
+        renderModuleHub("rotaer");
       } else if (
-        action === "notam-training" ||
-        action === "notam-eval" ||
-        action === "rotaer-training" ||
-        action === "rotaer-eval" ||
-        action === "nuvens-training" ||
-        action === "nuvens-eval" ||
-        action === "sinais-luminosos-training" ||
-        action === "sinais-luminosos-eval" ||
+        action === "open-module-espacos-aereos" ||
         action === "espacos-aereos-training" ||
         action === "espacos-aereos-eval"
       ) {
-        showToast("Este simulado ainda está em desenvolvimento.", "info");
+        renderModuleHub("espacos_aereos");
+      } else if (
+        action === "open-module-sinais-luminosos" ||
+        action === "sinais-luminosos" ||
+        action === "sinais-luminosos-training" ||
+        action === "sinais-luminosos-eval"
+      ) {
+        renderModuleHub("sinais_luminosos");
       }
     };
   }
 }
 
-function setupMetarTafHubActions() {
-  const page = document.querySelector(".metar-taf-page");
-  const backBtn = document.getElementById("metarTafBackDashboard");
-  if (backBtn) {
-    backBtn.addEventListener("click", () => {
-      renderDashboard();
-    });
-  }
-
+function setupModuleHubActions(simuladoKey = "sigwx") {
+  const page = document.querySelector(".module-page");
   if (!page) return;
+  const pageKey = page.getAttribute("data-module-key") || simuladoKey;
+  const safeKey = SIMULADO_BANKS[pageKey] ? pageKey : "sigwx";
+
   page.addEventListener("click", (e) => {
     const target = e.target instanceof Element ? e.target.closest("[data-action]") : null;
     if (!target || target.hasAttribute("disabled")) return;
-
     const action = target.getAttribute("data-action");
-    if (action === "metar-training" || action === "taf-training") {
-      startMetarTafWithCredit("training");
+
+    if (action === "module-start-training") {
+      startSimuladoWithCredit(safeKey, "training");
       return;
     }
-    if (action === "metar-eval" || action === "taf-eval") {
-      startMetarTafWithCredit("evaluation");
+    if (action === "module-start-evaluation") {
+      startSimuladoWithCredit(safeKey, "evaluation");
+      return;
+    }
+    if (action === "module-go-home") {
+      renderHomePublic();
+      return;
+    }
+    if (action === "module-go-dashboard") {
+      renderDashboard();
+      return;
+    }
+    if (action === "module-back-dashboard") {
+      renderDashboard();
     }
   });
 }
@@ -5326,13 +6294,33 @@ function setupHomeSimuladosCards() {
   const cards = document.querySelectorAll(".simulados .card[data-action]");
   if (!cards.length) return;
 
+  const actionToModuleKey = {
+    sigwx: "sigwx",
+    "open-module-sigwx": "sigwx",
+    "metar-taf": "metar_taf",
+    "open-module-metar-taf": "metar_taf",
+    "nuvens-training": "nuvens",
+    "open-module-nuvens": "nuvens",
+    "sinais-luminosos": "sinais_luminosos",
+    "open-module-sinais-luminosos": "sinais_luminosos",
+    "open-module-notam": "notam",
+    "open-module-rotaer": "rotaer",
+    "open-module-espacos-aereos": "espacos_aereos"
+  };
+
   cards.forEach((card) => {
     card.addEventListener("click", () => {
+      const action = String(card.getAttribute("data-action") || "").trim();
+      const moduleKey = actionToModuleKey[action];
       if (!currentUser) {
         renderLogin();
-      } else {
-        renderDashboard();
+        return;
       }
+      if (moduleKey) {
+        renderModuleHub(moduleKey);
+        return;
+      }
+      renderDashboard();
     });
   });
 }

@@ -180,7 +180,7 @@ function homePublicView({
             </div>
             ` : ""}
             ${isSimuladoEnabled("notam") ? `
-            <div class="card card-disabled" aria-disabled="true">
+            <div class="card" data-action="open-module-notam">
               <span class="status-chip status-chip--soon">Em breve</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list-icon lucide-clipboard-list"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>
               <h3>NOTAM</h3>
@@ -188,7 +188,7 @@ function homePublicView({
             </div>
             ` : ""}
             ${isSimuladoEnabled("rotaer") ? `
-            <div class="card card-disabled" aria-disabled="true">
+            <div class="card" data-action="open-module-rotaer">
               <span class="status-chip status-chip--soon">Em breve</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tower-control-icon lucide-tower-control"><path d="M18.2 12.27 20 6H4l1.8 6.27a1 1 0 0 0 .95.73h10.5a1 1 0 0 0 .96-.73Z"/><path d="M8 13v9"/><path d="M16 22v-9"/><path d="m9 6 1 7"/><path d="m15 6-1 7"/><path d="M12 6V2"/><path d="M13 2h-2"/></svg></span>
               <h3>ROTAER</h3>
@@ -196,23 +196,23 @@ function homePublicView({
             </div>
             ` : ""}
             ${isSimuladoEnabled("nuvens") ? `
-            <div class="card card-disabled" aria-disabled="true">
-              <span class="status-chip status-chip--soon">Em breve</span>
+            <div class="card" data-action="nuvens-training">
+              <span class="status-chip status-chip--live">Disponível agora</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloudy-icon lucide-cloudy"><path d="M17.5 12a1 1 0 1 1 0 9H9.006a7 7 0 1 1 6.702-9z"/><path d="M21.832 9A3 3 0 0 0 19 7h-2.207a5.5 5.5 0 0 0-10.72.61"/></svg></span>
               <h3>Nuvens</h3>
-              <p>Em desenvolvimento</p>
+              <p>Classificação e identificação visual</p>
             </div>
             ` : ""}
             ${isSimuladoEnabled("sinais_luminosos") ? `
-            <div class="card card-disabled" aria-disabled="true">
-              <span class="status-chip status-chip--soon">Em breve</span>
+            <div class="card" data-action="sinais-luminosos">
+              <span class="status-chip status-chip--live">Disponível agora</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-spotlight"><path d="M4 10h7l4-3v10l-4-3H4z"/><path d="M15 9l5-2v10l-5-2"/><path d="M6 14v4"/><path d="M9 14v4"/><path d="M5 18h5"/></svg></span>
               <h3>Sinais luminosos</h3>
-              <p>Em desenvolvimento</p>
+              <p>Sinais de pátio e pista</p>
             </div>
             ` : ""}
             ${isSimuladoEnabled("espacos_aereos") ? `
-            <div class="card card-disabled" aria-disabled="true">
+            <div class="card" data-action="open-module-espacos-aereos">
               <span class="status-chip status-chip--soon">Em breve</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-radar-icon lucide-radar"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4.93 4.93A10 10 0 0 0 3.34 17.01"/><path d="M4.93 19.07A10 10 0 0 0 17.01 20.66"/><path d="M19.07 19.07A10 10 0 0 0 20.66 6.99"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg></span>
               <h3>Espaços Aéreos</h3>
@@ -281,78 +281,6 @@ function homePublicView({
           </button>
         </div>
         <p class="home-packages-note">1 crédito = 1 treino ou 1 avaliação &bull; Compra única, sem assinatura.</p>
-      </div>
-    </section>
-
-    ${footerView()}
-    ${contactWidgetView()}
-  `;
-}
-
-function metarTafHubView(
-  {
-    isAdmin = false,
-    userLabel = "Conta",
-    credits = null,
-    canStartSessions = true,
-    sessionAvailability = null
-  } = {}
-) {
-  const isModeEnabled = (mode) => {
-    if (!canStartSessions) return false;
-    const value = sessionAvailability?.metar_taf?.[mode];
-    return typeof value === "boolean" ? value : true;
-  };
-  const trainingEnabled = isModeEnabled("training");
-  const evaluationEnabled = isModeEnabled("evaluation");
-  return `
-    ${headerView({ logged: true, isAdmin, userLabel, credits })}
-
-    <section class="simulados-page metar-taf-page">
-      <div class="simulados-header">
-        <h1>Simulados METAR e TAF</h1>
-        <p>Nesta página você organiza o estudo de METAR/TAF e acessa os dois tipos de simulado.</p>
-      </div>
-
-      <div class="metar-taf-support-grid">
-        <article class="metar-taf-support-card">
-          <h3>METAR</h3>
-          <p>Área para resumir padrões, grupos e interpretação operacional que você quiser manter de apoio.</p>
-        </article>
-        <article class="metar-taf-support-card">
-          <h3>TAF</h3>
-          <p>Espaço para observações de validade, mudanças previstas e pontos de revisão para prova.</p>
-        </article>
-        <article class="metar-taf-support-card">
-          <h3>Material de Estudo</h3>
-          <p>Bloco pronto para adicionar docs, links e referências que você usa no treinamento.</p>
-        </article>
-      </div>
-
-      <div class="simulados-grid">
-        <div class="simulado-card simulado-active">
-          <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-sun-rain-icon lucide-cloud-sun-rain"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M3 20a5 5 0 1 1 8.9-4H13a3 3 0 0 1 2 5.24"/><path d="M11 20v2"/><path d="M7 19v2"/></svg></div>
-          <h3>Simulado METAR</h3>
-          <p>Treino e avaliação focados na leitura e interpretação de METAR.</p>
-          <div class="simulado-actions">
-            <button class="simulado-btn primary" data-action="metar-training"${trainingEnabled ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button class="simulado-btn ghost" data-action="metar-eval"${evaluationEnabled ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
-          </div>
-        </div>
-
-        <div class="simulado-card simulado-active">
-          <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text-icon lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div>
-          <h3>Simulado TAF</h3>
-          <p>Treino e avaliação focados na interpretação de TAF e tendência operacional.</p>
-          <div class="simulado-actions">
-            <button class="simulado-btn primary" data-action="taf-training"${trainingEnabled ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button class="simulado-btn ghost" data-action="taf-eval"${evaluationEnabled ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="metar-taf-page-actions">
-        <button type="button" class="simulado-btn primary" id="metarTafBackDashboard">Voltar para Simulados</button>
       </div>
     </section>
 
@@ -467,8 +395,7 @@ function dashboardView(
           <h3>SIGWX</h3>
           <p>Cartas de tempo significativo e interpretação operacional.</p>
           <div class="simulado-actions">
-            <button id="dashboardSigwxTraining" class="simulado-btn primary" data-action="sigwx"${isModeEnabled("sigwx", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button id="dashboardSigwxEval" class="simulado-btn ghost" data-action="sigwx-eval"${isModeEnabled("sigwx", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+            <button class="simulado-btn primary" data-action="open-module-sigwx"${isModeEnabled("sigwx", "training") || isModeEnabled("sigwx", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Entrar no módulo</button>
           </div>
         </div>
         ` : ""}
@@ -479,71 +406,255 @@ function dashboardView(
           <h3>METAR / TAF</h3>
           <p>Leitura e interpretação operacional.</p>
           <div class="simulado-actions">
-            <button id="dashboardMetarTraining" class="simulado-btn primary" data-action="metar-taf"${isModeEnabled("metar_taf", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button id="dashboardMetarEval" class="simulado-btn ghost" data-action="metar-taf-eval"${isModeEnabled("metar_taf", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+            <button class="simulado-btn primary" data-action="open-module-metar-taf"${isModeEnabled("metar_taf", "training") || isModeEnabled("metar_taf", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Entrar no módulo</button>
           </div>
         </div>
         ` : ""}
 
         ${isSimuladoEnabled("notam") ? `
-        <div class="simulado-card ${isModeEnabled("notam", "training") || isModeEnabled("notam", "evaluation") ? "simulado-active" : ""}">
+        <div class="simulado-card ${isModeEnabled("notam", "training") || isModeEnabled("notam", "evaluation") ? "simulado-active" : ""}" data-action="open-module-notam">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list-icon lucide-clipboard-list"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></div>
           <h3>NOTAM</h3>
           <p>Em desenvolvimento.</p>
-          <div class="simulado-actions">
-            <button class="simulado-btn primary" data-action="notam-training"${isModeEnabled("notam", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button class="simulado-btn ghost" data-action="notam-eval"${isModeEnabled("notam", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+          <div class="simulado-actions simulado-actions--single">
+            <button class="simulado-btn primary" data-action="open-module-notam"${isModeEnabled("notam", "training") || isModeEnabled("notam", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Entrar no módulo</button>
           </div>
         </div>
         ` : ""}
 
         ${isSimuladoEnabled("rotaer") ? `
-        <div class="simulado-card ${isModeEnabled("rotaer", "training") || isModeEnabled("rotaer", "evaluation") ? "simulado-active" : ""}">
+        <div class="simulado-card ${isModeEnabled("rotaer", "training") || isModeEnabled("rotaer", "evaluation") ? "simulado-active" : ""}" data-action="open-module-rotaer">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tower-control-icon lucide-tower-control"><path d="M18.2 12.27 20 6H4l1.8 6.27a1 1 0 0 0 .95.73h10.5a1 1 0 0 0 .96-.73Z"/><path d="M8 13v9"/><path d="M16 22v-9"/><path d="m9 6 1 7"/><path d="m15 6-1 7"/><path d="M12 6V2"/><path d="M13 2h-2"/></svg></div>
           <h3>ROTAER</h3>
           <p>Em desenvolvimento.</p>
-          <div class="simulado-actions">
-            <button class="simulado-btn primary" data-action="rotaer-training"${isModeEnabled("rotaer", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button class="simulado-btn ghost" data-action="rotaer-eval"${isModeEnabled("rotaer", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+          <div class="simulado-actions simulado-actions--single">
+            <button class="simulado-btn primary" data-action="open-module-rotaer"${isModeEnabled("rotaer", "training") || isModeEnabled("rotaer", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Entrar no módulo</button>
           </div>
         </div>
         ` : ""}
 
         ${isSimuladoEnabled("nuvens") ? `
-        <div class="simulado-card ${isModeEnabled("nuvens", "training") || isModeEnabled("nuvens", "evaluation") ? "simulado-active" : ""}">
+        <div class="simulado-card ${isModeEnabled("nuvens", "training") || isModeEnabled("nuvens", "evaluation") ? "simulado-active" : ""}" data-action="open-module-nuvens">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloudy-icon lucide-cloudy"><path d="M17.5 12a1 1 0 1 1 0 9H9.006a7 7 0 1 1 6.702-9z"/><path d="M21.832 9A3 3 0 0 0 19 7h-2.207a5.5 5.5 0 0 0-10.72.61"/></svg></div>
           <h3>Nuvens</h3>
-          <p>Em desenvolvimento.</p>
+          <p>Classificação e identificação visual de nuvens.</p>
           <div class="simulado-actions">
-            <button class="simulado-btn primary" data-action="nuvens-training"${isModeEnabled("nuvens", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button class="simulado-btn ghost" data-action="nuvens-eval"${isModeEnabled("nuvens", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+            <button class="simulado-btn primary" data-action="open-module-nuvens"${isModeEnabled("nuvens", "training") || isModeEnabled("nuvens", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Entrar no módulo</button>
           </div>
         </div>
         ` : ""}
 
         ${isSimuladoEnabled("sinais_luminosos") ? `
-        <div class="simulado-card ${isModeEnabled("sinais_luminosos", "training") || isModeEnabled("sinais_luminosos", "evaluation") ? "simulado-active" : ""}">
+        <div class="simulado-card ${isModeEnabled("sinais_luminosos", "training") || isModeEnabled("sinais_luminosos", "evaluation") ? "simulado-active" : ""}" data-action="open-module-sinais-luminosos">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-spotlight"><path d="M4 10h7l4-3v10l-4-3H4z"/><path d="M15 9l5-2v10l-5-2"/><path d="M6 14v4"/><path d="M9 14v4"/><path d="M5 18h5"/></svg></div>
           <h3>Sinais luminosos</h3>
-          <p>Em desenvolvimento.</p>
+          <p>Sinais de patio e pista para operacao visual segura.</p>
           <div class="simulado-actions">
-            <button class="simulado-btn primary" data-action="sinais-luminosos-training"${isModeEnabled("sinais_luminosos", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button class="simulado-btn ghost" data-action="sinais-luminosos-eval"${isModeEnabled("sinais_luminosos", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+            <button class="simulado-btn primary" data-action="open-module-sinais-luminosos"${isModeEnabled("sinais_luminosos", "training") || isModeEnabled("sinais_luminosos", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Entrar no módulo</button>
           </div>
         </div>
         ` : ""}
 
         ${isSimuladoEnabled("espacos_aereos") ? `
-        <div class="simulado-card ${isModeEnabled("espacos_aereos", "training") || isModeEnabled("espacos_aereos", "evaluation") ? "simulado-active" : ""}">
+        <div class="simulado-card ${isModeEnabled("espacos_aereos", "training") || isModeEnabled("espacos_aereos", "evaluation") ? "simulado-active" : ""}" data-action="open-module-espacos-aereos">
           <div class="simulado-icon" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-radar-icon lucide-radar"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4.93 4.93A10 10 0 0 0 3.34 17.01"/><path d="M4.93 19.07A10 10 0 0 0 17.01 20.66"/><path d="M19.07 19.07A10 10 0 0 0 20.66 6.99"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg></div>
           <h3>Espaços Aéreos</h3>
           <p>Em desenvolvimento.</p>
-          <div class="simulado-actions">
-            <button class="simulado-btn primary" data-action="espacos-aereos-training"${isModeEnabled("espacos_aereos", "training") ? "" : " disabled aria-disabled=\"true\""}>Treinamento</button>
-            <button class="simulado-btn ghost" data-action="espacos-aereos-eval"${isModeEnabled("espacos_aereos", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Avaliação</button>
+          <div class="simulado-actions simulado-actions--single">
+            <button class="simulado-btn primary" data-action="open-module-espacos-aereos"${isModeEnabled("espacos_aereos", "training") || isModeEnabled("espacos_aereos", "evaluation") ? "" : " disabled aria-disabled=\"true\""}>Entrar no módulo</button>
           </div>
         </div>
         ` : ""}
+      </div>
+    </section>
+
+    ${footerView()}
+    ${contactWidgetView()}
+  `;
+}
+
+function simuladoModuleView(
+  moduleConfig,
+  {
+    isAdmin = false,
+    userLabel = "Conta",
+    credits = null,
+    trainingEnabled = true,
+    evaluationEnabled = true
+  } = {}
+) {
+  const safeModule = moduleConfig || {};
+  const safeTopics = Array.isArray(safeModule.learningTopics) ? safeModule.learningTopics : [];
+  const safeSupportItems = Array.isArray(safeModule.supportItems) ? safeModule.supportItems : [];
+  const moduleKey = escapeHtml(String(safeModule.key || ""));
+  const title = escapeHtml(String(safeModule.title || "Módulo"));
+  const description = escapeHtml(String(safeModule.description || ""));
+  const supportText = escapeHtml(String(safeModule.supportText || ""));
+  const videoPlaceholderTitle = escapeHtml(String(safeModule.videoPlaceholderTitle || "Aula em vídeo (em breve)"));
+  const videoPlaceholderText = escapeHtml(String(safeModule.videoPlaceholderText || ""));
+  const trainingDecisionText = escapeHtml(
+    String(safeModule.trainingDecisionText || "Receba feedback imediato a cada questão e ajuste sua interpretação.")
+  );
+  const evaluationDecisionText = escapeHtml(
+    String(safeModule.evaluationDecisionText || "Simule uma prova real com tempo e resultado final.")
+  );
+  const decisionCarouselConfig = safeModule.decisionCarousel && typeof safeModule.decisionCarousel === "object"
+    ? safeModule.decisionCarousel
+    : {};
+  const defaultDecisionCarouselImages = [
+    "/assets/img/mode-treinamento.png",
+    "/assets/img/mode-treinamento-1.png",
+    "/assets/img/mode-avaliacao.png",
+    "/assets/img/mode-avaliacao-2.png"
+  ];
+  const defaultDecisionCarouselSlides = [
+    "Treinamento guiado::Receba feedback imediato em cada questão e ajuste sua interpretação com clareza.",
+    "Correção orientada::Visualize rapidamente acertos e pontos de melhoria para evoluir de forma consistente.",
+    "Avaliação realista::Simule o ambiente de prova com foco em ritmo e tomada de decisão.",
+    "Pronto para prova::Treine leitura operacional e aumente sua confiança para o exame."
+  ];
+  const decisionCarouselImages = Array.isArray(decisionCarouselConfig.images) && decisionCarouselConfig.images.length
+    ? decisionCarouselConfig.images.map((item) => String(item || "").trim()).filter(Boolean)
+    : defaultDecisionCarouselImages;
+  const decisionCarouselSlides = Array.isArray(decisionCarouselConfig.slides) && decisionCarouselConfig.slides.length
+    ? decisionCarouselConfig.slides.map((item) => String(item || "").trim()).filter(Boolean)
+    : defaultDecisionCarouselSlides;
+  const firstCarouselSlide = String(decisionCarouselSlides[0] || "").trim();
+  const [firstCarouselTitleRaw, firstCarouselCaptionRaw] = firstCarouselSlide.includes("::")
+    ? firstCarouselSlide.split("::")
+    : ["Estude com direção", firstCarouselSlide];
+  const firstCarouselTitle = escapeHtml(String(firstCarouselTitleRaw || "Estude com direção"));
+  const firstCarouselCaption = escapeHtml(
+    String(firstCarouselCaptionRaw || "Escolha o modo ideal e siga com foco no seu objetivo.")
+  );
+  const decisionCarouselImagesAttr = escapeHtml(decisionCarouselImages.join(", "));
+  const decisionCarouselSlidesAttr = escapeHtml(decisionCarouselSlides.join("||"));
+  const trainingFlowText = escapeHtml(
+    String(safeModule.trainingFlowText || "Feedback imediato apos cada questao.")
+  );
+  const evaluationFlowText = escapeHtml(
+    String(safeModule.evaluationFlowText || "Simulacao real com tempo e resultado final.")
+  );
+
+  const normalizeSupportType = (value = "") =>
+    String(value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  const primarySupportTypes = new Set(["pdf", "documento externo", "manual externo", "checklist"]);
+  const primarySupportItems = safeSupportItems.filter((item) =>
+    primarySupportTypes.has(normalizeSupportType(item?.type))
+  );
+  const videoSupportItem = safeSupportItems.find((item) => normalizeSupportType(item?.type) === "aula futura");
+  const videoSupportType = escapeHtml(String(videoSupportItem?.type || "Aula futura"));
+  const videoSupportLabel = escapeHtml(String(videoSupportItem?.label || videoPlaceholderTitle));
+  const videoSupportDescription = escapeHtml(String(videoSupportItem?.description || videoPlaceholderText));
+
+  return `
+    ${headerView({ logged: true, isAdmin, userLabel, credits })}
+
+    <section class="module-page" data-module-key="${moduleKey}">
+      <nav class="module-breadcrumb" aria-label="Navegação do módulo">
+        <button type="button" class="module-breadcrumb-link" data-action="module-go-home">Inicio</button>
+        <span class="module-breadcrumb-sep">&gt;</span>
+        <button type="button" class="module-breadcrumb-link" data-action="module-go-dashboard">Simulados</button>
+        <span class="module-breadcrumb-sep">&gt;</span>
+        <span class="module-breadcrumb-current">${title}</span>
+      </nav>
+
+      <div class="module-hero">
+        <div class="module-hero-head">
+          <span class="module-chip">Módulo PreFlight</span>
+          <h1>${title}</h1>
+          <p class="module-hero-description">${description}</p>
+        </div>
+
+        <div class="module-decision">
+          <div class="module-decision-layout">
+            <div class="module-decision-main">
+              <h2>Como você quer estudar agora?</h2>
+              <div class="module-decision-grid">
+                <article class="module-decision-card module-decision-card--training">
+                  <h3>Treinamento</h3>
+                  <p>${trainingDecisionText}</p>
+                  <button type="button" class="simulado-btn primary" data-action="module-start-training"${trainingEnabled ? "" : " disabled aria-disabled=\"true\""}>Iniciar Treinamento</button>
+                </article>
+                <article class="module-decision-card module-decision-card--evaluation">
+                  <h3>Avaliação</h3>
+                  <p>${evaluationDecisionText}</p>
+                  <button type="button" class="simulado-btn warning" data-action="module-start-evaluation"${evaluationEnabled ? "" : " disabled aria-disabled=\"true\""}>Iniciar Avaliação</button>
+                </article>
+              </div>
+            </div>
+
+            <aside class="module-decision-media">
+              <div class="module-decision-carousel">
+                <div
+                  class="mode-carousel mode-carousel--module"
+                  data-images="${decisionCarouselImagesAttr}"
+                  data-slides="${decisionCarouselSlidesAttr}"
+                  data-alt="Prévia do módulo ${title}"
+                ></div>
+                <div class="module-decision-carousel-copy">
+                  <h3 data-carousel-title>${firstCarouselTitle}</h3>
+                  <p data-carousel-caption>${firstCarouselCaption}</p>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+
+      <div class="module-grid">
+        <article class="module-card module-card--support">
+          <h2>Revisão rápida antes de começar (opcional)</h2>
+          <p class="module-support-text">${supportText}</p>
+          <div class="module-support-layout">
+            <div class="module-support-main">
+              <div class="module-support-list module-support-list--primary">
+                ${primarySupportItems
+                  .map((item) => {
+                    const type = escapeHtml(String(item?.type || "Material"));
+                    const label = escapeHtml(String(item?.label || "Conteúdo"));
+                    const itemDescription = escapeHtml(String(item?.description || ""));
+                    const href = String(item?.href || "").trim();
+                    const linkHtml = href
+                      ? `<a href="${escapeHtml(href)}" class="module-support-link" target="_blank" rel="noopener noreferrer">Abrir</a>`
+                      : `<span class="module-support-link is-placeholder">Em breve</span>`;
+                    return `
+                      <div class="module-support-item">
+                        <span class="module-support-type">${type}</span>
+                        <h3>${label}</h3>
+                        <p>${itemDescription}</p>
+                        ${linkHtml}
+                      </div>
+                    `;
+                  })
+                  .join("")}
+              </div>
+            </div>
+
+            <div class="module-support-video">
+              <span class="module-support-type module-support-video-type">${videoSupportType}</span>
+              <h3>${videoSupportLabel}</h3>
+              <p>${videoSupportDescription}</p>
+              <div class="module-support-video-placeholder" aria-hidden="true">
+                <span>Espaço reservado para vídeo</span>
+              </div>
+              <span class="module-support-link is-placeholder">Em breve</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="module-card module-card--topics">
+          <h2>O que você vai dominar neste módulo</h2>
+          <ul class="module-topic-list">
+            ${safeTopics
+              .map((topic) => `<li><span class="module-topic-check" aria-hidden="true">✓</span><span>${escapeHtml(String(topic || ""))}</span></li>`)
+              .join("")}
+          </ul>
+        </article>
+
       </div>
     </section>
 
@@ -562,7 +673,9 @@ function sigwxView({ isAdmin = false, userLabel = "Conta", credits = null, simul
     <div class="simulado-header">
       <div>
         <h2 class="simulado-mode-title">Modo Treinamento &middot; ${escapeHtml(simuladoLabel)}</h2>
-        <div class="simulado-status" id="sigwxProgress"></div>
+      </div>
+      <div class="simulado-header-right">
+        <small class="simulado-header-code" id="sigwxQuestionCode"></small>
       </div>
     </div>
 
@@ -621,9 +734,11 @@ function sigwxEvaluationView({ isAdmin = false, userLabel = "Conta", credits = n
     <div class="simulado-header">
       <div>
         <h2 class="simulado-mode-title">Modo Avaliação &middot; ${escapeHtml(simuladoLabel)}</h2>
-        <div class="simulado-status" id="sigwxProgress"></div>
       </div>
-      <div class="simulado-timer" id="sigwxTimer" aria-live="polite">15:00</div>
+      <div class="simulado-header-right">
+        <small class="simulado-header-code" id="sigwxQuestionCode"></small>
+        <div class="simulado-timer" id="sigwxTimer" aria-live="polite">15:00</div>
+      </div>
     </div>
 
     <section class="simulado-container">
@@ -679,18 +794,30 @@ function sigwxEvaluationView({ isAdmin = false, userLabel = "Conta", credits = n
   `;
 }
 
-function sigwxEvaluationResultView({ summary, items, isAdmin = false, userLabel = "Conta", credits = null, simuladoLabel = "SIGWX" }) {
+function sigwxEvaluationResultView({
+  summary,
+  items,
+  isAdmin = false,
+  userLabel = "Conta",
+  credits = null,
+  simuladoLabel = "SIGWX",
+  simuladoKey = "sigwx"
+}) {
+  const safeSimuladoKey = String(simuladoKey || "").toLowerCase();
+  const statusLabel = summary.status === "Aprovado" ? "✅ Aprovado" : "⚠️ Reprovado";
+  const resultClassName = "eval-result eval-result--premium";
+  const shouldShowMedia = safeSimuladoKey !== "metar_taf";
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
 
-    <section class="eval-result">
+    <section class="${resultClassName}">
       <div class="eval-header">
         <div>
           <h1>Resultado &middot; Avaliação ${escapeHtml(simuladoLabel)}</h1>
           <p>Confira seu desempenho e o gabarito completo abaixo.</p>
         </div>
         <div class="eval-score-group">
-          <span class="eval-status-outside ${summary.status === "Aprovado" ? "approved" : "reproved"}">${summary.status}</span>
+          <span class="eval-status-outside ${summary.status === "Aprovado" ? "approved" : "reproved"}">${statusLabel}</span>
         </div>
       </div>
 
@@ -705,27 +832,46 @@ function sigwxEvaluationResultView({ summary, items, isAdmin = false, userLabel 
           : ""}
       </div>
 
+      <div class="eval-top-actions">
+        <button type="button" id="evalRetryWrong" class="eval-top-btn eval-top-btn--ghost">Refazer apenas erradas</button>
+        <button type="button" id="evalBackToSimulado" class="eval-top-btn">Voltar ao simulado</button>
+      </div>
+
       <div class="eval-list">
         ${items.map((item) => `
-          <article class="eval-item ${item.isWrong ? "is-wrong" : "is-correct"}">
+          <article class="eval-item ${item.isWrong ? "is-wrong" : "is-correct"} ${item.image && shouldShowMedia ? "has-media" : "no-media"}">
+            ${item.image && shouldShowMedia ? `
             <div class="eval-item-media">
               <img src="${item.image}" alt="Questão ${item.index}" />
             </div>
+            ` : ""}
             <div class="eval-item-content">
               <h3>Questão ${item.index}</h3>
               <p class="eval-question">${item.question}</p>
-              <div class="eval-answers">
-                <div>
-                  <span>Sua resposta</span>
-                  <strong class="eval-answer-selected ${item.isWrong ? "is-wrong" : ""}">${item.selectedText}</strong>
+              <div class="answer-card">
+                <div class="answer-status ${item.isWrong ? "answer-status--wrong" : "answer-status--correct"}">
+                  <span class="answer-status-icon">${item.isWrong ? "❌" : "✅"}</span>
+                  <div class="answer-status-copy">
+                    <strong>${item.isWrong ? "Resposta errada" : "Resposta correta"}</strong>
+                    <p>Sua resposta: ${item.selectedText}</p>
+                  </div>
                 </div>
-                <div>
-                  <span>Resposta correta</span>
-                  <strong>${item.correctText}</strong>
+
+                <div class="answer-correct-box">
+                  <span class="answer-box-label">Resposta correta</span>
+                  <p>${item.correctText}</p>
+                </div>
+
+                <div class="answer-explanation-box eval-explanation" tabindex="-1">
+                  <p class="answer-explanation-title eval-explanation-title">ℹ️ Explicação</p>
+                  <p>${item.explanation}</p>
+                </div>
+
+                <div class="answer-actions">
+                  ${item.isWrong ? `<button type="button" class="eval-review answer-action-btn" data-review-index="${item.index}">Revisar conteúdo</button>` : ""}
+                  <a href="#" class="eval-report answer-action-link" data-report-index="${item.index}">Reportar erro</a>
                 </div>
               </div>
-              <p class="eval-explanation">${item.explanation}</p>
-              <a href="#" class="eval-report" data-report-index="${item.index}">Reportar erro</a>
             </div>
           </article>
         `).join("")}
@@ -1182,14 +1328,28 @@ function profileView({
   `;
 }
 
-function profileEvaluationView({ summary, items, isAdmin = false, userLabel = "Conta", credits = null, simuladoLabel = "SIGWX" }) {
+function profileEvaluationView({
+  summary,
+  items,
+  isAdmin = false,
+  userLabel = "Conta",
+  credits = null,
+  simuladoLabel = "SIGWX",
+  simuladoKey = "sigwx"
+}) {
+  const statusLabel = summary.status === "Aprovado" ? "✅ Aprovado" : "⚠️ Reprovado";
+  const safeSimuladoKey = String(simuladoKey || "").toLowerCase();
+  const shouldShowMedia = safeSimuladoKey !== "metar_taf";
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
-    <section class="eval-result">
+    <section class="eval-result eval-result--premium">
       <div class="eval-header">
         <div>
           <h1>Gabarito &middot; Avaliação ${escapeHtml(simuladoLabel)}</h1>
           <p>Resultado e gabarito da avaliação selecionada.</p>
+        </div>
+        <div class="eval-score-group">
+          <span class="eval-status-outside ${summary.status === "Aprovado" ? "approved" : "reproved"}">${statusLabel}</span>
         </div>
       </div>
       <div class="eval-stats">
@@ -1202,27 +1362,45 @@ function profileEvaluationView({ summary, items, isAdmin = false, userLabel = "C
           ? `<div><span>Tempo</span><strong>${String(Math.floor(summary.durationSeconds / 60)).padStart(2, "0")}:${String(summary.durationSeconds % 60).padStart(2, "0")}</strong></div>`
           : ""}
       </div>
+      <div class="eval-top-actions">
+        <button type="button" id="evalRetryWrong" class="eval-top-btn eval-top-btn--ghost">Refazer apenas erradas</button>
+        <button type="button" id="evalBackToSimulado" class="eval-top-btn">Voltar ao simulado</button>
+      </div>
       <div class="eval-list">
         ${items.map((item) => `
-          <article class="eval-item ${item.isWrong ? "is-wrong" : "is-correct"}">
+          <article class="eval-item ${item.isWrong ? "is-wrong" : "is-correct"} ${item.image && shouldShowMedia ? "has-media" : "no-media"}">
+            ${item.image && shouldShowMedia ? `
             <div class="eval-item-media">
               <img src="${item.image}" alt="Questão ${item.index}" />
             </div>
+            ` : ""}
             <div class="eval-item-content">
               <h3>Questão ${item.index}</h3>
               <p class="eval-question">${item.question}</p>
-              <div class="eval-answers">
-                <div>
-                  <span>Sua resposta</span>
-                  <strong class="eval-answer-selected ${item.isWrong ? "is-wrong" : ""}">${item.selectedText}</strong>
+              <div class="answer-card">
+                <div class="answer-status ${item.isWrong ? "answer-status--wrong" : "answer-status--correct"}">
+                  <span class="answer-status-icon">${item.isWrong ? "❌" : "✅"}</span>
+                  <div class="answer-status-copy">
+                    <strong>${item.isWrong ? "Resposta errada" : "Resposta correta"}</strong>
+                    <p>Sua resposta: ${item.selectedText}</p>
+                  </div>
                 </div>
-                <div>
-                  <span>Resposta correta</span>
-                  <strong>${item.correctText}</strong>
+
+                <div class="answer-correct-box">
+                  <span class="answer-box-label">Resposta correta</span>
+                  <p>${item.correctText}</p>
+                </div>
+
+                <div class="answer-explanation-box eval-explanation" tabindex="-1">
+                  <p class="answer-explanation-title eval-explanation-title">ℹ️ Explicação</p>
+                  <p>${item.explanation}</p>
+                </div>
+
+                <div class="answer-actions">
+                  ${item.isWrong ? `<button type="button" class="eval-review answer-action-btn" data-review-index="${item.index}">Revisar conteúdo</button>` : ""}
+                  <a href="#" class="eval-report answer-action-link" data-report-index="${item.index}">Reportar erro</a>
                 </div>
               </div>
-              <p class="eval-explanation">${item.explanation}</p>
-              <a href="#" class="eval-report" data-report-index="${item.index}">Reportar erro</a>
             </div>
           </article>
         `).join("")}
@@ -1251,6 +1429,7 @@ function adminView({
   usersLoadingMore = false,
   mode = "summary",
   sessionAvailability = null,
+  simuladoQuestionCounts = {},
   questionBanks = [],
   selectedQuestionBank = "",
   questionItems = [],
@@ -1259,9 +1438,21 @@ function adminView({
   reviewedQuestionIds = [],
   showOnlyMarked = false
 } = {}) {
-  const isSummaryMode = mode === "summary";
-  const isUsersMode = mode === "users";
-  const isMetricsMode = mode === "metrics";
+  const activeTab = ["dashboard", "users", "simulados", "financeiro"].includes(mode)
+    ? mode
+    : mode === "users"
+      ? "users"
+      : mode === "metrics" || mode === "summary"
+        ? "dashboard"
+        : "dashboard";
+  const isDashboardTab = activeTab === "dashboard";
+  const isUsersTab = activeTab === "users";
+  const isSimuladosTab = activeTab === "simulados";
+  const isFinanceiroTab = activeTab === "financeiro";
+
+  const rangeLabel = metricsRange === "today" ? "Hoje" : metricsRange === "7d" ? "7 dias" : "30 dias";
+  const periodSuffix = metrics?.rangeSupported === false ? " (total)" : ` (${rangeLabel})`;
+
   const sessionConfig = sessionAvailability || {
     sigwx: { enabled: true, training: true, evaluation: true },
     metar_taf: { enabled: true, training: true, evaluation: true },
@@ -1280,189 +1471,316 @@ function adminView({
     { key: "sinais_luminosos", label: "Sinais luminosos" },
     { key: "espacos_aereos", label: "Espaços Aéreos" }
   ];
+
+  const getSimuladoCount = (simuladoKey) => {
+    const value = simuladoQuestionCounts?.[simuladoKey];
+    if (value === null || value === undefined) {
+      return { training: null, evaluation: null, total: null };
+    }
+    if (value && typeof value === "object") {
+      const training = Number(value.training);
+      const evaluation = Number(value.evaluation);
+      const total = Number(value.total);
+      return {
+        training: Number.isFinite(training) ? training : null,
+        evaluation: Number.isFinite(evaluation) ? evaluation : null,
+        total: Number.isFinite(total) ? total : null
+      };
+    }
+    const legacyTotal = Number(value);
+    if (Number.isFinite(legacyTotal)) {
+      return { training: null, evaluation: null, total: legacyTotal };
+    }
+    return { training: null, evaluation: null, total: null };
+  };
+
+  const formatDateCell = (value) => {
+    const source = value && value.toDate ? value.toDate() : value;
+    const date = source ? new Date(source) : null;
+    return date && Number.isFinite(date.getTime()) ? date.toLocaleString("pt-BR") : "&mdash;";
+  };
+
+  const getSimuladoExecucoes = (simuladoKey) => {
+    const value = metrics?.evaluationsBySimulado?.[simuladoKey];
+    return Number.isFinite(Number(value)) ? Number(value) : null;
+  };
+  const getSimuladoAvgAccuracy = (simuladoKey) => {
+    const value =
+      metrics?.accuracyBySimulado?.[simuladoKey] ??
+      metrics?.averageAccuracyBySimulado?.[simuladoKey] ??
+      metrics?.avgAccuracyBySimulado?.[simuladoKey];
+    return Number.isFinite(Number(value)) ? Number(value) : null;
+  };
+  const getSimuladoCredits = (simuladoKey) => {
+    const value = metrics?.creditsConsumedBySimulado?.[simuladoKey];
+    return Number.isFinite(Number(value)) ? Number(value) : null;
+  };
+
   const toggleState = (key, mode) => (sessionConfig?.[key]?.[mode] ? "1" : "0");
   const toggleClass = (key, mode) => (sessionConfig?.[key]?.[mode] ? "is-enabled" : "is-disabled");
   const togglePressed = (key, mode) => (sessionConfig?.[key]?.[mode] ? "true" : "false");
   const toggleText = (key, mode, label) => `${label}: ${sessionConfig?.[key]?.[mode] ? "Ativado" : "Desativado"}`;
-  const list = users.length
-    ? `<div class="admin-grid">` +
-        users.map((u) => {
-          const createdAt = u.createdAt && u.createdAt.toDate
-            ? u.createdAt.toDate()
-            : u.createdAt
-              ? new Date(u.createdAt)
-              : null;
-          const createdText = createdAt ? createdAt.toLocaleString("pt-BR") : "&mdash;";
-          const trainingCount = Number.isFinite(Number(u.trainingCount)) ? Number(u.trainingCount) : null;
-          const evaluationCount = Number.isFinite(Number(u.evaluationCount)) ? Number(u.evaluationCount) : null;
-          const sessionText = trainingCount === null || evaluationCount === null
-            ? "Treinos: -- • Avaliações: --"
-            : `Treinos: ${trainingCount} • Avaliações: ${evaluationCount}`;
-          return `
-            <div class="admin-card" data-name="${(u.name || "").toLowerCase()}" data-email="${(u.email || "").toLowerCase()}" data-role="${(u.role || "").toLowerCase().trim()}" data-user-id="${u.id || ""}">
-              <strong>${u.name || "Sem nome"}</strong>
-              <span>${u.email || "&mdash;"}</span>
-              <span>${u.role || "&mdash;"}</span>
-              <span>${u.whatsapp || "&mdash;"}</span>
-              <span>${createdText}</span>
-              <span>${sessionText}</span>
-              <div class="admin-credits">
-                <span class="admin-credits-label">Créditos</span>
-                <div class="admin-credits-row">
-                  <span class="admin-credits-value">Saldo: ${Number.isFinite(u.creditsBalance) ? u.creditsBalance : 0}</span>
-                  <input type="number" min="0" step="1" class="admin-credits-input" data-user-id="${u.id || ""}" value="${Number.isFinite(u.creditsBalance) ? u.creditsBalance : 0}" />
-                  <button type="button" class="admin-credits-save" data-user-id="${u.id || ""}">Salvar</button>
-                </div>
-                <small class="admin-credits-hint">Ajuste o saldo e salve.</small>
-              </div>
-              <div class="admin-user-actions">
-                <button type="button" class="admin-user-delete" data-user-id="${u.id || ""}">Remover do site</button>
-              </div>
+  const usersTableRows = users.length
+    ? users.map((u) => {
+      const userId = u.id || "";
+      const creditsValue = Number.isFinite(Number(u.creditsBalance)) ? Number(u.creditsBalance) : 0;
+      const trainingCount = Number.isFinite(Number(u.trainingCount)) ? Number(u.trainingCount) : null;
+      const evaluationCount = Number.isFinite(Number(u.evaluationCount)) ? Number(u.evaluationCount) : null;
+      const lastAccess =
+        formatDateCell(
+          u.lastAccessAt ??
+          u.lastSeenAt ??
+          u.lastLoginAt ??
+          u.lastActiveAt ??
+          u.updatedAt
+        );
+      return `
+        <tr class="admin-user-row" data-name="${(u.name || "").toLowerCase()}" data-email="${(u.email || "").toLowerCase()}" data-role="${(u.role || "").toLowerCase().trim()}" data-user-id="${userId}">
+          <td>${u.name || "Sem nome"}</td>
+          <td>${u.email || "&mdash;"}</td>
+          <td>${u.role || "&mdash;"}</td>
+          <td>${creditsValue}</td>
+          <td>${trainingCount === null ? "&mdash;" : trainingCount}</td>
+          <td>${evaluationCount === null ? "&mdash;" : evaluationCount}</td>
+          <td>${lastAccess}</td>
+          <td>
+            <div class="admin-user-actions-inline">
+              <input type="number" min="0" step="1" class="admin-credits-input" data-user-id="${userId}" value="${creditsValue}" />
+              <button type="button" class="admin-credits-save" data-user-id="${userId}">Salvar crédito</button>
+              <button type="button" class="admin-user-delete" data-user-id="${userId}">Remover</button>
             </div>
-          `;
-        }).join("") +
-      `</div>`
-    : `<div class="profile-empty">Nenhum usuário encontrado.</div>`;
+          </td>
+        </tr>
+      `;
+    }).join("")
+    : "";
 
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
-    <section class="admin-page">
+    <section class="admin-page admin-v2">
       <div class="admin-header">
         <h1>Administração</h1>
-        <p>Relatório de cadastros e perfis.</p>
+        <p>Painel de gestão da plataforma.</p>
         ${notice ? `<div class="admin-notice">${notice}</div>` : ""}
       </div>
-      <div class="admin-section">
-        <div class="admin-questions-entry">
-          <h2>Painel administrativo</h2>
-          <p>Abra apenas o bloco necessário para reduzir leituras no Firestore.</p>
-          <div class="admin-question-hub-actions">
-            ${!isUsersMode ? `<button type="button" id="adminOpenUsersPage">Abrir Perfis</button>` : `<button type="button" id="adminBackSummaryPage">Voltar ao Resumo</button>`}
-            ${!isMetricsMode ? `<button type="button" id="adminOpenMetricsPage">Abrir Métricas</button>` : `<button type="button" id="adminBackSummaryPage">Voltar ao Resumo</button>`}
+      <nav class="admin-v2-tabs" aria-label="Abas administrativas">
+        <button type="button" class="admin-v2-tab${isDashboardTab ? " is-active" : ""}" data-admin-tab="dashboard">Dashboard</button>
+        <button type="button" class="admin-v2-tab${isUsersTab ? " is-active" : ""}" data-admin-tab="users">Usuários</button>
+        <button type="button" class="admin-v2-tab${isSimuladosTab ? " is-active" : ""}" data-admin-tab="simulados">Simulados</button>
+        <button type="button" class="admin-v2-tab${isFinanceiroTab ? " is-active" : ""}" data-admin-tab="financeiro">Financeiro</button>
+      </nav>
+
+      <div class="admin-section admin-v2-panel">
+        ${(isDashboardTab || isFinanceiroTab) ? `
+          <div class="admin-metrics-range admin-v2-range" role="group" aria-label="Período das métricas">
+            <button type="button" class="${metricsRange === "today" ? "active" : ""}" data-metrics-range="today">Hoje</button>
+            <button type="button" class="${metricsRange === "7d" ? "active" : ""}" data-metrics-range="7d">7 dias</button>
+            <button type="button" class="${metricsRange === "30d" ? "active" : ""}" data-metrics-range="30d">30 dias</button>
           </div>
-        </div>
-      </div>
-      <div class="admin-section">
-        ${isMetricsMode ? `
-        <div class="admin-metrics">
-          <div class="admin-metrics-head">
-            <h2>Métricas</h2>
-            <div class="admin-metrics-controls">
-              <button type="button" class="admin-light-mode-btn ${lightMode ? "active" : ""}" id="adminLightModeToggle">
-                Modo leve: ${lightMode ? "ON" : "OFF"}
-              </button>
-              <button type="button" class="admin-light-mode-btn" id="adminGenerateReport">
-                Gerar relatório geral
-              </button>
-              <div class="admin-metrics-range" role="group" aria-label="Período das métricas">
-                <button type="button" class="${metricsRange === "today" ? "active" : ""}" data-metrics-range="today">Hoje</button>
-                <button type="button" class="${metricsRange === "7d" ? "active" : ""}" data-metrics-range="7d">7 dias</button>
-                <button type="button" class="${metricsRange === "30d" ? "active" : ""}" data-metrics-range="30d">30 dias</button>
-              </div>
-            </div>
-          </div>
-          <div class="admin-metrics-grid">
-            <article class="admin-metric-card">
-              <span>Usuários cadastrados</span>
-              <strong>${Number.isFinite(Number(metrics?.totalUsersCurrent)) ? Number(metrics.totalUsersCurrent) : 0}</strong>
-            </article>
-            <article class="admin-metric-card">
-              <span>Avaliações concluídas</span>
-              <strong>${Number.isFinite(Number(metrics?.evaluationsCompleted)) ? Number(metrics.evaluationsCompleted) : 0}</strong>
-            </article>
-            <article class="admin-metric-card">
-              <span>Créditos (gasto/comprado)</span>
-              <strong>${Number.isFinite(Number(metrics?.creditsConsumed)) ? Number(metrics.creditsConsumed) : 0} / ${Number.isFinite(Number(metrics?.creditsPurchased)) ? Number(metrics.creditsPurchased) : 0}</strong>
-            </article>
-            <article class="admin-metric-card">
-              <span>Questões de treino</span>
-              <strong>${Number.isFinite(Number(metrics?.trainingQuestions)) ? Number(metrics.trainingQuestions) : 0}</strong>
-            </article>
-            <article class="admin-metric-card">
-              <span>Questões de avaliação</span>
-              <strong>${Number.isFinite(Number(metrics?.evaluationQuestions)) ? Number(metrics.evaluationQuestions) : 0}</strong>
-            </article>
-            <article class="admin-metric-card">
-              <span>Total de questões</span>
-              <strong>${Number.isFinite(Number(metrics?.totalQuestions)) ? Number(metrics.totalQuestions) : 0}</strong>
-            </article>
-          </div>
-          <p class="admin-metrics-footnote"></p>
-        </div>
         ` : ""}
 
-        <div class="admin-global-notice">
-          <label for="adminGlobalNotice">Mural de avisos (aparece para todos os usuários no perfil)</label>
-          <textarea id="adminGlobalNotice" rows="3" placeholder="Escreva um aviso global...">${escapeHtml(globalNotice || "")}</textarea>
-          <button type="button" id="adminGlobalNoticeSave">Salvar aviso</button>
-        </div>
-        <div class="admin-global-notice">
-          <label>Disponibilidade de simulados (treino/avaliação)</label>
-          <p>Gerencie visibilidade do simulado e também os modos de treino/avaliação.</p>
-          <div class="admin-session-grid">
-            ${adminSessionSimulados.map((simulado) => `
-              <article class="admin-session-card">
-                <h3>${simulado.label}</h3>
-                <div class="admin-session-actions">
-                  <button
-                    type="button"
-                    class="admin-session-toggle ${toggleClass(simulado.key, "enabled")}"
-                    data-session-toggle="${simulado.key}:enabled"
-                    data-enabled="${toggleState(simulado.key, "enabled")}"
-                    aria-pressed="${togglePressed(simulado.key, "enabled")}"
-                  >
-                    ${toggleText(simulado.key, "enabled", "Simulado")}
-                  </button>
-                  <button
-                    type="button"
-                    class="admin-session-toggle ${toggleClass(simulado.key, "training")}"
-                    data-session-toggle="${simulado.key}:training"
-                    data-enabled="${toggleState(simulado.key, "training")}"
-                    aria-pressed="${togglePressed(simulado.key, "training")}"
-                  >
-                    ${toggleText(simulado.key, "training", "Treino")}
-                  </button>
-                  <button
-                    type="button"
-                    class="admin-session-toggle ${toggleClass(simulado.key, "evaluation")}"
-                    data-session-toggle="${simulado.key}:evaluation"
-                    data-enabled="${toggleState(simulado.key, "evaluation")}"
-                    aria-pressed="${togglePressed(simulado.key, "evaluation")}"
-                  >
-                    ${toggleText(simulado.key, "evaluation", "Avaliação")}
-                  </button>
-                </div>
-              </article>
-            `).join("")}
+        ${isDashboardTab ? `
+          <div class="admin-metrics-controls">
+            <button type="button" class="admin-light-mode-btn ${lightMode ? "active" : ""}" id="adminLightModeToggle">
+              Modo leve: ${lightMode ? "ON" : "OFF"}
+            </button>
+            <button type="button" class="admin-light-mode-btn" id="adminGenerateReport">
+              Gerar relatório geral
+            </button>
           </div>
-          <button type="button" id="adminSessionAvailabilitySave">Salvar disponibilidade</button>
-        </div>
-        <div class="admin-questions-entry">
-          <h2>Painel de questões</h2>
-          <p>Acesse a área dedicada para cadastrar e revisar questões por simulador e modo.</p>
-          <button type="button" id="goAdminQuestionsPage">Abrir área de questões</button>
-        </div>
-        ${isUsersMode
-          ? `
-            <div class="admin-filters">
-              <input type="text" id="adminSearch" placeholder="Buscar por nome ou email" />
-              <select id="adminRole">
-                <option value="">Todos os perfis</option>
-                <option value="Aluno Piloto">Aluno Piloto</option>
-                <option value="Piloto">Piloto</option>
-                <option value="Outro">Outro</option>
-              </select>
-              <button type="button" id="adminRefresh">Atualizar</button>
-              <button type="button" id="adminExport">Exportar CSV</button>
+          <div class="admin-v2-kpis">
+            <article class="admin-v2-kpi">
+              <span>Usuários cadastrados</span>
+              <strong>${Number.isFinite(Number(metrics?.totalUsersCurrent)) ? Number(metrics.totalUsersCurrent) : "&mdash;"}</strong>
+            </article>
+            <article class="admin-v2-kpi">
+              <span>Usuários ativos${periodSuffix}</span>
+              <strong>${Number.isFinite(Number(metrics?.activeUsers30d)) ? Number(metrics.activeUsers30d) : "&mdash;"}</strong>
+            </article>
+            <article class="admin-v2-kpi">
+              <span>Simulados realizados${periodSuffix}</span>
+              <strong>${Number.isFinite(Number(metrics?.sessionsTotal)) ? Number(metrics.sessionsTotal) : "&mdash;"}</strong>
+            </article>
+            <article class="admin-v2-kpi">
+              <span>Créditos consumidos${periodSuffix}</span>
+              <strong>${Number.isFinite(Number(metrics?.creditsConsumed)) ? Number(metrics.creditsConsumed) : "&mdash;"}</strong>
+            </article>
+          </div>
+
+          <div class="admin-v2-table-card">
+            <h2>Ranking de simulados</h2>
+            <div class="admin-v2-table-wrap">
+              <table class="admin-v2-table">
+                <thead>
+                  <tr>
+                    <th>Simulado</th>
+                    <th>Execuções${periodSuffix}</th>
+                    <th>% acerto médio${periodSuffix}</th>
+                    <th>Créditos consumidos${periodSuffix}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${adminSessionSimulados.map((simulado) => {
+                    const runs = getSimuladoExecucoes(simulado.key);
+                    const avg = getSimuladoAvgAccuracy(simulado.key);
+                    const spent = getSimuladoCredits(simulado.key);
+                    return `
+                      <tr>
+                        <td>${simulado.label}</td>
+                        <td>${runs === null ? "&mdash;" : runs}</td>
+                        <td>${avg === null ? "&mdash;" : `${avg.toFixed(1)}%`}</td>
+                        <td>${spent === null ? "&mdash;" : spent}</td>
+                      </tr>
+                    `;
+                  }).join("")}
+                </tbody>
+              </table>
             </div>
-          `
-          : ""}
-        ${isUsersMode
-          ? (loading ? `<div class="profile-loading">Carregando...</div>` : list)
-          : ""}
-        ${isUsersMode && !loading && usersHasMore
-          ? `<div class="admin-load-more-wrap"><button type="button" id="adminLoadMoreUsers"${usersLoadingMore ? " disabled" : ""}>${usersLoadingMore ? "Carregando..." : "Carregar mais usuários"}</button></div>`
-          : ""}
+          </div>
+
+          <div class="admin-global-notice">
+            <label for="adminGlobalNotice">Mural de avisos (aparece para todos os usuários no perfil)</label>
+            <textarea id="adminGlobalNotice" rows="3" placeholder="Escreva um aviso global...">${escapeHtml(globalNotice || "")}</textarea>
+            <button type="button" id="adminGlobalNoticeSave">Salvar aviso</button>
+          </div>
+        ` : ""}
+
+        ${isUsersTab ? `
+          <div class="admin-filters">
+            <input type="text" id="adminSearch" placeholder="Buscar por nome ou email" />
+            <select id="adminRole">
+              <option value="">Todos os perfis</option>
+              <option value="Aluno Piloto">Aluno Piloto</option>
+              <option value="Piloto">Piloto</option>
+              <option value="Outro">Outro</option>
+            </select>
+            <button type="button" id="adminRefresh">Atualizar</button>
+            <button type="button" id="adminExport">Exportar CSV</button>
+          </div>
+          ${loading ? `<div class="profile-loading">Carregando...</div>` : users.length ? `
+            <div class="admin-v2-table-wrap">
+              <table class="admin-v2-table admin-v2-users-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Perfil</th>
+                    <th>Créditos</th>
+                    <th>Treinos</th>
+                    <th>Avaliações</th>
+                    <th>Último acesso</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${usersTableRows}
+                </tbody>
+              </table>
+            </div>
+          ` : `<div class="profile-empty">Nenhum usuário encontrado.</div>`}
+          ${!loading && usersHasMore
+            ? `<div class="admin-load-more-wrap"><button type="button" id="adminLoadMoreUsers"${usersLoadingMore ? " disabled" : ""}>${usersLoadingMore ? "Carregando..." : "Carregar mais usuários"}</button></div>`
+            : ""}
+        ` : ""}
+
+        ${isSimuladosTab ? `
+          <div class="admin-v2-table-wrap">
+            <table class="admin-v2-table">
+              <thead>
+                <tr>
+                  <th>Simulado</th>
+                  <th>Simulado</th>
+                  <th>Treino</th>
+                  <th>Avaliação</th>
+                  <th class="admin-v2-count-col">Questões Treino</th>
+                  <th class="admin-v2-count-col">Questões Avaliação</th>
+                  <th class="admin-v2-count-col">Nº Questões</th>
+                  <th class="admin-v2-editor-col">Editar</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${adminSessionSimulados.map((simulado) => {
+                  const questionCount = getSimuladoCount(simulado.key);
+                  return `
+                    <tr>
+                      <td>${simulado.label}</td>
+                      <td>
+                        <button
+                          type="button"
+                          class="admin-session-toggle ${toggleClass(simulado.key, "enabled")}"
+                          data-session-toggle="${simulado.key}:enabled"
+                          data-enabled="${toggleState(simulado.key, "enabled")}"
+                          aria-pressed="${togglePressed(simulado.key, "enabled")}"
+                        >
+                          ${toggleText(simulado.key, "enabled", "Simulado")}
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          class="admin-session-toggle ${toggleClass(simulado.key, "training")}"
+                          data-session-toggle="${simulado.key}:training"
+                          data-enabled="${toggleState(simulado.key, "training")}"
+                          aria-pressed="${togglePressed(simulado.key, "training")}"
+                        >
+                          ${toggleText(simulado.key, "training", "Treino")}
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          class="admin-session-toggle ${toggleClass(simulado.key, "evaluation")}"
+                          data-session-toggle="${simulado.key}:evaluation"
+                          data-enabled="${toggleState(simulado.key, "evaluation")}"
+                          aria-pressed="${togglePressed(simulado.key, "evaluation")}"
+                        >
+                          ${toggleText(simulado.key, "evaluation", "Avaliação")}
+                        </button>
+                      </td>
+                      <td class="admin-v2-count-cell">${questionCount.training === null ? "&mdash;" : questionCount.training}</td>
+                      <td class="admin-v2-count-cell">${questionCount.evaluation === null ? "&mdash;" : questionCount.evaluation}</td>
+                      <td class="admin-v2-count-cell">${questionCount.total === null ? "&mdash;" : questionCount.total}</td>
+                      <td class="admin-v2-editor-cell">
+                        <div class="admin-v2-inline-actions">
+                          <button type="button" class="admin-light-mode-btn" data-open-simulado-editor="${simulado.key}" data-editor-mode="training">Treino</button>
+                          <button type="button" class="admin-light-mode-btn" data-open-simulado-editor="${simulado.key}" data-editor-mode="evaluation">Avaliação</button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+          <div class="admin-v2-save-row">
+            <small>Após ajustar os toggles, salve para aplicar no dashboard dos alunos.</small>
+            <button type="button" id="adminSessionAvailabilitySave" class="admin-v2-primary-btn">Salvar disponibilidade</button>
+          </div>
+        ` : ""}
+
+        ${isFinanceiroTab ? `
+          <div class="admin-v2-kpis">
+            <article class="admin-v2-kpi">
+              <span>Créditos vendidos${periodSuffix}</span>
+              <strong>${Number.isFinite(Number(metrics?.creditsPurchased)) ? Number(metrics.creditsPurchased) : "&mdash;"}</strong>
+            </article>
+            <article class="admin-v2-kpi">
+              <span>Créditos consumidos${periodSuffix}</span>
+              <strong>${Number.isFinite(Number(metrics?.creditsConsumed)) ? Number(metrics.creditsConsumed) : "&mdash;"}</strong>
+            </article>
+            <article class="admin-v2-kpi">
+              <span>Saldo geral${periodSuffix}</span>
+              <strong>${Number.isFinite(Number(metrics?.creditsPurchased)) && Number.isFinite(Number(metrics?.creditsConsumed))
+                ? Number(metrics.creditsPurchased) - Number(metrics.creditsConsumed)
+                : "&mdash;"}</strong>
+            </article>
+            <article class="admin-v2-kpi">
+              <span>Receita estimada</span>
+              <strong>${Number.isFinite(Number(metrics?.estimatedRevenue)) ? Number(metrics.estimatedRevenue).toFixed(2) : "&mdash;"}</strong>
+            </article>
+          </div>
+          <p class="admin-metrics-footnote">Se não houver valor monetário disponível, a receita estimada permanece como “—”.</p>
+        ` : ""}
       </div>
     </section>
     ${footerView()}
@@ -1505,6 +1823,196 @@ function adminQuestionHubView({ isAdmin = false, userLabel = "Conta", credits = 
   `;
 }
 
+function adminReportView({
+  reportData = null,
+  isAdmin = false,
+  userLabel = "Conta",
+  credits = null
+} = {}) {
+  const meta = reportData?.meta || {};
+  const resumo = reportData?.resumo || {};
+  const tabelas = reportData?.tabelas || {};
+  const simulados = Array.isArray(tabelas.simulados) ? tabelas.simulados : [];
+  const usuarios = Array.isArray(tabelas.usuarios) ? tabelas.usuarios : [];
+  const questoes = Array.isArray(tabelas.questoesMaisErradas) ? tabelas.questoesMaisErradas : [];
+  const textOrDash = (value) => (value === null || value === undefined || value === "" ? "&mdash;" : String(value));
+  const percentOrDash = (value) => (Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)}%` : "&mdash;");
+  const numberOrNull = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
+  const periodSuffix = meta?.periodMode === "total" ? " (total)" : "";
+  const periodTitle = `${textOrDash(meta?.periodLabel)}${periodSuffix}`;
+  const started = numberOrNull(resumo.simuladosIniciados);
+  const completed = numberOrNull(resumo.simuladosConcluidos);
+  const completionRate = started && started > 0 && completed !== null ? (completed / started) * 100 : null;
+
+  return `
+    ${headerView({ logged: true, isAdmin, userLabel, credits })}
+    <section class="admin-page admin-report">
+      <div class="report-page">
+        <header class="report-header">
+          <div class="report-title-block">
+            <h1>Relatório Geral &middot; PreFlight Simulados</h1>
+            <div class="report-meta">
+              <p><strong>Período:</strong> ${textOrDash(meta?.periodLabel)}</p>
+              <p><strong>Gerado em:</strong> ${textOrDash(meta?.generatedAtText)}</p>
+              <p class="report-note">Campos podem aparecer como “&mdash;” quando não houver dado disponível.</p>
+            </div>
+          </div>
+          <div class="report-actions admin-report-actions">
+            <button type="button" id="adminReportPrint">Imprimir / Salvar PDF</button>
+            <button type="button" id="adminReportDownloadCsv">Baixar CSV</button>
+            <button type="button" id="adminReportBack">Voltar ao Admin</button>
+          </div>
+        </header>
+
+        <section class="admin-report-section report-section-box">
+          <h2>Resumo executivo</h2>
+          <div class="report-kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Usuários cadastrados</div>
+              <div class="kpi-value">${textOrDash(resumo.usersTotal)}</div>
+              <div class="kpi-footnote">(total)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Novos cadastros</div>
+              <div class="kpi-value">${textOrDash(resumo.novosCadastros)}</div>
+              <div class="kpi-footnote">${periodSuffix ? "(total)" : ""}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Usuários ativos</div>
+              <div class="kpi-value">${textOrDash(resumo.usuariosAtivos)}</div>
+              <div class="kpi-footnote">${periodSuffix ? "(total)" : ""}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Simulados iniciados</div>
+              <div class="kpi-value">${textOrDash(resumo.simuladosIniciados)}</div>
+              <div class="kpi-footnote">${periodSuffix ? "(total)" : ""}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Simulados concluídos</div>
+              <div class="kpi-value">${textOrDash(resumo.simuladosConcluidos)}</div>
+              <div class="kpi-footnote">${periodSuffix ? "(total)" : ""}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Créditos comprados</div>
+              <div class="kpi-value">${textOrDash(resumo.creditosComprados)}</div>
+              <div class="kpi-footnote">${periodSuffix ? "(total)" : ""}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Créditos consumidos</div>
+              <div class="kpi-value">${textOrDash(resumo.creditosConsumidos)}</div>
+              <div class="kpi-footnote">${periodSuffix ? "(total)" : ""}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Saldo no período</div>
+              <div class="kpi-value">${textOrDash(resumo.saldoPeriodo)}</div>
+              <div class="kpi-footnote">${periodSuffix ? "(total)" : ""}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Taxa de conclusão</div>
+              <div class="kpi-value">${completionRate === null ? "&mdash;" : `${completionRate.toFixed(1)}%`}</div>
+              <div class="kpi-footnote">${completionRate === null ? "" : `${textOrDash(resumo.simuladosConcluidos)} / ${textOrDash(resumo.simuladosIniciados)}`}</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-report-section report-section-box">
+          <h2>Uso por simulado &middot; ${periodTitle}</h2>
+          <div class="admin-v2-table-wrap report-table-wrap">
+            <table class="admin-v2-table report-table">
+              <thead>
+                <tr>
+                  <th>Simulado</th>
+                  <th class="num">Execuções</th>
+                  <th class="num">Conclusões</th>
+                  <th class="num">% médio</th>
+                  <th class="num">Créditos</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${simulados.map((item) => `
+                  <tr>
+                    <td>${textOrDash(item?.simulado)}</td>
+                    <td class="num">${textOrDash(item?.execucoes)}</td>
+                    <td class="num">${textOrDash(item?.conclusoes)}</td>
+                    <td class="num">${percentOrDash(item?.acertoMedio)}</td>
+                    <td class="num">${textOrDash(item?.creditosConsumidos)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="admin-report-section report-section-box">
+          <h2>Usuários</h2>
+          <div class="admin-v2-table-wrap report-table-wrap">
+            <table class="admin-v2-table report-table report-users-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Email</th>
+                  <th>Perfil</th>
+                  <th class="num">Créditos</th>
+                  <th class="num">Treinos</th>
+                  <th class="num">Avaliações</th>
+                  <th>Último acesso</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${usuarios.length
+                  ? usuarios.map((item) => `
+                      <tr>
+                        <td>${textOrDash(item?.nome)}</td>
+                        <td class="email">${textOrDash(item?.email)}</td>
+                        <td>${textOrDash(item?.perfil)}</td>
+                        <td class="num">${textOrDash(item?.creditos)}</td>
+                        <td class="num">${textOrDash(item?.treinos)}</td>
+                        <td class="num">${textOrDash(item?.avaliacoes)}</td>
+                        <td>${textOrDash(item?.ultimoAcesso)}</td>
+                      </tr>
+                    `).join("")
+                  : `<tr><td colspan="7">&mdash;</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="admin-report-section report-section-box">
+          <h2>Qualidade &middot; Top questões mais erradas</h2>
+          ${questoes.length
+            ? `
+              <div class="admin-v2-table-wrap report-table-wrap">
+                <table class="admin-v2-table report-table">
+                  <thead>
+                    <tr>
+                      <th>Questão</th>
+                      <th>Simulado</th>
+                      <th class="num">Erros</th>
+                      <th class="num">% acerto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${questoes.map((item) => `
+                      <tr>
+                        <td>${textOrDash(item?.questao)}</td>
+                        <td>${textOrDash(item?.simulado)}</td>
+                        <td class="num">${textOrDash(item?.erros)}</td>
+                        <td class="num">${percentOrDash(item?.acerto)}</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            `
+            : `<div class="report-empty-box">Dados não disponíveis</div>`}
+        </section>
+      </div>
+    </section>
+    ${footerView()}
+    ${contactWidgetView()}
+  `;
+}
+
 function adminQuestionEditorView({
   isAdmin = false,
   userLabel = "Conta",
@@ -1539,18 +2047,26 @@ function adminQuestionEditorView({
   const questionList = visibleQuestionItems
     .map((item) => `
       <button type="button" class="admin-question-item ${Number(item?.id) === Number(questionEditor?.id) ? "active" : ""}" data-question-edit="${Number(item?.id) || 0}">
-        <div class="admin-question-item-head">
-          <div class="admin-question-item-id">
-            <strong>#${Number(item?.id) || 0}</strong>
-            ${reviewedIdSet.has(Number(item?.id))
-              ? `<span class="admin-question-reviewed-badge" aria-label="Revisado">&#10003;</span>`
-              : ""}
-          </div>
-          ${item?.image
+        <div class="qeditor-item-media">
+          ${item?.image && item?.textOnImageCard !== true
             ? `<img src="${escapeHtml(String(item.image))}" alt="Questão ${Number(item?.id) || 0}" loading="lazy" />`
-            : `<span class="admin-question-thumb-empty">Sem imagem</span>`}
+            : `<span class="admin-question-thumb-empty">${item?.textOnImageCard === true ? "Enunciado no card" : "Sem imagem"}</span>`}
         </div>
-        <span>${escapeHtml(String(item?.question || "Sem enunciado"))}</span>
+        <div class="qeditor-item-body">
+          <div class="qeditor-item-top">
+            <strong class="qeditor-item-id">#${Number(item?.id) || 0}</strong>
+            <div class="qeditor-item-badges">
+              <span class="qeditor-chip qeditor-chip--code">${escapeHtml(String(item?.controlCode || ""))}</span>
+              ${markedIdSet.has(Number(item?.id))
+                ? `<span class="qeditor-chip qeditor-chip--marked">Marcada</span>`
+                : ""}
+              ${reviewedIdSet.has(Number(item?.id))
+                ? `<span class="qeditor-chip qeditor-chip--reviewed">Revisada</span>`
+                : ""}
+            </div>
+          </div>
+          <span class="qeditor-item-question">${escapeHtml(String(item?.question || "Sem enunciado"))}</span>
+        </div>
       </button>
     `)
     .join("");
@@ -1563,6 +2079,11 @@ function adminQuestionEditorView({
     ? Number(questionEditor.correctIndex)
     : 0;
   const editorExplanation = escapeHtml(String(questionEditor?.explanation || ""));
+  const editorTextOnImageCard = questionEditor?.textOnImageCard === true;
+  const editorFontSize = Number.isFinite(Number(questionEditor?.questionFontSize))
+    ? Math.max(10, Math.min(36, Math.floor(Number(questionEditor.questionFontSize))))
+    : 18;
+  const editorControlCode = escapeHtml(String(questionEditor?.controlCode || ""));
   const currentIndex = visibleQuestionItems.findIndex(
     (item) => Number(item?.id) === Number(questionEditor?.id)
   );
@@ -1576,27 +2097,45 @@ function adminQuestionEditorView({
 
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
-    <section class="admin-page">
-      <div class="admin-header">
-        <h1>Editor de questões</h1>
-        <p>Gerencie o banco de perguntas por simulador e modo.</p>
-      </div>
-      <div class="admin-questions">
-        <div class="admin-questions-head">
-          <h2>Banco de questões</h2>
-          <div class="admin-question-mode-chip">${escapeHtml(String(selectedBankLabel))}</div>
-          <div class="admin-questions-controls">
-            <button type="button" id="adminQuestionOnlyMarked" class="${showOnlyMarked ? "active" : ""}">
-              ${showOnlyMarked ? "Mostrar todas" : "Só marcadas"}
-            </button>
-            <button type="button" id="adminQuestionPdf">Gerar PDF</button>
-            <button type="button" id="adminQuestionReload">Recarregar</button>
-            <button type="button" id="adminQuestionNew">Nova questão</button>
-            <button type="button" id="adminQuestionEditorBack">Simuladores</button>
+    <section class="admin-page qeditor-v2">
+      <div class="qeditor-shell">
+        <div class="qeditor-topbar">
+          <div class="qeditor-context">
+            <h1>Editor de questões</h1>
+            <div class="qeditor-context-line">
+              <span class="qeditor-badge">${escapeHtml(String(selectedBankLabel).replace("•", "·"))}</span>
+              <span class="qeditor-badge qeditor-badge--soft">${editorId ? `Editando questão #${editorId}` : "Nova questão"}</span>
+            </div>
+          </div>
+          <div class="qeditor-top-actions">
+            <div class="qeditor-action-group qeditor-action-group--primary">
+              <button type="button" data-qeditor-proxy="#adminQuestionSave">Salvar</button>
+            </div>
+            <div class="qeditor-action-group">
+              <button type="button" data-qeditor-proxy="#adminQuestionSaveAndNew">Salvar e novo</button>
+              <button type="button" id="adminQuestionReload">Recarregar</button>
+              <button type="button" id="adminQuestionNew">Nova questão</button>
+              <button type="button" data-qeditor-proxy="#adminQuestionDuplicate">Duplicar</button>
+            </div>
+            <div class="qeditor-action-group">
+              <button type="button" id="adminQuestionOnlyMarked" class="${showOnlyMarked ? "active" : ""}">
+                ${showOnlyMarked ? "Mostrar todas" : "Só marcadas"}
+              </button>
+              <button type="button" id="adminQuestionPdf">Gerar PDF</button>
+              <button type="button" id="adminQuestionEditorBack">Simuladores</button>
+            </div>
+            <div class="qeditor-action-group qeditor-action-group--danger">
+              <button type="button" data-qeditor-proxy="#adminQuestionDelete">Excluir</button>
+            </div>
           </div>
         </div>
-        <div class="admin-questions-grid">
-          <div class="admin-question-left">
+
+        <div class="qeditor-layout">
+          <aside class="qeditor-sidebar">
+            <div class="admin-question-search-code">
+              <input type="text" id="adminQuestionSearchCode" placeholder="Buscar código (ex: METAR_TAF_EVALUATION-Q0042)" />
+              <button type="button" id="adminQuestionFindByCode">Ir</button>
+            </div>
             <div class="admin-question-list">
               ${questionList || `<div class="profile-empty">${showOnlyMarked ? "Nenhuma questão marcada neste banco." : "Nenhuma questão cadastrada neste banco."}</div>`}
             </div>
@@ -1618,72 +2157,143 @@ function adminQuestionEditorView({
                 Limpar marcadas
               </button>
             </div>
-          </div>
-          <div class="admin-question-editor">
-            <div class="admin-question-row">
-              <label for="adminQuestionId">ID</label>
-              <input type="number" id="adminQuestionId" min="1" step="1" value="${editorId}" />
-            </div>
-            <div class="admin-question-row">
-              <label for="adminQuestionImage">Imagem (caminho)</label>
-              <input type="text" id="adminQuestionImage" value="${editorImage}" placeholder="assets/questions/sigwx/1.webp" />
-              <div class="admin-question-preview ${editorImage ? "" : "is-empty"}">
-                ${editorImage
-                  ? `<img src="${editorImage}" alt="Prévia da questão" />`
-                  : `<span>Sem imagem definida para esta questão.</span>`}
+          </aside>
+
+          <main class="qeditor-main">
+            <div class="admin-question-editor">
+              <div class="qeditor-card qeditor-card--fields">
+                <h3>Dados</h3>
+                <div class="qeditor-fields-2col">
+                  <div class="admin-question-row">
+                    <label for="adminQuestionId">ID</label>
+                    <input type="number" id="adminQuestionId" min="1" step="1" value="${editorId}" />
+                  </div>
+                  <div class="admin-question-row" id="adminQuestionImageRow"${editorTextOnImageCard ? " style=\"display:none;\"" : ""}>
+                    <label for="adminQuestionImage">Imagem (caminho)</label>
+                    <input type="text" id="adminQuestionImage" value="${editorImage}" placeholder="assets/questions/sigwx/1.webp" />
+                  </div>
+                </div>
+                <div class="admin-question-row">
+                  <label for="adminQuestionControlCode">Código de controle</label>
+                  <input type="text" id="adminQuestionControlCode" value="${editorControlCode}" readonly />
+                </div>
+                <div class="admin-question-row">
+                  <label class="admin-question-switch">
+                    <input type="checkbox" id="adminQuestionTextOnImageCard" ${editorTextOnImageCard ? "checked" : ""} />
+                    <span>Enunciado no card da imagem (sem imagem)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="qeditor-card">
+                <h3 id="adminQuestionPreviewTitle">${editorTextOnImageCard ? "Preview do enunciado" : "Preview da imagem"}</h3>
+                <div class="admin-question-preview ${(editorTextOnImageCard ? editorQuestion : editorImage) ? "" : "is-empty"}">
+                  <img id="adminQuestionImagePreview" src="${editorImage}" alt="Prévia da questão"${editorTextOnImageCard ? " style=\"display:none;\"" : ""} />
+                  <span id="adminQuestionImagePlaceholder"${editorTextOnImageCard || editorImage ? " style=\"display:none;\"" : ""}>Sem imagem definida para esta questão.</span>
+                  <span id="adminQuestionTextPreview"${editorTextOnImageCard ? "" : " style=\"display:none;\""}>${editorQuestion || "Digite o enunciado para visualizar aqui."}</span>
+                </div>
+              </div>
+
+              <div class="qeditor-card">
+                <h3>Enunciado</h3>
+                <div class="qeditor-rich-toolbar" role="toolbar" aria-label="Formatação do enunciado">
+                  <button type="button" class="qeditor-rich-btn" data-rich-cmd="bold" title="Negrito"><strong>B</strong></button>
+                  <button type="button" class="qeditor-rich-btn" data-rich-cmd="italic" title="Itálico"><em>I</em></button>
+                  <button type="button" class="qeditor-rich-btn" data-rich-cmd="underline" title="Sublinhado"><u>U</u></button>
+                  <button type="button" class="qeditor-rich-btn" data-rich-cmd="justifyLeft" title="Alinhar à esquerda">Esq</button>
+                  <button type="button" class="qeditor-rich-btn" data-rich-cmd="justifyCenter" title="Centralizar">Centro</button>
+                  <button type="button" class="qeditor-rich-btn" data-rich-cmd="justifyRight" title="Alinhar à direita">Dir</button>
+                  <label class="qeditor-rich-color" for="adminQuestionFontSize">Tamanho base</label>
+                  <select id="adminQuestionFontSize" title="Tamanho base do enunciado">
+                    <option value="10px" ${editorFontSize === 10 ? "selected" : ""}>10</option>
+                    <option value="12px" ${editorFontSize === 12 ? "selected" : ""}>12</option>
+                    <option value="14px" ${editorFontSize === 14 ? "selected" : ""}>14</option>
+                    <option value="16px" ${editorFontSize === 16 ? "selected" : ""}>16</option>
+                    <option value="18px" ${editorFontSize === 18 ? "selected" : ""}>18</option>
+                    <option value="20px" ${editorFontSize === 20 ? "selected" : ""}>20</option>
+                    <option value="24px" ${editorFontSize === 24 ? "selected" : ""}>24</option>
+                    <option value="28px" ${editorFontSize === 28 ? "selected" : ""}>28</option>
+                  </select>
+                  <label class="qeditor-rich-color" for="adminQuestionTextColor">Cor</label>
+                  <input type="color" id="adminQuestionTextColor" value="#0f2f5a" title="Cor do texto" />
+                </div>
+                <div class="admin-question-row">
+                  <div
+                    id="adminQuestionTextRich"
+                    class="qeditor-rich-input"
+                    contenteditable="true"
+                    role="textbox"
+                    aria-label="Enunciado com formatação"
+                    aria-multiline="true"
+                  ></div>
+                  <textarea id="adminQuestionText" rows="3" placeholder="Digite o enunciado" style="display:none;">${editorQuestion}</textarea>
+                </div>
+              </div>
+
+              <div class="qeditor-card">
+                <h3>Alternativas</h3>
+                <div class="qeditor-options-grid">
+                  <div class="admin-question-row">
+                    <label for="adminQuestionOption0">A</label>
+                    <input type="text" id="adminQuestionOption0" value="${escapeHtml(String(editorOptions[0] || ""))}" />
+                  </div>
+                  <div class="admin-question-row">
+                    <label for="adminQuestionOption1">B</label>
+                    <input type="text" id="adminQuestionOption1" value="${escapeHtml(String(editorOptions[1] || ""))}" />
+                  </div>
+                  <div class="admin-question-row">
+                    <label for="adminQuestionOption2">C</label>
+                    <input type="text" id="adminQuestionOption2" value="${escapeHtml(String(editorOptions[2] || ""))}" />
+                  </div>
+                  <div class="admin-question-row">
+                    <label for="adminQuestionOption3">D</label>
+                    <input type="text" id="adminQuestionOption3" value="${escapeHtml(String(editorOptions[3] || ""))}" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="qeditor-card">
+                <div class="qeditor-answer-grid">
+                  <div class="admin-question-row">
+                    <label for="adminQuestionCorrect">Resposta correta</label>
+                    <select id="adminQuestionCorrect">
+                      <option value="0" ${editorCorrect === 0 ? "selected" : ""}>A</option>
+                      <option value="1" ${editorCorrect === 1 ? "selected" : ""}>B</option>
+                      <option value="2" ${editorCorrect === 2 ? "selected" : ""}>C</option>
+                      <option value="3" ${editorCorrect === 3 ? "selected" : ""}>D</option>
+                    </select>
+                  </div>
+                  <div class="admin-question-row">
+                    <label for="adminQuestionExplanation">Explicação</label>
+                    <textarea id="adminQuestionExplanation" rows="3" placeholder="Explique por que a alternativa correta está certa">${editorExplanation}</textarea>
+                  </div>
+                </div>
+              </div>
+
+              <div class="qeditor-footer">
+                <div class="qeditor-footer-left">
+                  <button type="button" id="adminQuestionPrev" ${hasPrev ? "" : "disabled"}>Anterior</button>
+                  <button type="button" id="adminQuestionNext" ${hasNext ? "" : "disabled"}>Próxima</button>
+                  <label class="admin-question-switch">
+                    <input type="checkbox" id="adminQuestionAutoNextOnSave" ${autoNextOnSave ? "checked" : ""} />
+                    <span>Após salvar, ir para próxima</span>
+                  </label>
+                </div>
+                <div class="qeditor-footer-right">
+                  <button type="button" id="adminQuestionSave">Salvar</button>
+                  <button type="button" id="adminQuestionSaveAndNew">Salvar e novo</button>
+                  <button type="button" id="adminQuestionDuplicate">Duplicar</button>
+                  <button type="button" id="adminQuestionMarkToggle" class="${isCurrentMarked ? "is-marked" : ""}">
+                    ${isCurrentMarked ? "Desmarcar revisão" : "Marcar revisão"}
+                  </button>
+                  <button type="button" id="adminQuestionReviewedToggle" class="${isCurrentReviewed ? "is-reviewed" : ""}">
+                    ${isCurrentReviewed ? "Desmarcar revisado" : "Revisado"}
+                  </button>
+                  <button type="button" id="adminQuestionDelete" class="danger">Excluir</button>
+                </div>
               </div>
             </div>
-            <div class="admin-question-row">
-              <label for="adminQuestionText">Enunciado</label>
-              <textarea id="adminQuestionText" rows="3" placeholder="Digite o enunciado">${editorQuestion}</textarea>
-            </div>
-            <div class="admin-question-row">
-              <label for="adminQuestionOption0">Opção A</label>
-              <input type="text" id="adminQuestionOption0" value="${escapeHtml(String(editorOptions[0] || ""))}" />
-            </div>
-            <div class="admin-question-row">
-              <label for="adminQuestionOption1">Opção B</label>
-              <input type="text" id="adminQuestionOption1" value="${escapeHtml(String(editorOptions[1] || ""))}" />
-            </div>
-            <div class="admin-question-row">
-              <label for="adminQuestionOption2">Opção C</label>
-              <input type="text" id="adminQuestionOption2" value="${escapeHtml(String(editorOptions[2] || ""))}" />
-            </div>
-            <div class="admin-question-row">
-              <label for="adminQuestionOption3">Opção D</label>
-              <input type="text" id="adminQuestionOption3" value="${escapeHtml(String(editorOptions[3] || ""))}" />
-            </div>
-            <div class="admin-question-row">
-              <label for="adminQuestionCorrect">Resposta correta</label>
-              <select id="adminQuestionCorrect">
-                <option value="0" ${editorCorrect === 0 ? "selected" : ""}>A</option>
-                <option value="1" ${editorCorrect === 1 ? "selected" : ""}>B</option>
-                <option value="2" ${editorCorrect === 2 ? "selected" : ""}>C</option>
-                <option value="3" ${editorCorrect === 3 ? "selected" : ""}>D</option>
-              </select>
-            </div>
-            <div class="admin-question-row">
-              <label for="adminQuestionExplanation">Explicação</label>
-              <textarea id="adminQuestionExplanation" rows="3" placeholder="Explique por que a alternativa correta está certa">${editorExplanation}</textarea>
-            </div>
-            <label class="admin-question-switch">
-              <input type="checkbox" id="adminQuestionAutoNextOnSave" ${autoNextOnSave ? "checked" : ""} />
-              <span>Após salvar, ir para próxima</span>
-            </label>
-            <div class="admin-question-actions">
-              <button type="button" id="adminQuestionSave">Salvar questão</button>
-              <button type="button" id="adminQuestionSaveAndNew">Salvar e novo</button>
-              <button type="button" id="adminQuestionDelete" class="danger">Excluir questão</button>
-              <button type="button" id="adminQuestionMarkToggle" class="${isCurrentMarked ? "is-marked" : ""}">
-                ${isCurrentMarked ? "Desmarcar revisão" : "Marcar revisão"}
-              </button>
-              <button type="button" id="adminQuestionReviewedToggle" class="${isCurrentReviewed ? "is-reviewed" : ""}">
-                ${isCurrentReviewed ? "Desmarcar revisado" : "Revisado"}
-              </button>
-              <button type="button" id="adminQuestionPrev" ${hasPrev ? "" : "disabled"}>Anterior</button>
-              <button type="button" id="adminQuestionNext" ${hasNext ? "" : "disabled"}>Próxima</button>
-            </div>
-          </div>
+          </main>
         </div>
       </div>
     </section>
@@ -1953,7 +2563,7 @@ export {
   loginView,
   registerView,
   dashboardView,
-  metarTafHubView,
+  simuladoModuleView,
   sigwxView,
   sigwxEvaluationView,
   sigwxEvaluationResultView,
@@ -1961,6 +2571,7 @@ export {
   profileView,
   profileEvaluationView,
   adminView,
+  adminReportView,
   adminQuestionHubView,
   adminQuestionEditorView,
   creditsView,

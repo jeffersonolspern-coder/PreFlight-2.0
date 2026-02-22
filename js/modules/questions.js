@@ -1,6 +1,5 @@
 import {
   collection,
-  deleteDoc,
   doc,
   getDocs,
   serverTimestamp,
@@ -39,6 +38,8 @@ async function saveQuestion(bankId, questionId, payload = {}, updatedBy = "") {
     ref,
     {
       ...payload,
+      deleted: false,
+      deletedAt: null,
       updatedBy: toSafeKey(updatedBy),
       updatedAt: serverTimestamp()
     },
@@ -46,9 +47,18 @@ async function saveQuestion(bankId, questionId, payload = {}, updatedBy = "") {
   );
 }
 
-async function deleteQuestion(bankId, questionId) {
+async function deleteQuestion(bankId, questionId, deletedBy = "") {
   const ref = getQuestionDoc(bankId, questionId);
-  await deleteDoc(ref);
+  await setDoc(
+    ref,
+    {
+      deleted: true,
+      deletedAt: serverTimestamp(),
+      deletedBy: toSafeKey(deletedBy),
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
 }
 
 export {
