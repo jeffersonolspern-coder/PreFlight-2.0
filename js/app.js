@@ -52,8 +52,10 @@ import {
   getUserSessionCounts,
   getGlobalNotice,
   getSessionAvailability,
+  getCarouselConfigs,
   setGlobalNotice,
   setSessionAvailability,
+  setCarouselConfig,
   setCachedUserCredits,
   clearUserFirestoreCaches
 } from "./modules/users.js";
@@ -184,6 +186,63 @@ const ADMIN_SIMULADO_CATALOG = [
   { key: "sinais_luminosos", label: "Sinais luminosos" },
   { key: "espacos_aereos", label: "Espaços Aéreos" }
 ];
+const DEFAULT_MODULE_DECISION_CAROUSEL = {
+  images: [
+    "/assets/img/mode-treinamento.png",
+    "/assets/img/mode-treinamento-1.png",
+    "/assets/img/mode-avaliacao.png",
+    "/assets/img/mode-avaliacao-2.png"
+  ],
+  slides: [
+    "Treinamento guiado::Receba feedback imediato em cada questão e ajuste sua interpretação com clareza.",
+    "Correção orientada::Visualize rapidamente acertos e pontos de melhoria para evoluir de forma consistente.",
+    "Avaliação realista::Simule o ambiente de prova com foco em ritmo e tomada de decisão.",
+    "Pronto para prova::Treine leitura operacional e aumente sua confiança para o exame."
+  ]
+};
+const DEFAULT_HOME_TRAINING_CAROUSEL = {
+  images: [
+    "assets/img/mode-treinamento.png",
+    "assets/img/mode-treinamento-1.png",
+    "assets/img/mode-treinamento-2.png",
+    "assets/img/mode-treinamento-3.png",
+    "assets/img/mode-treinamento-4.png"
+  ],
+  slides: [
+    "Treinamento com feedback imediato::Veja como as questões são apresentadas no modo treino e receba retorno instantâneo para ajustar sua interpretação.",
+    "Navegação rápida por questões::Acompanhe o painel lateral numerado e avance com fluidez para cobrir mais conteúdo em menos tempo.",
+    "Interface focada na imagem::Treine leitura visual de cartas e símbolos com enunciado e alternativas organizados lado a lado.",
+    "Correção explicada::Após responder, visualize a alternativa correta e uma explicação objetiva para consolidar o aprendizado.",
+    "Ritmo contínuo de estudo::Use o fluxo anterior/próxima/finalizar para manter constância e revisar todo o bloco de forma prática."
+  ]
+};
+const DEFAULT_HOME_EVALUATION_CAROUSEL = {
+  images: [
+    "assets/img/mode-avaliacao.png",
+    "assets/img/mode-avaliacao-1.png",
+    "assets/img/mode-avaliacao-2.png",
+    "assets/img/mode-avaliacao-3.png",
+    "assets/img/mode-avaliacao-4.png"
+  ],
+  slides: [
+    "Experiência real de avaliação::Visual completo da prova para você treinar foco, ritmo e tomada de decisão em ambiente de exame.",
+    "Controle de navegação inteligente::Use os botões de avançar e o modo automático para manter fluidez e ganhar tempo em cada questão.",
+    "Treino com gestão de tempo::Simule a pressão do relógio e desenvolva consistência para performar bem dentro do tempo limite.",
+    "Cartas reais do dia a dia::Questões baseadas em situações meteorológicas reais para aproximar o estudo da rotina operacional.",
+    "Gabarito claro e objetivo::No final, revise acertos e erros com clareza para corrigir pontos fracos e evoluir com direção."
+  ]
+};
+const CAROUSEL_EDITOR_CATALOG = [
+  { key: "home_training", label: "Home · Treinamento" },
+  { key: "home_evaluation", label: "Home · Avaliação" },
+  { key: "module_sigwx", label: "Módulo · SIGWX" },
+  { key: "module_metar_taf", label: "Módulo · METAR / TAF" },
+  { key: "module_nuvens", label: "Módulo · Nuvens" },
+  { key: "module_sinais_luminosos", label: "Módulo · Sinais luminosos" },
+  { key: "module_notam", label: "Módulo · NOTAM" },
+  { key: "module_rotaer", label: "Módulo · ROTAER" },
+  { key: "module_espacos_aereos", label: "Módulo · Espaços Aéreos" }
+];
 const DEFAULT_QUESTION_BANKS = {
   sigwx_training: Array.isArray(sigwxQuestions) ? sigwxQuestions.map((q) => ({ ...q })) : [],
   sigwx_evaluation: Array.isArray(sigwxEvaluationQuestions) ? sigwxEvaluationQuestions.map((q) => ({ ...q })) : [],
@@ -237,6 +296,8 @@ let sessionAvailability = SESSION_SIMULADO_KEYS.reduce((acc, key) => {
   acc[key] = { enabled: true, training: true, evaluation: true };
   return acc;
 }, {});
+let carouselConfigs = {};
+let adminSelectedCarouselKey = "home_training";
 let pendingWelcomeAnnouncement = "";
 let currentCredits = null;
 let creditHistoryItems = [];
@@ -417,6 +478,89 @@ function updateBrowserPath(pathname, { replace = false } = {}) {
 
 function getModulePathByKey(simuladoKey = "sigwx") {
   return MODULE_ROUTE_BY_KEY[simuladoKey] || MODULE_ROUTE_BY_KEY.sigwx;
+}
+
+function getModuleCarouselKey(simuladoKey = "sigwx") {
+  const safeKey = SIMULADO_BANKS[simuladoKey] ? simuladoKey : "sigwx";
+  return `module_${safeKey}`;
+}
+
+function getDefaultCarouselConfigByKey(key = "") {
+  const safeKey = String(key || "").trim();
+  if (safeKey === "home_training") {
+    return {
+      images: [...DEFAULT_HOME_TRAINING_CAROUSEL.images],
+      slides: [...DEFAULT_HOME_TRAINING_CAROUSEL.slides]
+    };
+  }
+  if (safeKey === "home_evaluation") {
+    return {
+      images: [...DEFAULT_HOME_EVALUATION_CAROUSEL.images],
+      slides: [...DEFAULT_HOME_EVALUATION_CAROUSEL.slides]
+    };
+  }
+  return {
+    images: [...DEFAULT_MODULE_DECISION_CAROUSEL.images],
+    slides: [...DEFAULT_MODULE_DECISION_CAROUSEL.slides]
+  };
+}
+
+function normalizeCarouselConfig(config = null, fallbackKey = "") {
+  const fallback = getDefaultCarouselConfigByKey(fallbackKey);
+  const rawImages = Array.isArray(config?.images)
+    ? config.images.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const rawSlides = Array.isArray(config?.slides)
+    ? config.slides.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const videoUrl = String(config?.videoUrl || "").trim();
+  const videoTitle = String(config?.videoTitle || "").trim();
+  const videoDescription = String(config?.videoDescription || "").trim();
+  return {
+    images: rawImages.length ? rawImages : fallback.images,
+    slides: rawSlides.length ? rawSlides : fallback.slides,
+    videoUrl,
+    videoTitle,
+    videoDescription
+  };
+}
+
+function buildCarouselConfigs(raw = {}) {
+  return CAROUSEL_EDITOR_CATALOG.reduce((acc, item) => {
+    acc[item.key] = normalizeCarouselConfig(raw?.[item.key], item.key);
+    return acc;
+  }, {});
+}
+
+async function refreshCarouselConfigs({ forceRefresh = false } = {}) {
+  try {
+    const remote = await getCarouselConfigs({ forceRefresh });
+    carouselConfigs = buildCarouselConfigs(remote || {});
+  } catch (error) {
+    if (!Object.keys(carouselConfigs || {}).length) {
+      carouselConfigs = buildCarouselConfigs({});
+    }
+  }
+}
+
+function getHomeCarouselConfig(mode = "training") {
+  const key = mode === "evaluation" ? "home_evaluation" : "home_training";
+  return normalizeCarouselConfig(carouselConfigs?.[key], key);
+}
+
+function getModuleCarouselConfig(simuladoKey = "sigwx") {
+  const key = getModuleCarouselKey(simuladoKey);
+  return normalizeCarouselConfig(carouselConfigs?.[key], key);
+}
+
+function getModuleVideoConfig(simuladoKey = "sigwx") {
+  const key = getModuleCarouselKey(simuladoKey);
+  const config = normalizeCarouselConfig(carouselConfigs?.[key], key);
+  return {
+    url: String(config?.videoUrl || "").trim(),
+    title: String(config?.videoTitle || "").trim(),
+    description: String(config?.videoDescription || "").trim()
+  };
 }
 
 function getModuleSlugFromPath(pathname = window.location.pathname) {
@@ -1996,13 +2140,18 @@ async function renderHomePublic({ replacePath = false } = {}) {
   } catch (_) {
     sessionAvailability = normalizeSessionAvailability(sessionAvailability);
   }
+  await refreshCarouselConfigs({ forceRefresh: false });
 
   app.innerHTML = homePublicView({
     logged: !!currentUser,
     isAdmin: isAdminUser(),
     userLabel: getUserLabel(),
     credits: getCreditsLabel(),
-    sessionAvailability
+    sessionAvailability,
+    homeCarousels: {
+      training: getHomeCarouselConfig("training"),
+      evaluation: getHomeCarouselConfig("evaluation")
+    }
   });
   setupGlobalMenu();
   setupLogout();
@@ -2074,8 +2223,6 @@ async function renderModuleHub(simuladoKey = "sigwx", { replacePath = false } = 
     await renderDashboard({ replacePath });
     return;
   }
-  const runnableKeys = new Set(["sigwx", "metar_taf", "nuvens", "sinais_luminosos"]);
-  const canStartRealSession = runnableKeys.has(safeKey);
 
   updateBrowserPath(getModulePathByKey(safeKey), { replace: replacePath });
 
@@ -2086,13 +2233,20 @@ async function renderModuleHub(simuladoKey = "sigwx", { replacePath = false } = 
   } catch (_) {
     sessionAvailability = normalizeSessionAvailability(sessionAvailability);
   }
+  await refreshCarouselConfigs({ forceRefresh: false });
 
-  app.innerHTML = simuladoModuleView(moduleConfig, {
+  const moduleViewConfig = {
+    ...moduleConfig,
+    decisionCarousel: getModuleCarouselConfig(safeKey),
+    video: getModuleVideoConfig(safeKey)
+  };
+
+  app.innerHTML = simuladoModuleView(moduleViewConfig, {
     isAdmin: isAdminUser(),
     userLabel: getUserLabel(),
     credits: getCreditsLabel(),
-    trainingEnabled: canStartRealSession && isSessionModeAvailable(safeKey, "training"),
-    evaluationEnabled: canStartRealSession && isSessionModeAvailable(safeKey, "evaluation")
+    trainingEnabled: isSessionModeAvailable(safeKey, "training"),
+    evaluationEnabled: isSessionModeAvailable(safeKey, "evaluation")
   });
 
   setupLogout();
@@ -3102,6 +3256,8 @@ async function renderAdmin() {
   adminUsersLoadingMore = false;
   adminMetricsFromApi = false;
   adminReportData = null;
+  await refreshCarouselConfigs({ forceRefresh: false });
+  adminSelectedCarouselKey = normalizeAdminSelectedCarouselKey(adminSelectedCarouselKey);
 
   app.innerHTML = adminView({
     users: [],
@@ -3118,7 +3274,9 @@ async function renderAdmin() {
     usersLoadingMore: false,
     mode: "dashboard",
     sessionAvailability,
-    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts(),
+    carouselConfigs: getAdminCarouselConfigsForView(),
+    selectedCarouselKey: adminSelectedCarouselKey
   });
   setupGlobalMenu();
   setupLogout();
@@ -3169,6 +3327,19 @@ function getAdminSimuladoQuestionCounts() {
   }, {});
 }
 
+function getAdminCarouselConfigsForView() {
+  return CAROUSEL_EDITOR_CATALOG.reduce((acc, item) => {
+    acc[item.key] = normalizeCarouselConfig(carouselConfigs?.[item.key], item.key);
+    return acc;
+  }, {});
+}
+
+function normalizeAdminSelectedCarouselKey(key = "") {
+  const safeKey = String(key || "").trim();
+  const exists = CAROUSEL_EDITOR_CATALOG.some((item) => item.key === safeKey);
+  return exists ? safeKey : "home_training";
+}
+
 function buildCurrentAdminReportData() {
   const metrics = enrichAdminMetrics(adminMetricsSummary || computeAdminMetrics({
     users: adminUsersCache,
@@ -3214,6 +3385,7 @@ async function renderAdminUsers({ forceRefresh = false } = {}) {
   }
 
   adminPanelScreen = "users";
+  adminSelectedCarouselKey = normalizeAdminSelectedCarouselKey(adminSelectedCarouselKey);
   if (forceRefresh) {
     adminUsersCache = [];
     adminUsersCursor = null;
@@ -3236,7 +3408,9 @@ async function renderAdminUsers({ forceRefresh = false } = {}) {
     usersLoadingMore: adminUsersLoadingMore,
     mode: "users",
     sessionAvailability,
-    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts(),
+    carouselConfigs: getAdminCarouselConfigsForView(),
+    selectedCarouselKey: adminSelectedCarouselKey
   });
   setupGlobalMenu();
   setupLogout();
@@ -3273,6 +3447,7 @@ async function renderAdminMetrics({ forceRefresh = false } = {}) {
   }
 
   adminPanelScreen = "dashboard";
+  adminSelectedCarouselKey = normalizeAdminSelectedCarouselKey(adminSelectedCarouselKey);
   app.innerHTML = adminView({
     users: [],
     loading: false,
@@ -3288,7 +3463,9 @@ async function renderAdminMetrics({ forceRefresh = false } = {}) {
     usersLoadingMore: false,
     mode: "dashboard",
     sessionAvailability,
-    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts(),
+    carouselConfigs: getAdminCarouselConfigsForView(),
+    selectedCarouselKey: adminSelectedCarouselKey
   });
   setupGlobalMenu();
   setupLogout();
@@ -3333,6 +3510,8 @@ async function renderAdminSimulados() {
     return;
   }
   adminPanelScreen = "simulados";
+  await refreshCarouselConfigs({ forceRefresh: false });
+  adminSelectedCarouselKey = normalizeAdminSelectedCarouselKey(adminSelectedCarouselKey);
   app.innerHTML = adminView({
     users: [],
     loading: false,
@@ -3348,7 +3527,9 @@ async function renderAdminSimulados() {
     usersLoadingMore: false,
     mode: "simulados",
     sessionAvailability,
-    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts(),
+    carouselConfigs: getAdminCarouselConfigsForView(),
+    selectedCarouselKey: adminSelectedCarouselKey
   });
   setupGlobalMenu();
   setupLogout();
@@ -3372,6 +3553,7 @@ async function renderAdminFinanceiro({ forceRefresh = false } = {}) {
   }
 
   adminPanelScreen = "financeiro";
+  adminSelectedCarouselKey = normalizeAdminSelectedCarouselKey(adminSelectedCarouselKey);
   app.innerHTML = adminView({
     users: [],
     loading: false,
@@ -3387,7 +3569,9 @@ async function renderAdminFinanceiro({ forceRefresh = false } = {}) {
     usersLoadingMore: false,
     mode: "financeiro",
     sessionAvailability,
-    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts(),
+    carouselConfigs: getAdminCarouselConfigsForView(),
+    selectedCarouselKey: adminSelectedCarouselKey
   });
   setupGlobalMenu();
   setupLogout();
@@ -3629,7 +3813,9 @@ function rerenderAdminWithCache(notice = "") {
     usersLoadingMore: mode === "users" ? adminUsersLoadingMore : false,
     mode,
     sessionAvailability,
-    simuladoQuestionCounts: getAdminSimuladoQuestionCounts()
+    simuladoQuestionCounts: getAdminSimuladoQuestionCounts(),
+    carouselConfigs: getAdminCarouselConfigsForView(),
+    selectedCarouselKey: normalizeAdminSelectedCarouselKey(adminSelectedCarouselKey)
   });
   setupGlobalMenu();
   setupLogout();
@@ -4181,6 +4367,14 @@ function setupAdminActions() {
   const noticeInput = document.getElementById("adminGlobalNotice");
   const noticeSaveBtn = document.getElementById("adminGlobalNoticeSave");
   const sessionSaveBtn = document.getElementById("adminSessionAvailabilitySave");
+  const carouselSelect = document.getElementById("adminCarouselSelect");
+  const carouselImagesInput = document.getElementById("adminCarouselImages");
+  const carouselSlidesInput = document.getElementById("adminCarouselSlides");
+  const carouselVideoUrlInput = document.getElementById("adminCarouselVideoUrl");
+  const carouselVideoTitleInput = document.getElementById("adminCarouselVideoTitle");
+  const carouselVideoDescriptionInput = document.getElementById("adminCarouselVideoDescription");
+  const carouselSaveBtn = document.getElementById("adminCarouselSave");
+  const carouselResetBtn = document.getElementById("adminCarouselReset");
   const adminGenerateReportBtn = document.getElementById("adminGenerateReport");
   const reportPrintBtn = document.getElementById("adminReportPrint");
   const reportDownloadCsvBtn = document.getElementById("adminReportDownloadCsv");
@@ -4463,6 +4657,121 @@ function setupAdminActions() {
     } finally {
       sessionSaveBtn.disabled = false;
       sessionSaveBtn.innerText = prev;
+    }
+  });
+
+  const splitCarouselText = (value = "") =>
+    String(value || "")
+      .split(/\r?\n/g)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+  const readOptionConfig = (optionEl) => {
+    const images = String(optionEl?.getAttribute("data-images") || "")
+      .split("||")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const slides = String(optionEl?.getAttribute("data-slides") || "")
+      .split("||")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const videoUrl = String(optionEl?.getAttribute("data-video-url") || "").trim();
+    const videoTitle = String(optionEl?.getAttribute("data-video-title") || "").trim();
+    const videoDescription = String(optionEl?.getAttribute("data-video-description") || "").trim();
+    return { images, slides, videoUrl, videoTitle, videoDescription };
+  };
+
+  const syncCarouselEditorBySelection = () => {
+    if (
+      !carouselSelect ||
+      !carouselImagesInput ||
+      !carouselSlidesInput ||
+      !carouselVideoUrlInput ||
+      !carouselVideoTitleInput ||
+      !carouselVideoDescriptionInput
+    ) return;
+    const selectedOption = carouselSelect.options[carouselSelect.selectedIndex];
+    const config = readOptionConfig(selectedOption);
+    adminSelectedCarouselKey = normalizeAdminSelectedCarouselKey(carouselSelect.value);
+    carouselImagesInput.value = config.images.join("\n");
+    carouselSlidesInput.value = config.slides.join("\n");
+    carouselVideoUrlInput.value = config.videoUrl;
+    carouselVideoTitleInput.value = config.videoTitle;
+    carouselVideoDescriptionInput.value = config.videoDescription;
+  };
+
+  carouselSelect?.addEventListener("change", () => {
+    syncCarouselEditorBySelection();
+  });
+  syncCarouselEditorBySelection();
+
+  carouselResetBtn?.addEventListener("click", () => {
+    if (
+      !carouselSelect ||
+      !carouselImagesInput ||
+      !carouselSlidesInput ||
+      !carouselVideoUrlInput ||
+      !carouselVideoTitleInput ||
+      !carouselVideoDescriptionInput
+    ) return;
+    const selectedKey = normalizeAdminSelectedCarouselKey(carouselSelect.value);
+    const fallback = getDefaultCarouselConfigByKey(selectedKey);
+    carouselImagesInput.value = fallback.images.join("\n");
+    carouselSlidesInput.value = fallback.slides.join("\n");
+    carouselVideoUrlInput.value = "";
+    carouselVideoTitleInput.value = "";
+    carouselVideoDescriptionInput.value = "";
+    showToast("Conteúdo padrão carregado no editor. Clique em salvar para aplicar.", "info");
+  });
+
+  carouselSaveBtn?.addEventListener("click", async () => {
+    if (
+      !carouselSelect ||
+      !carouselImagesInput ||
+      !carouselSlidesInput ||
+      !carouselVideoUrlInput ||
+      !carouselVideoTitleInput ||
+      !carouselVideoDescriptionInput
+    ) return;
+    const selectedKey = normalizeAdminSelectedCarouselKey(carouselSelect.value);
+    const images = splitCarouselText(carouselImagesInput.value);
+    const slides = splitCarouselText(carouselSlidesInput.value);
+    const videoUrl = String(carouselVideoUrlInput.value || "").trim();
+    const videoTitle = String(carouselVideoTitleInput.value || "").trim();
+    const videoDescription = String(carouselVideoDescriptionInput.value || "").trim();
+    if (!images.length) {
+      showToast("Informe ao menos 1 imagem para o carrossel.", "error");
+      return;
+    }
+    if (!slides.length) {
+      showToast("Informe ao menos 1 slide no formato Título::Descrição.", "error");
+      return;
+    }
+
+    carouselSaveBtn.disabled = true;
+    const prevLabel = carouselSaveBtn.innerText;
+    carouselSaveBtn.innerText = "Salvando...";
+    try {
+      await setCarouselConfig(
+        selectedKey,
+        { images, slides, videoUrl, videoTitle, videoDescription },
+        currentUser?.email || ""
+      );
+      carouselConfigs = {
+        ...carouselConfigs,
+        [selectedKey]: normalizeCarouselConfig(
+          { images, slides, videoUrl, videoTitle, videoDescription },
+          selectedKey
+        )
+      };
+      adminSelectedCarouselKey = selectedKey;
+      rerenderAdminWithCache("Carrossel salvo com sucesso.");
+    } catch (error) {
+      console.error("Erro ao salvar carrossel:", error);
+      showToast("Não foi possível salvar o carrossel.", "error");
+    } finally {
+      carouselSaveBtn.disabled = false;
+      carouselSaveBtn.innerText = prevLabel;
     }
   });
 

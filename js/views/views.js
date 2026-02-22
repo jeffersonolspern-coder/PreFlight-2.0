@@ -126,12 +126,59 @@ function homePublicView({
   isAdmin = false,
   userLabel = "Conta",
   credits = null,
-  sessionAvailability = null
+  sessionAvailability = null,
+  homeCarousels = null
 } = {}) {
   const isSimuladoEnabled = (simuladoKey) => {
     const value = sessionAvailability?.[simuladoKey]?.enabled;
     return typeof value === "boolean" ? value : true;
   };
+  const homeTrainingDefaults = {
+    images: [
+      "assets/img/mode-treinamento.png",
+      "assets/img/mode-treinamento-1.png",
+      "assets/img/mode-treinamento-2.png",
+      "assets/img/mode-treinamento-3.png",
+      "assets/img/mode-treinamento-4.png"
+    ],
+    slides: [
+      "Treino completo em uma tela::Visual limpo e objetivo para você focar no que importa: interpretar o símbolo e responder com confiança.",
+      "Leitura prática de símbolos::Cada questão destaca a área certa da SIGWX e apresenta alternativas claras para acelerar seu raciocínio.",
+      "Correção imediata com clareza::Receba feedback visual na hora, veja o que acertou, onde errou e aprenda com a explicação de cada questão.",
+      "Estatísticas que mostram evolução::Ao finalizar, acompanhe desempenho, taxa de acerto e progresso de forma rápida e fácil de entender.",
+      "Navegação inteligente por questões::Revise com agilidade usando a grade colorida, com acertos em verde e erros em vermelho."
+    ]
+  };
+  const homeEvaluationDefaults = {
+    images: [
+      "assets/img/mode-avaliacao.png",
+      "assets/img/mode-avaliacao-1.png",
+      "assets/img/mode-avaliacao-2.png",
+      "assets/img/mode-avaliacao-3.png",
+      "assets/img/mode-avaliacao-4.png"
+    ],
+    slides: [
+      "Experiência real de avaliação::Visual completo da prova para você treinar foco, ritmo e tomada de decisão em ambiente de exame.",
+      "Controle de navegação inteligente::Use os botões de avançar e o modo automático para manter fluidez e ganhar tempo em cada questão.",
+      "Treino com gestão de tempo::Simule a pressão do relógio e desenvolva consistência para performar bem dentro do tempo limite.",
+      "Cartas reais do dia a dia::Questões baseadas em situações meteorológicas reais para aproximar o estudo da rotina operacional.",
+      "Gabarito claro e objetivo::No final, revise acertos e erros com clareza para corrigir pontos fracos e evoluir com direção."
+    ]
+  };
+  const normalizeCarousel = (raw, fallback) => {
+    const images = Array.isArray(raw?.images) ? raw.images.map((item) => String(item || "").trim()).filter(Boolean) : [];
+    const slides = Array.isArray(raw?.slides) ? raw.slides.map((item) => String(item || "").trim()).filter(Boolean) : [];
+    return {
+      images: images.length ? images : fallback.images,
+      slides: slides.length ? slides : fallback.slides
+    };
+  };
+  const trainingCarousel = normalizeCarousel(homeCarousels?.training, homeTrainingDefaults);
+  const evaluationCarousel = normalizeCarousel(homeCarousels?.evaluation, homeEvaluationDefaults);
+  const trainingCarouselImages = escapeHtml(trainingCarousel.images.join(", "));
+  const trainingCarouselSlides = escapeHtml(trainingCarousel.slides.join("||"));
+  const evaluationCarouselImages = escapeHtml(evaluationCarousel.images.join(", "));
+  const evaluationCarouselSlides = escapeHtml(evaluationCarousel.slides.join("||"));
   return `
     ${headerView({ logged, isAdmin, userLabel, credits: logged ? credits : null })}
 
@@ -181,7 +228,7 @@ function homePublicView({
             ` : ""}
             ${isSimuladoEnabled("notam") ? `
             <div class="card" data-action="open-module-notam">
-              <span class="status-chip status-chip--soon">Em breve</span>
+              <span class="status-chip status-chip--live">Disponível agora</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list-icon lucide-clipboard-list"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>
               <h3>NOTAM</h3>
               <p>Em desenvolvimento</p>
@@ -189,7 +236,7 @@ function homePublicView({
             ` : ""}
             ${isSimuladoEnabled("rotaer") ? `
             <div class="card" data-action="open-module-rotaer">
-              <span class="status-chip status-chip--soon">Em breve</span>
+              <span class="status-chip status-chip--live">Disponível agora</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tower-control-icon lucide-tower-control"><path d="M18.2 12.27 20 6H4l1.8 6.27a1 1 0 0 0 .95.73h10.5a1 1 0 0 0 .96-.73Z"/><path d="M8 13v9"/><path d="M16 22v-9"/><path d="m9 6 1 7"/><path d="m15 6-1 7"/><path d="M12 6V2"/><path d="M13 2h-2"/></svg></span>
               <h3>ROTAER</h3>
               <p>Em desenvolvimento</p>
@@ -213,7 +260,7 @@ function homePublicView({
             ` : ""}
             ${isSimuladoEnabled("espacos_aereos") ? `
             <div class="card" data-action="open-module-espacos-aereos">
-              <span class="status-chip status-chip--soon">Em breve</span>
+              <span class="status-chip status-chip--live">Disponível agora</span>
               <span class="card-emoji" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-radar-icon lucide-radar"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4.93 4.93A10 10 0 0 0 3.34 17.01"/><path d="M4.93 19.07A10 10 0 0 0 17.01 20.66"/><path d="M19.07 19.07A10 10 0 0 0 20.66 6.99"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg></span>
               <h3>Espaços Aéreos</h3>
               <p>Em desenvolvimento</p>
@@ -234,8 +281,8 @@ function homePublicView({
         </div>
         <div
           class="mode-carousel"
-          data-images="assets/img/mode-treinamento.png, assets/img/mode-treinamento-1.png, assets/img/mode-treinamento-2.png, assets/img/mode-treinamento-3.png, assets/img/mode-treinamento-4.png"
-          data-slides="Treino completo em uma tela::Visual limpo e objetivo para você focar no que importa: interpretar o símbolo e responder com confiança.||Leitura prática de símbolos::Cada questão destaca a área certa da SIGWX e apresenta alternativas claras para acelerar seu raciocínio.||Correção imediata com clareza::Receba feedback visual na hora, veja o que acertou, onde errou e aprenda com a explicação de cada questão.||Estatísticas que mostram evolução::Ao finalizar, acompanhe desempenho, taxa de acerto e progresso de forma rápida e fácil de entender.||Navegação inteligente por questões::Revise com agilidade usando a grade colorida, com acertos em verde e erros em vermelho."
+          data-images="${trainingCarouselImages}"
+          data-slides="${trainingCarouselSlides}"
           data-alt="Tela do simulador em modo treinamento"
         ></div>
       </div>
@@ -246,8 +293,8 @@ function homePublicView({
         </div>
         <div
           class="mode-carousel"
-          data-images="assets/img/mode-avaliacao.png, assets/img/mode-avaliacao-1.png, assets/img/mode-avaliacao-2.png, assets/img/mode-avaliacao-3.png, assets/img/mode-avaliacao-4.png"
-          data-slides="Experiência real de avaliação::Visual completo da prova para você treinar foco, ritmo e tomada de decisão em ambiente de exame.||Controle de navegação inteligente::Use os botões de avançar e o modo automático para manter fluidez e ganhar tempo em cada questão.||Treino com gestão de tempo::Simule a pressão do relógio e desenvolva consistência para performar bem dentro do tempo limite.||Cartas reais do dia a dia::Questões baseadas em situações meteorológicas reais para aproximar o estudo da rotina operacional.||Gabarito claro e objetivo::No final, revise acertos e erros com clareza para corrigir pontos fracos e evoluir com direção."
+          data-images="${evaluationCarouselImages}"
+          data-slides="${evaluationCarouselSlides}"
           data-alt="Tela do simulador em modo avaliação"
         ></div>
       </div>
@@ -546,9 +593,30 @@ function simuladoModuleView(
     primarySupportTypes.has(normalizeSupportType(item?.type))
   );
   const videoSupportItem = safeSupportItems.find((item) => normalizeSupportType(item?.type) === "aula futura");
+  const moduleVideoConfig = safeModule.video && typeof safeModule.video === "object" ? safeModule.video : {};
+  const rawVideoUrl = String(moduleVideoConfig.url || "").trim();
+  const rawVideoTitle = String(moduleVideoConfig.title || "").trim();
+  const rawVideoDescription = String(moduleVideoConfig.description || "").trim();
   const videoSupportType = escapeHtml(String(videoSupportItem?.type || "Aula futura"));
-  const videoSupportLabel = escapeHtml(String(videoSupportItem?.label || videoPlaceholderTitle));
-  const videoSupportDescription = escapeHtml(String(videoSupportItem?.description || videoPlaceholderText));
+  const videoSupportLabel = escapeHtml(String(rawVideoTitle || videoSupportItem?.label || videoPlaceholderTitle));
+  const videoSupportDescription = escapeHtml(
+    String(rawVideoDescription || videoSupportItem?.description || videoPlaceholderText)
+  );
+  const resolveVideoEmbedUrl = (url = "") => {
+    const raw = String(url || "").trim();
+    if (!raw) return "";
+    if (raw.includes("youtube.com/watch?v=")) {
+      const videoId = raw.split("watch?v=")[1]?.split("&")[0] || "";
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : raw;
+    }
+    if (raw.includes("youtu.be/")) {
+      const videoId = raw.split("youtu.be/")[1]?.split("?")[0] || "";
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : raw;
+    }
+    return raw;
+  };
+  const videoEmbedUrl = resolveVideoEmbedUrl(rawVideoUrl);
+  const videoHasContent = Boolean(videoEmbedUrl);
 
   return `
     ${headerView({ logged: true, isAdmin, userLabel, credits })}
@@ -638,10 +706,19 @@ function simuladoModuleView(
               <span class="module-support-type module-support-video-type">${videoSupportType}</span>
               <h3>${videoSupportLabel}</h3>
               <p>${videoSupportDescription}</p>
-              <div class="module-support-video-placeholder" aria-hidden="true">
-                <span>Espaço reservado para vídeo</span>
-              </div>
-              <span class="module-support-link is-placeholder">Em breve</span>
+              ${videoHasContent
+                ? `
+                  <div class="module-support-video-embed">
+                    <iframe src="${escapeHtml(videoEmbedUrl)}" title="${videoSupportLabel}" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+                  </div>
+                  <a href="${escapeHtml(rawVideoUrl)}" class="module-support-link" target="_blank" rel="noopener noreferrer">Abrir vídeo</a>
+                `
+                : `
+                  <div class="module-support-video-placeholder" aria-hidden="true">
+                    <span>Espaço reservado para vídeo</span>
+                  </div>
+                  <span class="module-support-link is-placeholder">Em breve</span>
+                `}
             </div>
           </div>
         </article>
@@ -1430,6 +1507,8 @@ function adminView({
   mode = "summary",
   sessionAvailability = null,
   simuladoQuestionCounts = {},
+  carouselConfigs = {},
+  selectedCarouselKey = "home_training",
   questionBanks = [],
   selectedQuestionBank = "",
   questionItems = [],
@@ -1471,6 +1550,28 @@ function adminView({
     { key: "sinais_luminosos", label: "Sinais luminosos" },
     { key: "espacos_aereos", label: "Espaços Aéreos" }
   ];
+  const carouselCatalog = [
+    { key: "home_training", label: "Home · Treinamento" },
+    { key: "home_evaluation", label: "Home · Avaliação" },
+    { key: "module_sigwx", label: "Módulo · SIGWX" },
+    { key: "module_metar_taf", label: "Módulo · METAR / TAF" },
+    { key: "module_nuvens", label: "Módulo · Nuvens" },
+    { key: "module_sinais_luminosos", label: "Módulo · Sinais luminosos" },
+    { key: "module_notam", label: "Módulo · NOTAM" },
+    { key: "module_rotaer", label: "Módulo · ROTAER" },
+    { key: "module_espacos_aereos", label: "Módulo · Espaços Aéreos" }
+  ];
+  const safeSelectedCarouselKey = carouselCatalog.some((item) => item.key === selectedCarouselKey)
+    ? selectedCarouselKey
+    : "home_training";
+  const selectedCarousel = carouselConfigs?.[safeSelectedCarouselKey] || { images: [], slides: [] };
+  const selectedCarouselImages = Array.isArray(selectedCarousel.images) ? selectedCarousel.images : [];
+  const selectedCarouselSlides = Array.isArray(selectedCarousel.slides) ? selectedCarousel.slides : [];
+  const selectedCarouselVideoUrl = escapeHtml(String(selectedCarousel.videoUrl || ""));
+  const selectedCarouselVideoTitle = escapeHtml(String(selectedCarousel.videoTitle || ""));
+  const selectedCarouselVideoDescription = escapeHtml(String(selectedCarousel.videoDescription || ""));
+  const selectedCarouselImagesText = escapeHtml(selectedCarouselImages.join("\n"));
+  const selectedCarouselSlidesText = escapeHtml(selectedCarouselSlides.join("\n"));
 
   const getSimuladoCount = (simuladoKey) => {
     const value = simuladoQuestionCounts?.[simuladoKey];
@@ -1755,6 +1856,51 @@ function adminView({
           <div class="admin-v2-save-row">
             <small>Após ajustar os toggles, salve para aplicar no dashboard dos alunos.</small>
             <button type="button" id="adminSessionAvailabilitySave" class="admin-v2-primary-btn">Salvar disponibilidade</button>
+          </div>
+          <div class="admin-carousel-editor">
+            <h3>Editor de carrosséis</h3>
+            <p>Edite cada carrossel de forma independente (Home e páginas de módulo).</p>
+            <div class="admin-carousel-editor-grid">
+              <label class="admin-carousel-field">
+                <span>Carrossel</span>
+                <select id="adminCarouselSelect">
+                  ${carouselCatalog.map((item) => {
+                    const config = carouselConfigs?.[item.key] || { images: [], slides: [] };
+                    const imagesData = escapeHtml((Array.isArray(config.images) ? config.images : []).join("||"));
+                    const slidesData = escapeHtml((Array.isArray(config.slides) ? config.slides : []).join("||"));
+                    const videoUrlData = escapeHtml(String(config.videoUrl || ""));
+                    const videoTitleData = escapeHtml(String(config.videoTitle || ""));
+                    const videoDescriptionData = escapeHtml(String(config.videoDescription || ""));
+                    const isSelected = item.key === safeSelectedCarouselKey ? " selected" : "";
+                    return `<option value="${item.key}" data-images="${imagesData}" data-slides="${slidesData}" data-video-url="${videoUrlData}" data-video-title="${videoTitleData}" data-video-description="${videoDescriptionData}"${isSelected}>${item.label}</option>`;
+                  }).join("")}
+                </select>
+              </label>
+              <label class="admin-carousel-field">
+                <span>Imagens (1 URL por linha)</span>
+                <textarea id="adminCarouselImages" rows="7" placeholder="assets/img/exemplo-1.png&#10;assets/img/exemplo-2.png">${selectedCarouselImagesText}</textarea>
+              </label>
+              <label class="admin-carousel-field">
+                <span>Slides (1 por linha no formato: Título::Descrição)</span>
+                <textarea id="adminCarouselSlides" rows="7" placeholder="Título do slide::Descrição do slide">${selectedCarouselSlidesText}</textarea>
+              </label>
+              <label class="admin-carousel-field admin-carousel-field--video">
+                <span>URL do vídeo (YouTube embed/url)</span>
+                <input type="text" id="adminCarouselVideoUrl" placeholder="https://www.youtube.com/watch?v=..." value="${selectedCarouselVideoUrl}" />
+              </label>
+              <label class="admin-carousel-field admin-carousel-field--video">
+                <span>Título do vídeo</span>
+                <input type="text" id="adminCarouselVideoTitle" placeholder="Aula em vídeo" value="${selectedCarouselVideoTitle}" />
+              </label>
+              <label class="admin-carousel-field admin-carousel-field--video">
+                <span>Descrição do vídeo</span>
+                <textarea id="adminCarouselVideoDescription" rows="3" placeholder="Descrição curta que aparece no card do vídeo">${selectedCarouselVideoDescription}</textarea>
+              </label>
+            </div>
+            <div class="admin-v2-inline-actions">
+              <button type="button" id="adminCarouselReset" class="admin-light-mode-btn">Restaurar padrão</button>
+              <button type="button" id="adminCarouselSave" class="admin-v2-primary-btn">Salvar carrossel</button>
+            </div>
           </div>
         ` : ""}
 

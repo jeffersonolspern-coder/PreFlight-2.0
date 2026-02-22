@@ -1697,6 +1697,21 @@ textarea:focus-visible {
   text-align: center;
 }
 
+.module-support-video-embed {
+  border: 1px solid #bfd1ea;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000000;
+  margin-bottom: 8px;
+}
+
+.module-support-video-embed iframe {
+  width: 100%;
+  min-height: 220px;
+  border: none;
+  display: block;
+}
+
 .module-support-link {
   display: inline-flex;
   color: #1f4f8f;
@@ -4406,6 +4421,68 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
   align-items: center;
 }
 
+.admin-v2 .admin-carousel-editor {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.admin-v2 .admin-carousel-editor h3 {
+  margin: 0 0 4px;
+  color: #0f2f5a;
+}
+
+.admin-v2 .admin-carousel-editor p {
+  margin: 0 0 10px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.admin-v2 .admin-carousel-editor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-v2 .admin-carousel-field {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-v2 .admin-carousel-field:first-child {
+  grid-column: 1 / -1;
+}
+
+.admin-v2 .admin-carousel-field span {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-v2 .admin-carousel-field select,
+.admin-v2 .admin-carousel-field textarea,
+.admin-v2 .admin-carousel-field input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 13px;
+}
+
+.admin-v2 .admin-carousel-field textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.admin-v2 .admin-carousel-field--video {
+  grid-column: 1 / -1;
+}
+
 .admin-v2 .admin-v2-editor-col,
 .admin-v2 .admin-v2-editor-cell {
   text-align: center;
@@ -4630,6 +4707,10 @@ body[data-simulado-mode="evaluation"] .simulado-options .option:hover {
 
   .admin-v2 .admin-user-actions-inline {
     flex-wrap: wrap;
+  }
+
+  .admin-v2 .admin-carousel-editor-grid {
+    grid-template-columns: 1fr;
   }
 
   .admin-report .report-page {

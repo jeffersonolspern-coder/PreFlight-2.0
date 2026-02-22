@@ -23,12 +23,15 @@ import { db } from "./firebase.js";
 
 const GLOBAL_NOTICE_REF = doc(db, "settings", "global_notice");
 const SESSION_AVAILABILITY_REF = doc(db, "settings", "session_availability");
+const CAROUSELS_REF = doc(db, "settings", "carousels");
 const userProfileCache = new Map();
 const userCreditsCache = new Map();
 let globalNoticeCacheLoaded = false;
 let globalNoticeCacheValue = null;
 let sessionAvailabilityCacheLoaded = false;
 let sessionAvailabilityCacheValue = null;
+let carouselConfigsCacheLoaded = false;
+let carouselConfigsCacheValue = null;
 let allCreditTransactionsCache = null;
 
 function clearUserFirestoreCaches(userId = "") {
@@ -45,6 +48,8 @@ function clearUserFirestoreCaches(userId = "") {
   globalNoticeCacheValue = null;
   sessionAvailabilityCacheLoaded = false;
   sessionAvailabilityCacheValue = null;
+  carouselConfigsCacheLoaded = false;
+  carouselConfigsCacheValue = null;
   allCreditTransactionsCache = null;
 }
 
@@ -434,6 +439,61 @@ async function setGlobalNotice(message, updatedBy = "") {
   globalNoticeCacheValue = { message: text, updatedBy: String(updatedBy || "").trim() };
 }
 
+async function getCarouselConfigs({ forceRefresh = false } = {}) {
+  if (!forceRefresh && carouselConfigsCacheLoaded) {
+    return carouselConfigsCacheValue || {};
+  }
+
+  const snap = await getDoc(CAROUSELS_REF);
+  const data = snap.exists() ? (snap.data() || {}) : {};
+  const configs = data && typeof data.configs === "object" ? data.configs : {};
+  carouselConfigsCacheLoaded = true;
+  carouselConfigsCacheValue = configs;
+  return configs;
+}
+
+async function setCarouselConfig(key, config = {}, updatedBy = "") {
+  const safeKey = String(key || "").trim();
+  if (!safeKey) {
+    throw new Error("invalid_carousel_key");
+  }
+
+  const images = Array.isArray(config?.images)
+    ? config.images.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const slides = Array.isArray(config?.slides)
+    ? config.slides.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const videoUrl = String(config?.videoUrl || "").trim();
+  const videoTitle = String(config?.videoTitle || "").trim();
+  const videoDescription = String(config?.videoDescription || "").trim();
+
+  await setDoc(
+    CAROUSELS_REF,
+    {
+      configs: {
+        [safeKey]: {
+          images,
+          slides,
+          videoUrl,
+          videoTitle,
+          videoDescription
+        }
+      },
+      updatedBy: String(updatedBy || "").trim(),
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  const nextCache = {
+    ...(carouselConfigsCacheValue || {}),
+    [safeKey]: { images, slides, videoUrl, videoTitle, videoDescription }
+  };
+  carouselConfigsCacheLoaded = true;
+  carouselConfigsCacheValue = nextCache;
+}
+
 export {
   saveUserProfile,
   getUserProfile,
@@ -447,8 +507,10 @@ export {
   getUserSessionCounts,
   getGlobalNotice,
   getSessionAvailability,
+  getCarouselConfigs,
   setGlobalNotice,
   setSessionAvailability,
+  setCarouselConfig,
   getAllCreditTransactions,
   setCachedUserCredits,
   clearUserFirestoreCaches
